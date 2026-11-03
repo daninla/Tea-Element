@@ -1,3 +1,4 @@
+import { productHref, categoryHref } from '@/lib/catalog-links';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronRight, Thermometer, Timer, Waves } from 'lucide-react';
@@ -25,7 +26,11 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
     );
   }
   const related = await catalogApi
-    .products({ category: product.category.slug, pageSize: 4 })
+    .products({
+      category: product.category.slug,
+      pageSize: 4,
+      section: product.category.section ?? 'TEA',
+    })
     .catch(() => null);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   const jsonLd = {
@@ -41,7 +46,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
       price: (v.price / 100).toFixed(2),
       priceCurrency: 'UAH',
       availability: `https://schema.org/${v.inStock ? 'InStock' : 'OutOfStock'}`,
-      url: new URL(`/product/${product.slug}?weight=${v.weightGrams}`, base).href,
+      url: new URL(productHref(product.slug, v.weightGrams), base).href,
     })),
   };
   return (
@@ -55,7 +60,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
         <ChevronRight size={12} aria-hidden="true" />
         <Link href="/catalog">{common('catalog')}</Link>
         <ChevronRight size={12} aria-hidden="true" />
-        <Link href={`/catalog/${product.category.slug}`}>{product.category.name}</Link>
+        <Link href={categoryHref(product.category)}>{product.category.name}</Link>
         <ChevronRight size={12} aria-hidden="true" />
         <span>{product.name}</span>
       </nav>
@@ -66,7 +71,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
             {product.category.name} · {product.origin}
           </p>
           <h1>{product.name}</h1>
-          <p className="detail-original">{product.nameOriginal}</p>
+          {product.nameOriginal && <p className="detail-original">{product.nameOriginal}</p>}
           <p className="detail-description">{product.description}</p>
           <PortionSelector variants={product.variants} initialWeight={weight} />
           <dl className="product-facts">
@@ -87,37 +92,39 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
           </dl>
         </div>
       </div>
-      <div className="brewing-panel">
-        <div>
-          <p className="eyebrow">{t('about')}</p>
-          <h2>{t('brewing')}</h2>
+      {product.brewingGuide && (
+        <div className="brewing-panel">
+          <div>
+            <p className="eyebrow">{t('about')}</p>
+            <h2>{t('brewing')}</h2>
+          </div>
+          <div className="brewing-stats">
+            {[
+              {
+                Icon: Thermometer,
+                label: t('temperature'),
+                value: t('degrees', { value: product.brewingGuide.temperatureCelsius }),
+              },
+              {
+                Icon: Timer,
+                label: t('seconds'),
+                value: t('time', { value: product.brewingGuide.seconds }),
+              },
+              {
+                Icon: Waves,
+                label: t('infusions'),
+                value: t('times', { value: product.brewingGuide.infusions }),
+              },
+            ].map(({ Icon, label, value }) => (
+              <div key={label}>
+                <Icon size={23} strokeWidth={1.2} aria-hidden="true" />
+                <p>{label}</p>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="brewing-stats">
-          {[
-            {
-              Icon: Thermometer,
-              label: t('temperature'),
-              value: t('degrees', { value: product.brewingGuide.temperatureCelsius }),
-            },
-            {
-              Icon: Timer,
-              label: t('seconds'),
-              value: t('time', { value: product.brewingGuide.seconds }),
-            },
-            {
-              Icon: Waves,
-              label: t('infusions'),
-              value: t('times', { value: product.brewingGuide.infusions }),
-            },
-          ].map(({ Icon, label, value }) => (
-            <div key={label}>
-              <Icon size={23} strokeWidth={1.2} aria-hidden="true" />
-              <p>{label}</p>
-              <strong>{value}</strong>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
       {related && related.items.some((p) => p.id !== product.id) && (
         <section className="section">
           <div className="section-heading">
@@ -125,7 +132,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
               <p className="eyebrow">{t('relatedEyebrow')}</p>
               <h2>{t('related')}</h2>
             </div>
-            <Link className="text-link" href={`/catalog/${product.category.slug}`}>
+            <Link className="text-link" href={categoryHref(product.category)}>
               {product.category.name}
             </Link>
           </div>

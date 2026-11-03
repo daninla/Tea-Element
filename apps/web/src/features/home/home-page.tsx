@@ -73,15 +73,17 @@ export async function HomePage() {
         <h2 style={{ marginTop: 12 }}>{t('collectionTitle')}</h2>
         <p className="section-description">{t('collectionDescription')}</p>
         <div className="category-grid">
-          {categories.map((c) => (
-            <Link key={c.id} href={`/catalog/${c.slug}`} className="category-tile">
-              <span className="category-character" aria-hidden="true">
-                {characters[c.slug] ?? '茶'}
-              </span>
-              <strong>{c.name}</strong>
-              <small>{t('categoryCount', { count: c.productsCount })}</small>
-            </Link>
-          ))}
+          {categories
+            .filter((c) => (c.section ?? 'TEA') === 'TEA')
+            .map((c) => (
+              <Link key={c.id} href={`/catalog/${c.slug}`} className="category-tile">
+                <span className="category-character" aria-hidden="true">
+                  {characters[c.slug] ?? '茶'}
+                </span>
+                <strong>{c.name}</strong>
+                <small>{t('categoryCount', { count: c.productsCount })}</small>
+              </Link>
+            ))}
         </div>
       </section>
       <section className="container section">
@@ -105,6 +107,27 @@ export async function HomePage() {
         ) : (
           <StatePanel />
         )}
+      </section>
+      <section className="container equipment-feature">
+        <div className="equipment-feature-image">
+          <Image
+            src="/images/gaiwan.png"
+            alt={t('equipmentAlt')}
+            fill
+            sizes="(max-width:640px) 100vw, 45vw"
+          />
+        </div>
+        <div>
+          <p className="eyebrow">{t('equipmentEyebrow')}</p>
+          <h2>{t('equipmentTitle')}</h2>
+          <p className="section-description">{t('equipmentDescription')}</p>
+          <Button asChild>
+            <Link href="/teaware">
+              {t('equipmentCta')}
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
       </section>
       <section className="ritual" id="ritual">
         <div className="container ritual-grid">

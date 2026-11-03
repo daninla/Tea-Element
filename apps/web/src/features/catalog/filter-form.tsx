@@ -14,8 +14,10 @@ export async function FilterForm({
 }) {
   const t = await getTranslations('catalog');
   const common = await getTranslations('common');
+  const action = query.section === 'EQUIPMENT' ? '/teaware' : '/catalog';
   return (
-    <form action="/catalog" className="filter-form">
+    <form action={action} className="filter-form">
+      {query.section === 'ALL' && <input type="hidden" name="section" value="ALL" />}
       <div className="filter-field">
         <label htmlFor={`${prefix}-search`}>{t('search')}</label>
         <Input id={`${prefix}-search`} name="q" defaultValue={query.q} maxLength={100} />
@@ -72,7 +74,9 @@ export async function FilterForm({
         <Input
           id={`${prefix}-origin`}
           name="origin"
-          placeholder={t('originPlaceholder')}
+          placeholder={t(
+            query.section === 'EQUIPMENT' ? 'equipmentOriginPlaceholder' : 'originPlaceholder',
+          )}
           defaultValue={query.origin}
           maxLength={150}
         />
@@ -104,8 +108,11 @@ export async function FilterForm({
           <option value="price_desc">{t('priceDesc')}</option>
         </select>
       </div>
-      <Button type="submit">{t('apply')}</Button>
-      <Link href="/catalog" className="filter-reset">
+      <Button type="submit">{t(query.section === 'EQUIPMENT' ? 'applyProducts' : 'apply')}</Button>
+      <Link
+        href={query.section === 'ALL' ? '/catalog?section=ALL' : action}
+        className="filter-reset"
+      >
         {common('reset')}
       </Link>
     </form>

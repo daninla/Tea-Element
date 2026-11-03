@@ -18,7 +18,8 @@ export function Search() {
   }, [value]);
   const results = useQuery({
     queryKey: ['search', debounced],
-    queryFn: ({ signal }) => catalogApi.products({ q: debounced, pageSize: 4 }, signal),
+    queryFn: ({ signal }) =>
+      catalogApi.products({ q: debounced, pageSize: 4, section: 'ALL' }, signal),
     enabled: debounced.length >= 2 && open,
   });
   return (
@@ -34,6 +35,7 @@ export function Search() {
         className="header-search"
         onSubmit={() => setOpen(false)}
       >
+        <input type="hidden" name="section" value="ALL" />
         <label className="sr-only" htmlFor={id}>
           {t('search')}
         </label>
@@ -81,7 +83,7 @@ export function Search() {
           )}
           <Link
             className="text-link"
-            href={`/catalog?q=${encodeURIComponent(value.trim())}`}
+            href={`/catalog?section=ALL&q=${encodeURIComponent(value.trim())}`}
             onClick={() => setOpen(false)}
           >
             {t('viewAll')}

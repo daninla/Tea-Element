@@ -39,3 +39,19 @@ describe('storefront catalog URLs', () => {
     );
   });
 });
+
+describe('equipment filters', () => {
+  it('keeps category and price filters on the equipment page while paginating', () => {
+    expect(catalogHref({ section: 'EQUIPMENT', category: 'accessories', maxPrice: 25000 }, 2)).toBe(
+      '/teaware?category=accessories&maxPrice=250&page=2',
+    );
+  });
+  it('preserves cross-section search', () => {
+    expect(parseCatalogQuery({ section: 'ALL', q: 'піала' }).success).toBe(true);
+    expect(catalogHref({ section: 'ALL', q: 'піала' })).toContain('section=ALL');
+  });
+  it('rejects unknown or repeated sections', () => {
+    expect(parseCatalogQuery({ section: 'unknown' }).success).toBe(false);
+    expect(parseCatalogQuery({ section: ['TEA', 'EQUIPMENT'] }).success).toBe(false);
+  });
+});

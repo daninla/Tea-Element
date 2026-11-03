@@ -1,4 +1,5 @@
 'use client';
+import { productHref } from '@/lib/catalog-links';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,7 +19,7 @@ export function ProductCard({
   const [selected, setSelected] = useState(product.variants[0]?.id);
   const variant = product.variants.find((v) => v.id === selected) ?? product.variants[0];
   if (!variant) return null;
-  const href = `/product/${product.slug}?weight=${variant.weightGrams}`;
+  const href = productHref(product.slug, variant.weightGrams);
   return (
     <article className="product-card">
       <Link className="product-image" href={href} aria-label={`${t('details')}: ${product.name}`}>
@@ -41,7 +42,7 @@ export function ProductCard({
       <h3>
         <Link href={href}>{product.name}</Link>
       </h3>
-      <p className="product-original">{product.nameOriginal}</p>
+      {product.nameOriginal && <p className="product-original">{product.nameOriginal}</p>}
       <div className="card-portions" role="group" aria-label={product.name}>
         {product.variants.map((v) => (
           <button
@@ -50,7 +51,7 @@ export function ProductCard({
             aria-pressed={v.id === variant.id}
             onClick={() => setSelected(v.id)}
           >
-            {t('grams', { weight: v.weightGrams })}
+            {v.weightGrams === null ? t('piece') : t('grams', { weight: v.weightGrams })}
           </button>
         ))}
       </div>

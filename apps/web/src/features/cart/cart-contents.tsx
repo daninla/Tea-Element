@@ -65,14 +65,21 @@ export function CartContents({
               <div>
                 <Link
                   className="cart-line-name"
-                  href={line ? `/product/${line.slug}?weight=${line.weightGrams}` : '/catalog'}
+                  href={
+                    line
+                      ? `/product/${line.slug}${line.weightGrams === null ? '' : `?weight=${line.weightGrams}`}`
+                      : '/catalog'
+                  }
                   onClick={onNavigate}
                 >
                   {line?.name ?? t('removedProduct')}
                 </Link>
                 {line && (
                   <p>
-                    {t('portion', { weight: line.weightGrams })} · {formatMoney(line.unitPrice)}
+                    {line.weightGrams === null
+                      ? t('piece')
+                      : t('portion', { weight: line.weightGrams })}{' '}
+                    · {formatMoney(line.unitPrice)}
                   </p>
                 )}
                 {(!line || !line.inStock) && <p className="field-error">{t('stockError')}</p>}

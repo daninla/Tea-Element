@@ -78,7 +78,10 @@ export function OrderPage({ number }: { number: string }) {
                 <span>
                   {x.name}
                   <small>
-                    {cartT('portion', { weight: x.weightGrams })} × {x.quantity}
+                    {x.weightGrams === null
+                      ? cartT('piece')
+                      : cartT('portion', { weight: x.weightGrams })}{' '}
+                    × {x.quantity}
                   </small>
                 </span>
                 <strong>{formatMoney(x.unitPrice * x.quantity)}</strong>

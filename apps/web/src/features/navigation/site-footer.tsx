@@ -21,6 +21,7 @@ export async function SiteFooter() {
             {common('catalog')}
             <ArrowUpRight size={15} aria-hidden="true" />
           </Link>
+          <Link href="/teaware">{common('equipment')}</Link>
           <Link href="/#ritual">
             {t('brewing')}
             <ArrowUpRight size={15} aria-hidden="true" />

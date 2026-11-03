@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CATALOG_SORTS, type CatalogQuery } from '@tea/contracts';
+import { CATALOG_SORTS, CATALOG_SECTIONS, type CatalogQuery } from '@tea/contracts';
 const optionalText = (max: number) =>
   z.preprocess(
     (value) => (value === '' ? undefined : value),
@@ -32,6 +32,7 @@ const amount = z.preprocess(
 );
 const schema = z
   .object({
+    section: z.enum(CATALOG_SECTIONS).optional(),
     category: optionalText(160).pipe(
       z
         .string()
@@ -63,12 +64,19 @@ export function catalogHref(query: CatalogQuery, page = query.page ?? 1) {
     if (
       value === undefined ||
       value === '' ||
-      key === 'category' ||
+      (key === 'category' && query.section !== 'EQUIPMENT') ||
+      (key === 'section' && value !== 'ALL') ||
       (key === 'page' && value === 1)
     )
       continue;
     params.set(key, String(key === 'minPrice' || key === 'maxPrice' ? Number(value) / 100 : value));
   }
   const search = params.toString();
-  return `${query.category ? `/catalog/${encodeURIComponent(query.category)}` : '/catalog'}${search ? `?${search}` : ''}`;
+  const base =
+    query.section === 'EQUIPMENT'
+      ? '/teaware'
+      : query.category
+        ? `/catalog/${encodeURIComponent(query.category)}`
+        : '/catalog';
+  return `${base}${search ? `?${search}` : ''}`;
 }

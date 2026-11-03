@@ -30,11 +30,17 @@ export async function SiteHeader() {
         </div>
         <nav className="category-nav container" aria-label={t('tea')}>
           <Link href="/catalog">{common('allTea')}</Link>
-          {categories.map((c) => (
-            <Link key={c.id} href={`/catalog/${c.slug}`}>
-              {c.name}
-            </Link>
-          ))}
+          <Link href="/teaware" className="equipment-nav-link">
+            {common('equipment')}
+          </Link>
+          {categories
+            .filter((c) => (c.section ?? 'TEA') === 'TEA')
+            .map((c) => (
+              <Link key={c.id} href={`/catalog/${c.slug}`}>
+                {c.name}
+              </Link>
+            ))}
+
           <Link href="/#ritual" className="ritual-link">
             {t('ritual')}
           </Link>

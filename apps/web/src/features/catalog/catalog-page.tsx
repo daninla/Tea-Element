@@ -1,3 +1,4 @@
+import type { CatalogSection } from '@tea/contracts';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react';
@@ -10,7 +11,15 @@ import { FilterDrawer } from './filter-drawer';
 import { ProductCard } from './product-card';
 import { StatePanel } from './state-panel';
 import { catalogHref, parseCatalogQuery, type RawCatalogQuery } from './catalog-query';
-export async function CatalogPage({ raw, category }: { raw: RawCatalogQuery; category?: string }) {
+export async function CatalogPage({
+  raw,
+  category,
+  section,
+}: {
+  raw: RawCatalogQuery;
+  category?: string;
+  section?: Exclude<CatalogSection, 'ALL'>;
+}) {
   const t = await getTranslations('catalog');
   const common = await getTranslations('common');
   const parsed = parseCatalogQuery(raw, category);
@@ -30,6 +39,13 @@ export async function CatalogPage({ raw, category }: { raw: RawCatalogQuery; cat
     );
   const current = categories.find((c) => c.slug === query.category);
   if (query.category && !current) notFound();
+  query.section = section ?? query.section ?? current?.section ?? 'TEA';
+  if (current && query.section !== 'ALL' && (current.section ?? 'TEA') !== query.section)
+    notFound();
+  const equipment = query.section === 'EQUIPMENT';
+  const scopedCategories = categories.filter(
+    (c) => query.section === 'ALL' || (c.section ?? 'TEA') === query.section,
+  );
   const result = await catalogApi.products(query).catch(() => null);
   return (
     <section className="container catalog-section">
@@ -45,24 +61,44 @@ export async function CatalogPage({ raw, category }: { raw: RawCatalogQuery; cat
         )}
       </nav>
       <div className="catalog-heading">
-        <p className="eyebrow">{t('eyebrow')}</p>
-        <h1>{current?.name ?? t('title')}</h1>
-        <p className="section-description">{current?.description ?? t('description')}</p>
+        <p className="eyebrow">
+          {t(equipment ? 'equipmentEyebrow' : query.section === 'ALL' ? 'allEyebrow' : 'eyebrow')}
+        </p>
+        <h1>
+          {current?.name ??
+            t(equipment ? 'equipmentTitle' : query.section === 'ALL' ? 'allTitle' : 'title')}
+        </h1>
+        <p className="section-description">
+          {current?.description ??
+            t(
+              equipment
+                ? 'equipmentDescription'
+                : query.section === 'ALL'
+                  ? 'allDescription'
+                  : 'description',
+            )}
+        </p>
       </div>
       <div className="catalog-layout">
         <aside className="filter-sidebar">
-          <h2>{t('filterTitle')}</h2>
-          <FilterForm categories={categories} query={query} prefix="desktop" />
+          <h2>{t(equipment ? 'equipmentFilterTitle' : 'filterTitle')}</h2>
+          <FilterForm categories={scopedCategories} query={query} prefix="desktop" />
         </aside>
         <div className="catalog-content">
           <div className="catalog-toolbar">
             <div>
-              <p>{result ? t('resultCount', { count: result.total }) : common('loading')}</p>
+              <p>
+                {result
+                  ? t(query.section === 'TEA' ? 'resultCount' : 'productCount', {
+                      count: result.total,
+                    })
+                  : common('loading')}
+              </p>
               {query.q && <p className="search-summary">{t('searchFor', { query: query.q })}</p>}
             </div>
             <div className="mobile-filter-trigger">
-              <FilterDrawer>
-                <FilterForm categories={categories} query={query} prefix="mobile" />
+              <FilterDrawer equipment={equipment}>
+                <FilterForm categories={scopedCategories} query={query} prefix="mobile" />
               </FilterDrawer>
             </div>
             <span className="catalog-sort-label">

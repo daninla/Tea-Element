@@ -25,15 +25,16 @@ export function PortionSelector({
   const common = useTranslations('common');
   const variant = selectedVariant(variants, params.get('weight') ?? initialWeight);
   if (!variant) return null;
-  function select(weight: number) {
+  function select(weight: number | null) {
     setAdded(false);
     const url = new URL(window.location.href);
-    url.searchParams.set('weight', String(weight));
+    if (weight === null) url.searchParams.delete('weight');
+    else url.searchParams.set('weight', String(weight));
     window.history.replaceState(null, '', url);
   }
   return (
     <div className="portion-selector">
-      <h2>{t('choose')}</h2>
+      <h2>{t(variant.weightGrams === null ? 'pieceChoose' : 'choose')}</h2>
       <div className="portion-options" role="group" aria-label={t('portionLabel')}>
         {variants.map((v) => (
           <button
@@ -42,9 +43,13 @@ export function PortionSelector({
             aria-pressed={v.id === variant.id}
             className={!v.inStock ? 'portion-unavailable' : ''}
             onClick={() => select(v.weightGrams)}
-            aria-label={`${t('portionPrice', { weight: v.weightGrams, price: formatMoney(v.price) })}${v.inStock ? '' : ` · ${common('outOfStock')}`}`}
+            aria-label={`${v.weightGrams === null ? `${common('piece')} — ${formatMoney(v.price)}` : t('portionPrice', { weight: v.weightGrams, price: formatMoney(v.price) })}${v.inStock ? '' : ` · ${common('outOfStock')}`}`}
           >
-            <span>{common('grams', { weight: v.weightGrams })}</span>
+            <span>
+              {v.weightGrams === null
+                ? common('piece')
+                : common('grams', { weight: v.weightGrams })}
+            </span>
             <small>{formatMoney(v.price)}</small>
           </button>
         ))}

@@ -170,10 +170,23 @@ export class PrismaOrderStore extends OrderStore {
     const row = await this.db.cart.findUnique({ where: { userId } });
     return (row?.items ?? []) as unknown as CartItemInput[];
   }
-  async saveCart(userId: string, items: CartItemInput[], merge: boolean) {
+  async saveCart(userId: string, items: CartItemInput[], merge: boolean, mergeKey?: string) {
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`cart:${userId}`},0))`;
       const current = await tx.cart.findUnique({ where: { userId } });
+      if (merge) {
+        if (!mergeKey) throw new OrderError('INVALID_INPUT', 'Merge key is required', 400);
+        const fingerprint = digest(JSON.stringify(items));
+        const previous = await tx.cartMerge.findUnique({
+          where: { userId_key: { userId, key: mergeKey } },
+        });
+        if (previous) {
+          if (previous.fingerprint !== fingerprint)
+            throw new OrderError('IDEMPOTENCY_CONFLICT', 'Merge key already used', 409);
+          return (current?.items ?? []) as unknown as CartItemInput[];
+        }
+        await tx.cartMerge.create({ data: { userId, key: mergeKey, fingerprint } });
+      }
       const next = merge
         ? mergeCartItems((current?.items ?? []) as unknown as CartItemInput[], items)
         : items;

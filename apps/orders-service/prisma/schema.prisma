@@ -89,3 +89,14 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+model CartMerge {
+ id String @id @default(uuid()) @db.Uuid
+ userId String @map("user_id") @db.Uuid
+ key String @db.Uuid
+ fingerprint String @db.Char(64)
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@unique([userId, key])
+ @@map("cart_merges")
+}

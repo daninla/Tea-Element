@@ -82,8 +82,10 @@ export class OrdersRpcController {
     );
   }
   @MessagePattern(ORDERS_PATTERNS.mergeCart) merge(@Payload() raw: unknown) {
-    return handle(raw, z.object({ items: cartItems }).strict(), (x, c) =>
-      this.mergeCart.execute(user(c.userId), x.items),
+    return handle(
+      raw,
+      z.object({ items: cartItems, mergeKey: z.string().uuid() }).strict(),
+      (x, c) => this.mergeCart.execute(user(c.userId), x.items, x.mergeKey),
     );
   }
 }

@@ -110,9 +110,13 @@ export class CartController {
   }
   @HttpCode(200)
   @Post('merge')
-  merge(@Body() input: CartDto, @Req() req: AuthenticatedRequest) {
+  merge(
+    @Body() input: CartDto,
+    @Headers('idempotency-key') mergeKey: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.orders.execute<CartItemInput[]>(ORDERS_PATTERNS.mergeCart, {
-      input,
+      input: { ...input, mergeKey },
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });
   }

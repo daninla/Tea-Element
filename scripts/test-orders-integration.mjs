@@ -210,6 +210,10 @@ try {
   });
   const privateOrder = await http(`/orders/${created.order.number}?token=${created.accessToken}`);
   assert.equal(privateOrder.status, 'CONFIRMED');
+  await http(`/orders/${created.order.number}?token=${created.accessToken}`, {
+    cookie: 'tea_access=expired',
+  });
+  await http('/cart', { cookie: 'tea_access=expired', status: 401 });
   assert.equal(privateOrder.items[0].unitPrice, 9900);
   const owner = randomUUID();
   const other = randomUUID();
@@ -231,12 +235,21 @@ try {
   await http(`/orders/${owned.order.number}`, { cookie: await cookie(other), status: 404 });
   await http('/cart', { status: 401 });
   await http('/cart', { method: 'PUT', body: { items: body.items }, cookie: await cookie(owner) });
+  const mergeKey = randomUUID();
   const merged = await http('/cart/merge', {
     method: 'POST',
+    key: mergeKey,
     body: { items: body.items },
     cookie: await cookie(owner),
   });
   assert.equal(merged[0].quantity, 2);
+  const repeatedMerge = await http('/cart/merge', {
+    method: 'POST',
+    key: mergeKey,
+    body: { items: body.items },
+    cookie: await cookie(owner),
+  });
+  assert.equal(repeatedMerge[0].quantity, 2);
   assert.deepEqual(await http('/cart', { cookie: await cookie(other) }), []);
   // Duplicate event IDs and different IDs for the same order cannot reserve twice.
   const creation = (

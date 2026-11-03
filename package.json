@@ -21,7 +21,7 @@
     "prepare": "husky",
     "db:migrate": "pnpm --filter @tea/auth-service db:migrate && pnpm --filter @tea/catalog-service db:migrate && pnpm --filter @tea/orders-service db:migrate",
     "seed:admin": "pnpm --filter @tea/auth-service seed:admin",
-    "test:integration": "node scripts/test-auth-integration.mjs && node scripts/test-catalog-integration.mjs",
+    "test:integration": "node scripts/test-auth-integration.mjs && node scripts/test-catalog-integration.mjs && node scripts/test-orders-integration.mjs",
     "setup:dev": "node scripts/setup-auth-env.mjs",
     "db:seed": "pnpm seed:admin && pnpm --filter @tea/catalog-service db:seed",
     "test:catalog:integration": "node scripts/test-catalog-integration.mjs",

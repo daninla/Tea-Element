@@ -26,3 +26,8 @@ acceptance may resend the same stable Message-ID. Tokens and contact data never 
 Add Zustand for persisted guest cart IDs/quantities, React Hook Form and its Zod resolver for checkout,
 and Nodemailer for transactional SMTP. JSON item snapshots are bounded to 50 lines and simplify immutable
 order reads; normalized order-item reporting tables can be introduced when administration needs them.
+
+Server cart merges have a per-user UUID idempotency key and a request fingerprint, committed with the
+cart update. A lost response cannot add the same guest quantities twice. The browser keeps the original
+merge snapshot until success and reconciles edits made while the request was in flight. Order history
+is an append-only sequence of states; administrative actor tracking arrives with admin transitions.

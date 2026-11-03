@@ -10,7 +10,7 @@ services:
       [
         'sh',
         '-c',
-        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm --filter @tea/catalog-service db:generate && pnpm --filter @tea/auth-service db:migrate && DATABASE_URL=postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db pnpm --filter @tea/catalog-service db:migrate',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm --filter @tea/catalog-service db:generate && pnpm --filter @tea/auth-service db:migrate && DATABASE_URL=postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db pnpm --filter @tea/catalog-service db:migrate && DATABASE_URL=postgresql://orders:tea_dev_orders@postgres:5432/orders_db pnpm --filter @tea/orders-service db:migrate',
       ]
 
     environment:
@@ -147,6 +147,8 @@ services:
       CORS_ORIGIN: http://localhost:3000
       DATABASE_URL: postgresql://orders:tea_dev_orders@postgres:5432/orders_db
       RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      SMTP_URL: smtp://mailpit:1025
+      WEB_URL: http://localhost:3000
       REDIS_URL: redis://redis:6379
     depends_on:
       workspace:

@@ -40,6 +40,7 @@ export abstract class OrderStore {
     userId: string,
     items: CartItemInput[],
     merge: boolean,
+    mergeKey?: string,
   ): Promise<CartItemInput[]>;
   abstract handle(event: StockReserved | StockReservationFailed): Promise<void>;
   abstract expire(): Promise<void>;

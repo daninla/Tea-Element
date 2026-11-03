@@ -43,12 +43,17 @@ robots remain noindex until deployment and real store content are ready.
 
 ## Verification
 
-`pnpm --filter @tea/web test` runs 62 tests for URL validation/pagination, portion selection,
+`pnpm --filter @tea/web test` runs 70 tests for URL validation/pagination, portion selection,
 structured-data escaping, SSR-safe money formatting, persisted carts, checkout validation and replay
 metadata recovery. Root lint, typecheck, test, build and format
 checks also cover this application. Browser checks at 375px/1280px cover filters, search suggestions,
 pagination, gallery, unavailable portions, cart persistence/quantities, checkout validation, delivery and
 pickup order creation, confirmation and cancellation; no horizontal document overflow was found.
+
+Navigation regressions also cover search → product → all tea → apply filters, immediate hiding of
+old suggestions, URL query restoration and resetting unapplied filter edits. Browser checks repeat
+the reported sequence on desktop/mobile, ascending prices across both pages, descending prices and
+returning to the first page when changing sort.
 
 ## Equipment section
 

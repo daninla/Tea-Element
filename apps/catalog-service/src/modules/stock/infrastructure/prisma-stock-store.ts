@@ -1,9 +1,11 @@
+import { variantStock, availableStock } from '../../catalog/domain/inventory-unit';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   CartItemInput,
   CartQuote,
   OrderCreated,
+  OrderCreatedV2,
   OrderCancelled,
   CheckoutEvent,
 } from '@tea/contracts';
@@ -40,7 +42,11 @@ export class PrismaStockStore extends StockStore {
         for (const item of items) {
           const v = variants.find((v) => v.id === item.variantId);
           if (v)
-            grams.set(v.productId, (grams.get(v.productId) ?? 0) + v.weightGrams * item.quantity);
+            grams.set(
+              v.productId,
+              (grams.get(v.productId) ?? 0) +
+                variantStock(v.weightGrams, v.product.category.section).amount * item.quantity,
+            );
         }
         const quoted = items.flatMap((item) => {
           const v = variants.find((v) => v.id === item.variantId);
@@ -59,7 +65,7 @@ export class PrismaStockStore extends StockStore {
               unitPrice: effectivePrice(v.price, promos, now),
               originalPrice: v.price,
               inStock:
-                (p.inventory?.stockGrams ?? 0) - (p.inventory?.reservedGrams ?? 0) >=
+                availableStock(p.inventory, variantStock(v.weightGrams, p.category.section).unit) >=
                 (grams.get(p.id) ?? 0),
             },
           ];
@@ -81,7 +87,7 @@ export class PrismaStockStore extends StockStore {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
-  async apply(event: OrderCreated | OrderCancelled) {
+  async apply(event: OrderCreated | OrderCreatedV2 | OrderCancelled) {
     await this.db.$transaction(
       async (tx) => {
         const orderId = event.payload.orderId;
@@ -92,11 +98,16 @@ export class PrismaStockStore extends StockStore {
           if (existing?.status === 'RESERVED') {
             for (const item of existing.items as unknown as {
               productId: string;
-              grams: number;
+              grams?: number;
+              unit?: 'GRAM' | 'PIECE';
+              amount?: number;
             }[]) {
               await tx.inventory.update({
                 where: { productId: item.productId },
-                data: { reservedGrams: { decrement: item.grams } },
+                data:
+                  item.unit === 'PIECE'
+                    ? { reservedPieces: { decrement: item.amount ?? 0 } }
+                    : { reservedGrams: { decrement: item.amount ?? item.grams ?? 0 } },
               });
             }
           }
@@ -106,39 +117,71 @@ export class PrismaStockStore extends StockStore {
             update: { status: 'RELEASED' },
           });
         } else if (!existing) {
-          const totals = new Map<string, number>();
+          const totals = new Map<string, { unit: 'GRAM' | 'PIECE'; amount: number }>();
           let valid = true;
-          for (const line of event.payload.items) {
+          const lines =
+            event.version === 1
+              ? event.payload.items.map((line) => ({
+                  productId: line.productId,
+                  variantId: line.variantId,
+                  quantity: line.quantity,
+                  stockUnit: 'GRAM' as const,
+                  stockQuantity: line.weightGrams,
+                }))
+              : event.payload.items;
+          for (const line of lines) {
             const variant = await tx.productVariant.findFirst({
               where: {
                 id: line.variantId,
                 productId: line.productId,
-                weightGrams: line.weightGrams,
+
                 isActive: true,
                 product: { isActive: true, category: { isActive: true } },
               },
+              include: { product: { include: { category: true } } },
             });
             if (!variant) valid = false;
-            totals.set(
-              line.productId,
-              (totals.get(line.productId) ?? 0) + line.weightGrams * line.quantity,
-            );
+            else {
+              const expected = variantStock(variant.weightGrams, variant.product.category.section);
+              if (expected.unit !== line.stockUnit || expected.amount !== line.stockQuantity)
+                valid = false;
+            }
+            const previous = totals.get(line.productId);
+            if (previous && previous.unit !== line.stockUnit) valid = false;
+            totals.set(line.productId, {
+              unit: line.stockUnit,
+              amount: (previous?.amount ?? 0) + line.stockQuantity * line.quantity,
+            });
           }
           const reserved = [...totals.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([productId, grams]) => ({ productId, grams }));
+            .map(([productId, stock]) => ({ productId, ...stock }));
           for (const item of reserved) {
             const rows = await tx.$queryRaw<
-              { stock_grams: number; reserved_grams: number }[]
-            >`SELECT stock_grams,reserved_grams FROM inventory WHERE product_id=${item.productId}::uuid FOR UPDATE`;
-            if (!rows[0] || rows[0].stock_grams - rows[0].reserved_grams < item.grams)
+              {
+                stock_grams: number;
+                reserved_grams: number;
+                stock_pieces: number;
+                reserved_pieces: number;
+              }[]
+            >`SELECT stock_grams,reserved_grams,stock_pieces,reserved_pieces FROM inventory WHERE product_id=${item.productId}::uuid FOR UPDATE`;
+            const row = rows[0];
+            if (
+              !row ||
+              (item.unit === 'PIECE'
+                ? row.stock_pieces - row.reserved_pieces
+                : row.stock_grams - row.reserved_grams) < item.amount
+            )
               valid = false;
           }
           if (valid)
             for (const item of reserved)
               await tx.inventory.update({
                 where: { productId: item.productId },
-                data: { reservedGrams: { increment: item.grams } },
+                data:
+                  item.unit === 'PIECE'
+                    ? { reservedPieces: { increment: item.amount } }
+                    : { reservedGrams: { increment: item.amount } },
               });
           await tx.stockReservation.create({
             data: { orderId, status: valid ? 'RESERVED' : 'FAILED', items: reserved },

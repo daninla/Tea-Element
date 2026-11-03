@@ -21,13 +21,18 @@ export interface CatalogProduct {
   description: string;
   origin: string;
   year: number | null;
-  brewingGuide: BrewingGuide;
+  brewingGuide: BrewingGuide | null;
   images: string[];
   tags: string[];
   createdAt: Date;
   category: Omit<CategoryView, 'productsCount'>;
-  variants: { id: string; sku: string; weightGrams: number; price: number }[];
-  inventory: { stockGrams: number; reservedGrams: number } | null;
+  variants: { id: string; sku: string; weightGrams: number | null; price: number }[];
+  inventory: {
+    stockGrams: number;
+    reservedGrams: number;
+    stockPieces?: number;
+    reservedPieces?: number;
+  } | null;
   promotions: Promotion[];
 }
 export abstract class CatalogRepository {

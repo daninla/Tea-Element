@@ -1,6 +1,11 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { connect, type ChannelModel, type ConfirmChannel, type ConsumeMessage } from 'amqplib';
-import { CHECKOUT_ROUTES, CHECKOUT_SUBSCRIPTIONS, type CheckoutEvent } from '@tea/contracts';
+import {
+  checkoutRoutingKey,
+  CHECKOUT_ROUTES,
+  CHECKOUT_SUBSCRIPTIONS,
+  type CheckoutEvent,
+} from '@tea/contracts';
 import { readEnvironment } from '../../config/environment';
 @Injectable()
 export class RabbitEventBus implements OnModuleDestroy {
@@ -137,7 +142,7 @@ export class RabbitEventBus implements OnModuleDestroy {
       const timer = setTimeout(() => reject(new Error('Broker confirmation timed out')), 3000);
       channel.publish(
         this.exchange,
-        CHECKOUT_ROUTES[event.name],
+        checkoutRoutingKey(event),
         Buffer.from(JSON.stringify(event)),
         {
           persistent: true,

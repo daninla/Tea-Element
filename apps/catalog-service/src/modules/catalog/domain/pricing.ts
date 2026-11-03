@@ -1,3 +1,4 @@
+import { variantStock, availableStock } from './inventory-unit';
 import type { ProductView } from '@tea/contracts';
 import type { CatalogProduct, Promotion } from './catalog-repository';
 export function effectivePrice(price: number, promotions: Promotion[], now: Date): number {
@@ -18,10 +19,6 @@ export function effectivePrice(price: number, promotions: Promotion[], now: Date
   }, price);
 }
 export function productView(product: CatalogProduct, now: Date): ProductView {
-  const available = Math.max(
-    0,
-    (product.inventory?.stockGrams ?? 0) - (product.inventory?.reservedGrams ?? 0),
-  );
   const variants = product.variants.map((v) => {
     const price = effectivePrice(v.price, product.promotions, now);
     return {
@@ -31,7 +28,11 @@ export function productView(product: CatalogProduct, now: Date): ProductView {
       originalPrice: v.price,
       price,
       onSale: price < v.price,
-      inStock: available >= v.weightGrams,
+      inStock:
+        availableStock(
+          product.inventory,
+          variantStock(v.weightGrams, product.category.section).unit,
+        ) >= variantStock(v.weightGrams, product.category.section).amount,
     };
   });
   return {

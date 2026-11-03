@@ -1,3 +1,5 @@
+export const CATALOG_SECTIONS = ['TEA', 'EQUIPMENT', 'ALL'] as const;
+export type CatalogSection = (typeof CATALOG_SECTIONS)[number];
 export const CATALOG_PATTERNS = {
   quote: 'catalog.quote',
   categories: 'catalog.categories',
@@ -7,6 +9,7 @@ export const CATALOG_PATTERNS = {
 export const CATALOG_SORTS = ['popular', 'price_asc', 'price_desc', 'newest'] as const;
 export type CatalogSort = (typeof CATALOG_SORTS)[number];
 export interface CatalogQuery {
+  section?: CatalogSection;
   category?: string;
   q?: string;
   origin?: string;
@@ -19,6 +22,7 @@ export interface CatalogQuery {
   pageSize?: number;
 }
 export interface CategoryView {
+  section?: Exclude<CatalogSection, 'ALL'>;
   id: string;
   slug: string;
   name: string;
@@ -29,7 +33,7 @@ export interface CategoryView {
 export interface VariantView {
   id: string;
   sku: string;
-  weightGrams: number;
+  weightGrams: number | null;
   originalPrice: number;
   price: number;
   onSale: boolean;
@@ -48,7 +52,7 @@ export interface ProductView {
   description: string;
   origin: string;
   year: number | null;
-  brewingGuide: BrewingGuide;
+  brewingGuide: BrewingGuide | null;
   images: string[];
   tags: string[];
   category: Omit<CategoryView, 'productsCount'>;

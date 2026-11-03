@@ -25,7 +25,7 @@ export interface QuotedItem extends CartItemInput {
   productId: string;
   slug: string;
   name: string;
-  weightGrams: number;
+  weightGrams: number | null;
   unitPrice: number;
   originalPrice: number;
   inStock: boolean;
@@ -89,6 +89,22 @@ export interface StockLine {
   quantity: number;
 }
 export type OrderCreated = DomainEvent<'OrderCreated', { orderId: string; items: StockLine[] }>;
+export interface StockLineV2 {
+  productId: string;
+  variantId: string;
+  stockUnit: 'GRAM' | 'PIECE';
+  stockQuantity: number;
+  quantity: number;
+}
+export type OrderCreatedV2 = Omit<
+  DomainEvent<'OrderCreated', { orderId: string; items: StockLineV2[] }>,
+  'version'
+> & { version: 2 };
+export function checkoutRoutingKey(event: CheckoutEvent) {
+  return event.name === 'OrderCreated' && event.version === 2
+    ? CHECKOUT_ROUTES.OrderCreatedV2
+    : CHECKOUT_ROUTES[event.name];
+}
 export type OrderCancelled = DomainEvent<
   'OrderCancelled',
   { orderId: string; reason: 'CUSTOMER' | 'RESERVATION_TIMEOUT' }
@@ -97,9 +113,15 @@ export type StockReserved = DomainEvent<'StockReserved', { orderId: string }>;
 export type StockReservationFailed = DomainEvent<'StockReservationFailed', { orderId: string }>;
 export type OrderConfirmed = DomainEvent<'OrderConfirmed', { orderId: string }>;
 export type CheckoutEvent =
-  OrderCreated | OrderCancelled | StockReserved | StockReservationFailed | OrderConfirmed;
+  | OrderCreated
+  | OrderCreatedV2
+  | OrderCancelled
+  | StockReserved
+  | StockReservationFailed
+  | OrderConfirmed;
 export const CHECKOUT_ROUTES = {
   OrderCreated: 'orders.order_created',
+  OrderCreatedV2: 'orders.order_created.v2',
   OrderCancelled: 'orders.order_cancelled',
   StockReserved: 'catalog.stock_reserved',
   StockReservationFailed: 'catalog.stock_reservation_failed',
@@ -107,6 +129,7 @@ export const CHECKOUT_ROUTES = {
 } as const;
 export const CHECKOUT_SUBSCRIPTIONS = [
   ['catalog.order_created', 'OrderCreated'],
+  ['catalog.order_created_v2', 'OrderCreatedV2'],
   ['catalog.order_cancelled', 'OrderCancelled'],
   ['orders.stock_reserved', 'StockReserved'],
   ['orders.stock_reservation_failed', 'StockReservationFailed'],

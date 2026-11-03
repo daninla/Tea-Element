@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { config } from 'dotenv';
-import { PrismaClient } from '../generated/prisma';
+import { Prisma, PrismaClient } from '../generated/prisma';
 config();
 const db = new PrismaClient();
 function id(key: string) {
@@ -175,6 +175,48 @@ const teas = [
     description: 'Легкий квітковий настій для спокійного чаювання.',
   },
 ] as const;
+const equipment = [
+  {
+    slug: 'porcelain-gaiwan',
+    name: 'Гайвань порцелянова · 110 мл',
+    category: 'teaware',
+    price: 89000,
+    stock: 12,
+    image: 'gaiwan',
+    description:
+      'Лаконічна порцелянова гайвань із кришкою та блюдцем для коротких проливів. Об’єм 110 мл. Після чаювання промийте теплою водою та висушіть.',
+  },
+  {
+    slug: 'porcelain-tea-cup',
+    name: 'Піала порцелянова · 60 мл',
+    category: 'teaware',
+    price: 22000,
+    stock: 30,
+    image: 'tea-cup',
+    description:
+      'Невелика порцелянова піала для неквапливого чаювання. Об’єм 60 мл. Теплий світлий відтінок пасує до гайвані та дерев’яної чайної дошки.',
+  },
+  {
+    slug: 'tea-strainer',
+    name: 'Ситечко для чаю з підставкою',
+    category: 'accessories',
+    price: 24000,
+    stock: 20,
+    image: 'tea-strainer',
+    description:
+      'Дрібна сітка з нержавної сталі затримує чайне листя під час переливання настою. Підставка допомагає зберегти місце для чаювання охайним.',
+  },
+  {
+    slug: 'bamboo-tea-tongs',
+    name: 'Чайні щипці з бамбука',
+    category: 'accessories',
+    price: 18000,
+    stock: 1,
+    image: 'tea-tongs',
+    description:
+      'Легкі бамбукові щипці для чайного посуду. Використовуйте обережно, після миття просушуйте й не залишайте надовго у воді.',
+  },
+] as const;
 async function main() {
   await db.$transaction(
     async (tx) => {
@@ -232,6 +274,64 @@ async function main() {
           },
         });
       }
+      for (const [offset, [slug, name, description]] of [
+        ['teaware', 'Посуд', 'Гайвані та піали для вашого щоденного чаювання.'],
+        ['accessories', 'Аксесуари', 'Практичні дрібниці, що доповнюють чайний ритуал.'],
+      ].entries()) {
+        await tx.category.upsert({
+          where: { slug: slug! },
+          update: {},
+          create: {
+            id: id(slug!),
+            slug: slug!,
+            name: name!,
+            description: description!,
+            sortOrder: 7 + offset,
+            section: 'EQUIPMENT',
+          },
+        });
+      }
+      for (const item of equipment) {
+        const category = await tx.category.findUniqueOrThrow({ where: { slug: item.category } });
+        const product = await tx.product.upsert({
+          where: { slug: item.slug },
+          update: {},
+          create: {
+            id: id(item.slug),
+            slug: item.slug,
+            name: item.name,
+            nameOriginal: '',
+            description: item.description,
+            origin: 'Китай',
+            categoryId: category.id,
+            images: [`/images/${item.image}.png`],
+            tags: [item.category],
+            brewingGuide: Prisma.DbNull,
+          },
+        });
+        await tx.productVariant.upsert({
+          where: { sku: item.slug },
+          update: {},
+          create: {
+            id: id(`${item.slug}-piece`),
+            productId: product.id,
+            sku: item.slug,
+            weightGrams: null,
+            price: item.price,
+          },
+        });
+        await tx.inventory.upsert({
+          where: { productId: product.id },
+          update: {},
+          create: {
+            productId: product.id,
+            stockPieces: item.stock,
+            reservedPieces: 0,
+            stockGrams: 0,
+            reservedGrams: 0,
+          },
+        });
+      }
       for (const promo of [
         {
           key: 'demo-oolong-percent',
@@ -283,7 +383,7 @@ async function main() {
     { timeout: 20000 },
   );
   console.log(
-    'Demo catalog ready: 7 categories, 12 teas, 36 portions and 2 promotions. Existing rows were preserved.',
+    'Demo catalog ready: 9 categories, 12 teas, 4 equipment products, 40 variants and 2 promotions. Existing rows were preserved.',
   );
 }
 main()

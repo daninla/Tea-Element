@@ -1,5 +1,11 @@
-import type { CartItemInput, CartQuote, OrderCreated, OrderCancelled } from '@tea/contracts';
+import type {
+  CartItemInput,
+  CartQuote,
+  OrderCreated,
+  OrderCreatedV2,
+  OrderCancelled,
+} from '@tea/contracts';
 export abstract class StockStore {
   abstract quote(items: CartItemInput[]): Promise<CartQuote>;
-  abstract apply(event: OrderCreated | OrderCancelled): Promise<void>;
+  abstract apply(event: OrderCreated | OrderCreatedV2 | OrderCancelled): Promise<void>;
 }

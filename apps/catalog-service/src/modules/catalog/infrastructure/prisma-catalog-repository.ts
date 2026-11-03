@@ -31,6 +31,7 @@ function mapped(product: Loaded): CatalogProduct {
     createdAt: product.createdAt,
     category: {
       id: category.id,
+      section: category.section,
       slug: category.slug,
       name: category.name,
       description: category.description,
@@ -60,6 +61,7 @@ export class PrismaCatalogRepository extends CatalogRepository {
     });
     return rows.map((c) => ({
       id: c.id,
+      section: c.section,
       slug: c.slug,
       name: c.name,
       description: c.description,
@@ -89,6 +91,8 @@ export class PrismaCatalogRepository extends CatalogRepository {
   ) {
     const search = query.q ? `%${query.q.replace(/[\\%_]/g, '\\$&')}%` : undefined;
     const where = Prisma.sql`p.is_active = TRUE AND c.is_active = TRUE
+      ${query.section === 'ALL' || (query.section === undefined && query.category) ? Prisma.empty : Prisma.sql`AND c.section::text = ${query.section ?? 'TEA'}`}
+      AND ((c.section='TEA' AND v.weight_grams > 0) OR (c.section='EQUIPMENT' AND v.weight_grams IS NULL))
       ${query.category ? Prisma.sql`AND c.slug = ${query.category}` : Prisma.empty}
       ${query.origin ? Prisma.sql`AND p.origin ILIKE ${query.origin.replace(/[\\%_]/g, '\\$&')}` : Prisma.empty}
       ${search ? Prisma.sql`AND (p.name ILIKE ${search} OR p.name_original ILIKE ${search} OR p.description ILIKE ${search})` : Prisma.empty}`;
@@ -96,7 +100,7 @@ export class PrismaCatalogRepository extends CatalogRepository {
     // [startsAt, endsAt), active variants and stock minus reserved grams.
     const selection = Prisma.sql`WITH variants AS (
       SELECT p.id, p.created_at, p.sales_count, v.price,
-        GREATEST(0, COALESCE(i.stock_grams,0) - COALESCE(i.reserved_grams,0)) >= v.weight_grams AS in_stock,
+        CASE WHEN c.section='EQUIPMENT' THEN GREATEST(0,COALESCE(i.stock_pieces,0)-COALESCE(i.reserved_pieces,0))>=1 ELSE GREATEST(0, COALESCE(i.stock_grams,0) - COALESCE(i.reserved_grams,0)) >= v.weight_grams END AS in_stock,
         LEAST(v.price, COALESCE((SELECT MIN(GREATEST(0, CASE WHEN promo.type = 'PERCENT'
           THEN v.price - (v.price::bigint * promo.value / 100) ELSE v.price::bigint - promo.value END))
           FROM promotions promo WHERE promo.is_active = TRUE AND promo.starts_at <= ${now} AND promo.ends_at > ${now}

@@ -90,8 +90,8 @@ async function list(parameters = {}) {
   return response(`/products?${new URLSearchParams(parameters)}`);
 }
 try {
-  assert.equal(await db.product.count(), 12);
-  assert.equal(await db.productVariant.count(), 36);
+  assert.equal(await db.product.count(), 16);
+  assert.equal(await db.productVariant.count(), 40);
   const tie = await db.product.findUniqueOrThrow({
     where: { slug: 'tie-guan-yin' },
     include: { variants: { orderBy: { weightGrams: 'asc' } }, inventory: true },
@@ -118,22 +118,58 @@ try {
     (await db.inventory.findUniqueOrThrow({ where: { productId: tie.id } })).reservedGrams,
     80,
   );
-  assert.equal(await db.product.count(), 12);
+  assert.equal(await db.product.count(), 16);
   assert.equal(await db.promotion.count(), 2);
   start('catalog-service', 4202);
   await ready(4202);
   start('gateway', 4200);
   await ready(4200);
   const categories = await response('/categories');
-  assert.equal(categories.length, 7);
+  assert.equal(categories.length, 9);
   assert.equal(
     categories.reduce((sum, c) => sum + c.productsCount, 0),
-    12,
+    16,
   );
   const all = await list({ pageSize: '48' });
   assert.equal(all.total, 12);
   assert.equal(all.items.length, 12);
   assert.equal(all.totalPages, 1);
+  const equipment = await list({ section: 'EQUIPMENT', pageSize: '48' });
+  assert.equal(equipment.total, 4);
+  assert.ok(
+    equipment.items.every(
+      (p) =>
+        p.category.section === 'EQUIPMENT' &&
+        p.brewingGuide === null &&
+        p.variants.every((v) => v.weightGrams === null),
+    ),
+  );
+  assert.equal((await list({ section: 'ALL', pageSize: '48' })).total, 16);
+  assert.equal((await list({ category: 'accessories' })).total, 2);
+  assert.equal((await list({ section: 'ALL', q: 'гайвань' })).items[0].slug, 'porcelain-gaiwan');
+  const equipmentProduct = await db.product.findUniqueOrThrow({
+    where: { slug: 'bamboo-tea-tongs' },
+    include: { variants: true },
+  });
+  await db.inventory.update({
+    where: { productId: equipmentProduct.id },
+    data: { reservedPieces: 1 },
+  });
+  assert.equal(
+    (await list({ section: 'EQUIPMENT', inStock: 'false' })).items[0].slug,
+    'bamboo-tea-tongs',
+  );
+  assert.equal((await response('/products/bamboo-tea-tongs')).inStock, false);
+  command('pnpm', ['--filter', '@tea/catalog-service', 'db:seed'], env);
+  assert.equal(
+    (await db.inventory.findUniqueOrThrow({ where: { productId: equipmentProduct.id } }))
+      .reservedPieces,
+    1,
+  );
+  await db.inventory.update({
+    where: { productId: equipmentProduct.id },
+    data: { reservedPieces: 0 },
+  });
   const detail = await response('/products/tie-guan-yin');
   assert.equal(detail.variants[0].originalPrice, 10001);
   assert.equal(detail.variants[0].price, 9001);
@@ -188,6 +224,8 @@ try {
     'minPrice=100&maxPrice=50',
     'q=x&q=y',
     'ignored=1',
+    'section=INVALID',
+    'section=TEA&section=EQUIPMENT',
   ])
     await response(`/products?${invalid}`, 400);
   await response('/products/nonexistent-tea', 404);

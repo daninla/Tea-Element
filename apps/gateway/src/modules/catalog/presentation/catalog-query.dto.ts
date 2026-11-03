@@ -12,7 +12,12 @@ import {
   Min,
 } from 'class-validator';
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
-import { CATALOG_SORTS, type CatalogSort } from '@tea/contracts';
+import {
+  CATALOG_SORTS,
+  CATALOG_SECTIONS,
+  type CatalogSection,
+  type CatalogSort,
+} from '@tea/contracts';
 const numeric = ({ value }: { value: unknown }) =>
   typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
 const boolean = ({ value }: { value: unknown }) =>
@@ -20,6 +25,10 @@ const boolean = ({ value }: { value: unknown }) =>
 const trimmed = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 export class CatalogQueryDto {
+  @ApiPropertyOptional({ enum: CATALOG_SECTIONS })
+  @IsOptional()
+  @IsIn(CATALOG_SECTIONS)
+  section?: CatalogSection;
   @ApiPropertyOptional()
   @IsOptional()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)

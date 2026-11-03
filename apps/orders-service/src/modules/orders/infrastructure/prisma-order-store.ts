@@ -112,7 +112,7 @@ export class PrismaOrderStore extends OrderStore {
       const event: CheckoutEvent = {
         eventId: randomUUID(),
         name: 'OrderCreated',
-        version: 1,
+        version: 2,
         occurredAt: new Date().toISOString(),
         correlationId: context.correlationId,
         payload: {
@@ -120,7 +120,8 @@ export class PrismaOrderStore extends OrderStore {
           items: quote.items.map(({ productId, variantId, weightGrams, quantity }) => ({
             productId,
             variantId,
-            weightGrams,
+            stockUnit: weightGrams === null ? 'PIECE' : 'GRAM',
+            stockQuantity: weightGrams ?? 1,
             quantity,
           })),
         },

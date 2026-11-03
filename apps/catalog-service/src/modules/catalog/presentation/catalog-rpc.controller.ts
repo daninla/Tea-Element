@@ -1,7 +1,12 @@
 import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { z } from 'zod';
-import { CATALOG_PATTERNS, CATALOG_SORTS, type CatalogResult } from '@tea/contracts';
+import {
+  CATALOG_PATTERNS,
+  CATALOG_SORTS,
+  CATALOG_SECTIONS,
+  type CatalogResult,
+} from '@tea/contracts';
 import { ListCategories } from '../application/list-categories';
 import { ListProducts } from '../application/list-products';
 import { GetProduct } from '../application/get-product';
@@ -12,6 +17,7 @@ const slug = z
   .max(160);
 const query = z
   .object({
+    section: z.enum(CATALOG_SECTIONS).optional(),
     category: slug.optional(),
     q: z.string().trim().min(1).max(100).optional(),
     origin: z.string().trim().min(1).max(150).optional(),

@@ -65,6 +65,7 @@ function start(name, port, database) {
   child.stderr.on('data', (chunk) => {
     error += chunk.toString();
   });
+  child.teaService = name;
   children.push(child);
   return waitFor(async () => {
     if (child.exitCode !== null) throw new Error(`${name} exited: ${error.slice(-300)}`);
@@ -112,7 +113,7 @@ function event(name, orderId, extra = {}) {
   return {
     eventId: randomUUID(),
     name,
-    version: 1,
+    version: name === 'OrderCreated' ? 2 : 1,
     occurredAt: new Date().toISOString(),
     correlationId: randomUUID(),
     payload: { orderId, ...extra },
@@ -260,8 +261,8 @@ try {
       },
     })
   ).payload;
-  await publish(creation, 'orders.order_created');
-  await publish({ ...creation, eventId: randomUUID() }, 'orders.order_created');
+  await publish(creation, 'orders.order_created.v2');
+  await publish({ ...creation, eventId: randomUUID() }, 'orders.order_created.v2');
   await new Promise((r) => setTimeout(r, 500));
   await reserved(product.id, 50);
   await http(`/orders/${created.order.number}/cancel?token=${created.accessToken}`, {
@@ -273,7 +274,7 @@ try {
     method: 'POST',
     body: {},
   });
-  await publish({ ...creation, eventId: randomUUID() }, 'orders.order_created');
+  await publish({ ...creation, eventId: randomUUID() }, 'orders.order_created.v2');
   await new Promise((r) => setTimeout(r, 300));
   await reserved(product.id, 25);
   const tombstone = randomUUID();
@@ -287,7 +288,7 @@ try {
   );
   await publish(
     event('OrderCreated', tombstone, { items: creation.payload.items }),
-    'orders.order_created',
+    'orders.order_created.v2',
   );
   await new Promise((r) => setTimeout(r, 300));
   await reserved(product.id, 25);
@@ -359,17 +360,156 @@ try {
   }, 'transactional email');
   const mail = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
   assert.ok(mail.messages.some((x) => x.Subject.includes(created.order.number)));
+
+  const gaiwan = await catalog.product.findUniqueOrThrow({
+    where: { slug: 'porcelain-gaiwan' },
+    include: { variants: true },
+  });
+  const tongs = await catalog.product.findUniqueOrThrow({
+    where: { slug: 'bamboo-tea-tongs' },
+    include: { variants: true },
+  });
+  async function pieces(productId, count) {
+    await waitFor(async () => {
+      const stock = await catalog.inventory.findUniqueOrThrow({ where: { productId } });
+      assert.equal(stock.reservedGrams, 0);
+      return stock.reservedPieces === count;
+    }, 'piece inventory convergence');
+  }
+  const mixedInput = {
+    ...body,
+    items: [
+      { variantId: variant.id, quantity: 2 },
+      { variantId: gaiwan.variants[0].id, quantity: 1 },
+    ],
+  };
+  const mixed = await http('/orders/guest', {
+    method: 'POST',
+    body: mixedInput,
+    key: randomUUID(),
+    status: 201,
+  });
+  assert.equal(mixed.order.total, 108800);
+  assert.equal(mixed.order.items.find((x) => x.productId === gaiwan.id).weightGrams, null);
+  await statusOf(mixed, 'CONFIRMED');
+  await reserved(product.id, 75);
+  await pieces(gaiwan.id, 1);
+  const mixedEvent = (
+    await orders.outbox.findFirstOrThrow({
+      where: {
+        eventName: 'OrderCreated',
+        payload: { path: ['payload', 'orderId'], equals: mixed.order.id },
+      },
+    })
+  ).payload;
+  assert.equal(mixedEvent.version, 2);
+  assert.ok(mixedEvent.payload.items.some((x) => x.stockUnit === 'PIECE' && x.stockQuantity === 1));
+  await publish(mixedEvent, 'orders.order_created.v2');
+  await http(`/orders/${mixed.order.number}/cancel?token=${mixed.accessToken}`, {
+    method: 'POST',
+    body: {},
+  });
+  await reserved(product.id, 25);
+  await pieces(gaiwan.id, 0);
+  const mixedQuote = await http('/cart/quote', {
+    method: 'POST',
+    body: {
+      items: [
+        { variantId: variant.id, quantity: 1 },
+        { variantId: tongs.variants[0].id, quantity: 1 },
+      ],
+    },
+  });
+  const orderProcess = children.find((child) => child.teaService === 'orders-service');
+  let contestants;
+  orderProcess.kill('SIGSTOP');
+  try {
+    contestants = await Promise.all(
+      [1, 2].map(() =>
+        localStore.create(
+          {
+            ...body,
+            items: mixedQuote.items.map(({ variantId, quantity }) => ({ variantId, quantity })),
+          },
+          { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+          mixedQuote,
+        ),
+      ),
+    );
+  } finally {
+    orderProcess.kill('SIGCONT');
+  }
+  const rows = await waitFor(async () => {
+    const rows = await orders.order.findMany({
+      where: { id: { in: contestants.map((x) => x.order.id) } },
+    });
+    return rows.every((x) => x.status !== 'PENDING') ? rows : false;
+  }, 'last equipment piece');
+  assert.deepEqual(rows.map((x) => x.status).sort(), ['CONFIRMED', 'REJECTED']);
+  await pieces(tongs.id, 1);
+  await reserved(product.id, 50);
+  const winner = contestants.find(
+    (x) => rows.find((row) => row.id === x.order.id).status === 'CONFIRMED',
+  );
+  await http(`/orders/${winner.order.number}/cancel?token=${winner.accessToken}`, {
+    method: 'POST',
+    body: {},
+  });
+  await pieces(tongs.id, 0);
+  await reserved(product.id, 25);
+  // A pending legacy v1 Outbox message and old gram-shaped reservation still work after migration.
+  let legacy;
+  orderProcess.kill('SIGSTOP');
+  try {
+    legacy = await localStore.create(
+      body,
+      { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+      quote,
+    );
+    const outbox = await orders.outbox.findFirstOrThrow({
+      where: {
+        eventName: 'OrderCreated',
+        payload: { path: ['payload', 'orderId'], equals: legacy.order.id },
+      },
+    });
+    const v1 = {
+      ...outbox.payload,
+      version: 1,
+      payload: {
+        orderId: legacy.order.id,
+        items: [{ productId: product.id, variantId: variant.id, weightGrams: 25, quantity: 1 }],
+      },
+    };
+    await orders.outbox.update({ where: { id: outbox.id }, data: { payload: v1 } });
+  } finally {
+    orderProcess.kill('SIGCONT');
+  }
+  await statusOf(legacy, 'CONFIRMED');
+  await reserved(product.id, 50);
+  await catalog.stockReservation.update({
+    where: { orderId: legacy.order.id },
+    data: { items: [{ productId: product.id, grams: 25 }] },
+  });
+  await http(`/orders/${legacy.order.number}/cancel?token=${legacy.accessToken}`, {
+    method: 'POST',
+    body: {},
+  });
+  await reserved(product.id, 25);
   // Permanent malformed event is retried then quarantined instead of blocking a queue.
-  await publish({ bad: true }, 'orders.order_created');
+  await publish({ bad: true }, 'orders.order_created.v2');
   await waitFor(async () => {
-    const q = await channel.checkQueue(`${namespace}.catalog.order_created.dlq`);
+    const q = await channel.checkQueue(`${namespace}.catalog.order_created_v2.dlq`);
     return q.messageCount > 0;
   }, 'dead letter');
   console.log(
-    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt and DLQ.',
+    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility and DLQ.',
   );
 } finally {
-  for (const child of children) if (child.exitCode === null) child.kill('SIGTERM');
+  for (const child of children)
+    if (child.exitCode === null) {
+      child.kill('SIGCONT');
+      child.kill('SIGTERM');
+    }
   await Promise.all(
     children.map(async (child) => {
       if (child.exitCode !== null) return;
@@ -380,6 +520,7 @@ try {
   if (channel) {
     for (const base of [
       'catalog.order_created',
+      'catalog.order_created_v2',
       'catalog.order_cancelled',
       'orders.stock_reserved',
       'orders.stock_reservation_failed',

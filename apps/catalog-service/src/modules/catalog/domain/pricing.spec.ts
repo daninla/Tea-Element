@@ -36,4 +36,20 @@ describe('catalog pricing and portion availability', () => {
       productView({ ...product, inventory: { stockGrams: 10, reservedGrams: 20 } }, now).inStock,
     ).toBe(false);
   });
+  it('shows equipment unit prices and piece availability without a brewing guide', () => {
+    const view = productView(
+      {
+        ...product,
+        brewingGuide: null,
+        category: { ...product.category, section: 'EQUIPMENT' },
+        variants: [{ id: 'piece', sku: 'piece', weightGrams: null, price: 89000 }],
+        inventory: { stockGrams: 500, reservedGrams: 0, stockPieces: 1, reservedPieces: 1 },
+      },
+      now,
+    );
+    expect(view.brewingGuide).toBeNull();
+    expect(view.variants[0]?.weightGrams).toBeNull();
+    expect(view.inStock).toBe(false);
+    expect(view.minPrice).toBe(89000);
+  });
 });

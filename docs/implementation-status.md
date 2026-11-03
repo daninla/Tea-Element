@@ -24,9 +24,24 @@ Explicit follow-up scope: forgot/reset-password and email verification; Next aut
 verified guest linking; shared production rate-limit storage; marketing event consumers. No such
 endpoint or UI is presented as implemented.
 
+## Stage 2 — public catalog
+
+Implemented: isolated catalog Prisma schema/migration, 7 categories, 12 demo teas, 36 active portions,
+shared gram inventory, 2 seed promotions and read-only catalog RPC via gateway. Public endpoints
+provide categories/counts, product details and bounded search/category/origin/price/sale/stock filters,
+newest/popular/price sorting and deterministic pagination. Product visibility excludes inactive rows.
+Price sorting/filtering and public display agree on current best-single-discount prices in kopecks.
+
+PostgreSQL/RMQ/HTTP integration verifies clean migration deployment, repeatable seed without resetting
+edited prices/reservations, discount SQL/domain parity, hidden rows, validation, sorting, literal search,
+empty/beyond-end pages and portion availability. No auth is required for catalog reads.
+
+Remaining catalog work: storefront assets/UI (stage 3), reservation saga/consumer (stage 4), procurement
+and inventory journal/admin mutations (stage 6), sales projection and cache invalidation/hardening.
+No catalog event producer is claimed; seed data does not emit business events.
+
 ## Remaining stages
 
-2. Catalog, inventory and Prisma migrations/seed.
 3. Storefront and design system.
 4. Cart, guest checkout, stock reservation saga, Outbox and idempotency.
    4a. Fake/LiqPay payment providers, verified webhooks, expiry, reconciliation and refunds.
@@ -40,7 +55,8 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (39 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (63 tests), `pnpm build` and `pnpm format:check` pass.
+- Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.
 - `pnpm dev` starts all seven applications; `pnpm health` confirms every process.

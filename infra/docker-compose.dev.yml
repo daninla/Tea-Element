@@ -10,7 +10,7 @@ services:
       [
         'sh',
         '-c',
-        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm db:migrate',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm --filter @tea/catalog-service db:generate && pnpm --filter @tea/auth-service db:migrate && DATABASE_URL=postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db pnpm --filter @tea/catalog-service db:migrate',
       ]
 
     environment:

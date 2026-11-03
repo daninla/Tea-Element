@@ -18,8 +18,8 @@ jobs:
       - run: pnpm setup:dev
       - run: pnpm infra:up
       - run: pnpm db:migrate
-      - run: pnpm seed:admin
-      - run: pnpm seed:admin
+      - run: pnpm db:seed
+      - run: pnpm db:seed
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

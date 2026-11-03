@@ -29,3 +29,10 @@ docker compose -f infra/docker-compose.yml exec -T postgres psql -v ON_ERROR_STO
 
 The NOLOGIN mcp_readonly role has SELECT on auth tables and future auth-owned tables. It is not
 granted to any login by this project. Runtime service roles remain non-superuser.
+
+Stage 2 also provisions `catalog_shadow` and readonly default privileges via `postgres/catalog-access.sql`.
+For an existing PostgreSQL volume, apply it before creating catalog migrations:
+
+```sh
+docker compose -f infra/docker-compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U tea_bootstrap -d postgres < infra/postgres/catalog-access.sql
+```

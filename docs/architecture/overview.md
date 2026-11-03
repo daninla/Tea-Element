@@ -9,8 +9,9 @@ and asynchronous domain events. Redis will supply caching and rate limits; Mailp
 The foundation implements the workspace, real HTTP processes, environment validation, structured logging,
 correlation IDs, shutdown hooks, Swagger, and development infrastructure configuration.
 Stage 1 adds gateway/auth RMQ transport, Prisma-backed authentication, session rotation, RBAC and
-transactional UserRegistered Outbox publication. Orders, catalog, payments and marketing consumers
-are not implemented yet.
+transactional UserRegistered Outbox publication. Stage 2 adds catalog RMQ reads, a separate catalog Prisma database/client, portion availability,
+current promotion prices and filtered/paginated public product APIs. Orders, payments and marketing
+consumers are not implemented yet.
 Business API routes will use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

@@ -18,6 +18,7 @@
 
 ## Current milestone
 
-Stage 1: auth persistence, RMQ request-response, registration/login/refresh/logout/me, gateway guards,
-admin seed and UserRegistered Outbox publication. No marketing consumer or customer auth UI yet.
+Stage 2: public catalog API, separate catalog Prisma client/database, categories/products/portions,
+gram inventory, effective promotion pricing, bounded search/filter/sort/pagination and demo seeds.
+Auth from stage 1 remains active. No storefront UI, catalog mutation API or stock reservation consumer yet.
 Read `docs/implementation-status.md` before starting a new milestone.

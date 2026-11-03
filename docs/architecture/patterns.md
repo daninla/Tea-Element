@@ -2,8 +2,8 @@
 
 | Pattern                          | Current status                                                                 | Source / next work                                                           |
 | -------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| API Gateway                      | Auth HTTP-to-RMQ routing and global security guards                            | apps/gateway/src/modules/auth                                                |
-| Database per Service             | Five isolated service databases; Prisma auth migration                         | infra/postgres; apps/auth-service/prisma                                     |
+| API Gateway                      | Auth/catalog HTTP-to-RMQ routing and global security guards                    | apps/gateway/src/modules/auth                                                |
+| Database per Service             | Five isolated service databases; auth/catalog Prisma migrations                | infra/postgres; apps/auth-service/prisma; apps/catalog-service/prisma        |
 | Repository / Clean layers        | Domain ports, application use-cases and adapters                               | apps/auth-service/src/modules/auth                                           |
 | Event-driven architecture        | First producer and durable topology; no consumer yet                           | auth-service/src/shared/outbox                                               |
 | Transactional Outbox             | Customer, first session and event commit together; confirmed publisher retries | auth-service/modules/auth/infrastructure/prisma-auth-store.ts; shared/outbox |

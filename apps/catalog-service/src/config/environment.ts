@@ -4,6 +4,12 @@ import { z } from 'zod';
 config({ path: resolve(__dirname, '../../.env') });
 
 const schema = z.object({
+  CATALOG_RPC_QUEUE: z.string().min(1).default('catalog.rpc'),
+  DATABASE_URL: z
+    .string()
+    .url()
+    .default('postgresql://catalog:tea_dev_catalog@localhost:5433/catalog_db'),
+  RABBITMQ_URL: z.string().url().default('amqp://tea:tea_dev@localhost:5672'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4002),
   CORS_ORIGIN: z.string().url().default('http://localhost:3000'),

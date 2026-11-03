@@ -11,7 +11,7 @@
     "test": "prisma generate && jest --runInBand",
     "prisma": "prisma",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
+    "db:migrate": "prisma migrate deploy && prisma generate",
     "seed:admin": "tsx prisma/seed.ts"
   },
   "dependencies": {

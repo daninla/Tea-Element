@@ -31,3 +31,10 @@ Swagger lists cookie authentication; for unsafe requests the caller must also su
 
 Use `pnpm test:integration` after a build for end-to-end security and transport verification.
 Customer-facing auth pages and Next.js middleware are scheduled with storefront/account features.
+
+## Public catalog (stage 2)
+
+`GET /api/v1/categories`, `/api/v1/products`, `/api/v1/products/:slug` are explicitly public and route
+through the catalog module to `catalog.rpc`; gateway has no catalog database dependency. Queries are
+validated at both HTTP and RPC boundaries. Catalog reads allow 120 requests/minute/IP/route.
+Auth policies and limits remain in effect on authentication endpoints.

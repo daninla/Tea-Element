@@ -19,10 +19,12 @@
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "health": "node scripts/check-health.mjs",
     "prepare": "husky",
-    "db:migrate": "pnpm --filter @tea/auth-service db:migrate",
+    "db:migrate": "pnpm --filter @tea/auth-service db:migrate && pnpm --filter @tea/catalog-service db:migrate",
     "seed:admin": "pnpm --filter @tea/auth-service seed:admin",
-    "test:integration": "node scripts/test-auth-integration.mjs",
-    "setup:dev": "node scripts/setup-auth-env.mjs"
+    "test:integration": "node scripts/test-auth-integration.mjs && node scripts/test-catalog-integration.mjs",
+    "setup:dev": "node scripts/setup-auth-env.mjs",
+    "db:seed": "pnpm seed:admin && pnpm --filter @tea/catalog-service db:seed",
+    "test:catalog:integration": "node scripts/test-catalog-integration.mjs"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

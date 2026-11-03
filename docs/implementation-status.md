@@ -36,13 +36,27 @@ PostgreSQL/RMQ/HTTP integration verifies clean migration deployment, repeatable 
 edited prices/reservations, discount SQL/domain parity, hidden rows, validation, sorting, literal search,
 empty/beyond-end pages and portion availability. No auth is required for catalog reads.
 
-Remaining catalog work: storefront assets/UI (stage 3), reservation saga/consumer (stage 4), procurement
+Remaining catalog work: reservation saga/consumer (stage 4), procurement
 and inventory journal/admin mutations (stage 6), sales projection and cache invalidation/hardening.
 No catalog event producer is claimed; seed data does not emit business events.
 
+## Stage 3 — storefront
+
+Implemented: Ukrainian storefront layout, local Inter/Cormorant typography, design tokens and accessible
+Radix controls; homepage with categories, current promotions and recent teas; server-rendered catalog,
+category routes, URL-based search/filter/sort/pagination and live search suggestions; product gallery,
+portion-specific prices/availability, brewing guidance and related teas. All reads use the typed gateway
+client. Category/product metadata and escaped Product JSON-LD are included; demo pages remain noindex.
+Loading, empty, invalid-filter, not-found and gateway-error states are provided. Illustrative generated
+photos are bundled locally with provenance. Money formatting is deterministic across SSR and browsers.
+
+Browser checks covered 375px and 1280px layouts without horizontal overflow, desktop price/category/sale
+filters, mobile filter dialog submission, search suggestions and results, pagination, gallery selection,
+portion URLs and unavailable portions. Checkout and customer authentication UI are still outside this
+milestone. The demo notice states that ordering is not open.
+
 ## Remaining stages
 
-3. Storefront and design system.
 4. Cart, guest checkout, stock reservation saga, Outbox and idempotency.
    4a. Fake/LiqPay payment providers, verified webhooks, expiry, reconciliation and refunds.
 5. Account, verified guest order linking.
@@ -55,7 +69,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (63 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (91 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

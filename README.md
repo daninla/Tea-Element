@@ -1,9 +1,10 @@
 # Tea Element / Чайний елемент
 
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
-**Current milestone: stage 2 public catalog API.** Authentication, roles and public catalog
-with categories, portions, stock availability, promotions, filters and pagination are implemented.
-Storefront browsing UI, checkout, payments, administration UI and marketing consumers remain later work. The frontend clearly labels the shop as under development.
+**Current milestone: stage 3 storefront.** Authentication, roles, public catalog API and Ukrainian
+storefront browsing are implemented: homepage, catalog filters/search/pagination, product galleries,
+portion pricing and availability. Checkout, payments, administration UI and marketing consumers remain
+later work. The frontend labels the shop as a demonstration with ordering not yet open.
 
 ## Start locally (five commands)
 
@@ -46,7 +47,8 @@ pnpm build
 pnpm format:check
 ```
 
-Tests exercise service HTTP boundaries, auth use-cases and Outbox retry semantics.
+Tests exercise service HTTP boundaries, auth/catalog use-cases, Outbox retry semantics, catalog URL
+validation, product selection, structured data escaping and deterministic currency formatting.
 After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth and catalog behavior using a
 dedicated test database and isolated broker queues; Docker must be accessible.
 Turborepo builds contracts before dependent applications. Watch mode uses Nest CLI monorepo projects.
@@ -59,7 +61,7 @@ CI repeats quality checks, validates both Compose configurations and smoke-tests
 own separate databases: auth, catalog, orders, payments and marketing. Shared contracts live in
 `packages/contracts`; shared tooling lives in `packages/eslint-config` and `packages/tsconfig`.
 Read [architecture](docs/architecture/overview.md), [milestone status](docs/implementation-status.md),
-and [AGENTS.md](AGENTS.md) before continuing. Next milestone: SPEC stage 3, storefront.
+and [AGENTS.md](AGENTS.md) before continuing. Next milestone: SPEC stage 4, cart and guest checkout.
 Forgot/reset-password, email verification and customer auth screens remain documented follow-up work.
 
 ## Public catalog examples

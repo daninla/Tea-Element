@@ -18,7 +18,7 @@
 
 ## Current milestone
 
-Stage 2: public catalog API, separate catalog Prisma client/database, categories/products/portions,
-gram inventory, effective promotion pricing, bounded search/filter/sort/pagination and demo seeds.
-Auth from stage 1 remains active. No storefront UI, catalog mutation API or stock reservation consumer yet.
+Stage 3: Ukrainian storefront, design system, homepage, catalog/category pages, live search,
+URL filters/pagination and product gallery/portion selection. Auth and public catalog API remain active.
+No cart, checkout, payment flow, catalog mutation API or stock reservation consumer yet.
 Read `docs/implementation-status.md` before starting a new milestone.

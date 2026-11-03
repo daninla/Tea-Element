@@ -10,8 +10,11 @@ The foundation implements the workspace, real HTTP processes, environment valida
 correlation IDs, shutdown hooks, Swagger, and development infrastructure configuration.
 Stage 1 adds gateway/auth RMQ transport, Prisma-backed authentication, session rotation, RBAC and
 transactional UserRegistered Outbox publication. Stage 2 adds catalog RMQ reads, a separate catalog Prisma database/client, portion availability,
-current promotion prices and filtered/paginated public product APIs. Orders, payments and marketing
-consumers are not implemented yet.
+current promotion prices and filtered/paginated public product APIs. Stage 3 adds server-rendered Next.js
+storefront routes reading only the gateway; TanStack Query powers client search suggestions. URL state
+preserves catalog filters and selected portions. Browser prices display server-calculated kopecks;
+no order total is calculated or submitted by this milestone. Orders, payments and marketing consumers
+are not implemented yet.
 Business API routes will use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

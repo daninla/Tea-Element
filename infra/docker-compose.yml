@@ -10,6 +10,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+      - ./postgres/auth-access.sql:/docker-entrypoint-initdb.d/02-auth-access.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tea_bootstrap -d postgres']
       interval: 5s

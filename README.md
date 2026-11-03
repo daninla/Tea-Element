@@ -1,10 +1,11 @@
 # Tea Element / Чайний елемент
 
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
-**Current milestone: stage 0 foundation.** Authentication, catalog, checkout, payments, administration
-and marketing are not implemented yet. The frontend clearly labels the shop as under development.
+**Current milestone: stage 1 authentication.** Registration/login, refresh rotation, logout,
+gateway roles and admin seed are implemented. Catalog, checkout, payments, administration UI
+and marketing consumers are not implemented yet. The frontend clearly labels the shop as under development.
 
-## Start locally (four commands)
+## Start locally (five commands)
 
 Prerequisites: Node.js >=20.19 (Node 22 recommended), pnpm 11.25, Docker Engine with Compose v2.
 The current user must have access to the Docker daemon. Ports 3000, 4000–4005, 5433, 5672,
@@ -13,14 +14,16 @@ The current user must have access to the Docker daemon. Ports 3000, 4000–4005,
 ```sh
 pnpm install
 pnpm infra:up
+pnpm setup:dev
+pnpm db:migrate
 pnpm dev
-# In another terminal:
-pnpm health
 ```
 
 Environment defaults are usable for local development. To override them, copy the application's
 `.env.example` to `.env` inside that application directory. Never commit real credentials.
-No migrations or seed command is offered until the respective database-backed feature exists.
+The migration command currently targets auth-service only. Run `pnpm seed:admin` to provision a
+local admin from the private auth-service `.env`; re-running preserves its password.
+Check all seven applications from another terminal with `pnpm health`.
 
 - Web: http://localhost:3000
 - Gateway: http://localhost:4000/health · Swagger: http://localhost:4000/docs
@@ -30,7 +33,7 @@ No migrations or seed command is offered until the respective database-backed fe
 
 `pnpm infra:down` stops infrastructure and preserves data. For containerized applications, see
 [infra/README.md](infra/README.md). `/health` checks process liveness, not downstream readiness.
-Services do not connect to infrastructure until business modules are implemented.
+Auth-service now requires PostgreSQL and RabbitMQ. Other domain services remain foundations.
 
 ## Quality
 
@@ -42,7 +45,9 @@ pnpm build
 pnpm format:check
 ```
 
-Tests exercise each NestJS application through HTTP and reject invalid environment settings.
+Tests exercise service HTTP boundaries, auth use-cases and Outbox retry semantics.
+After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth behavior using a
+dedicated test database and isolated broker queues; Docker must be accessible.
 Turborepo builds contracts before dependent applications. Watch mode uses Nest CLI monorepo projects.
 Git hooks use Husky, lint-staged and Commitlint when a writable Git repository is available.
 CI repeats quality checks, validates both Compose configurations and smoke-tests all HTTP apps.
@@ -53,4 +58,5 @@ CI repeats quality checks, validates both Compose configurations and smoke-tests
 own separate databases: auth, catalog, orders, payments and marketing. Shared contracts live in
 `packages/contracts`; shared tooling lives in `packages/eslint-config` and `packages/tsconfig`.
 Read [architecture](docs/architecture/overview.md), [milestone status](docs/implementation-status.md),
-and [AGENTS.md](AGENTS.md) before continuing. Next milestone: SPEC stage 1, authentication.
+and [AGENTS.md](AGENTS.md) before continuing. Next milestone: SPEC stage 2, catalog.
+Forgot/reset-password, email verification and customer auth screens remain documented follow-up work.

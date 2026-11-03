@@ -4,13 +4,22 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "generated/**"],
       "env": ["NEXT_PUBLIC_API_URL", "INTERNAL_API_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "JWT_ACCESS_SECRET",
+        "AUTH_RPC_QUEUE",
+        "DATABASE_URL",
+        "RABBITMQ_URL",
+        "NODE_ENV",
+        "EVENTS_NAMESPACE",
+        "PORT"
+      ]
     },
     "lint": {
       "dependsOn": ["^build"]

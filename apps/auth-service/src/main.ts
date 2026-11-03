@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
+import { Transport, type MicroserviceOptions } from '@nestjs/microservices';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -21,6 +22,17 @@ async function bootstrap() {
     .setVersion('0.0.0')
     .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [env.RABBITMQ_URL],
+      queue: env.AUTH_RPC_QUEUE,
+      queueOptions: { durable: true, messageTtl: 6000 },
+      noAck: true,
+      prefetchCount: 10,
+    },
+  });
+  await app.startAllMicroservices();
   await app.listen(env.PORT, '0.0.0.0');
 }
 void bootstrap().catch(() => {

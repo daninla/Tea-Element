@@ -18,3 +18,14 @@ The workspace container installs dependencies once before apps start. The overri
 it is not a production image. Each app's node_modules symlinks are written into the mounted source:
 use either host development or container development at a time and reinstall when switching.
 `docker compose ... down` preserves data. Never delete volumes without confirming data loss.
+
+Auth migrations require the infrastructure-only `auth_shadow` database. On fresh volumes it and
+readonly default privileges are provisioned by `postgres/auth-access.sql`. Existing volumes can be
+upgraded without deleting data:
+
+```sh
+docker compose -f infra/docker-compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U tea_bootstrap -d postgres < infra/postgres/auth-access.sql
+```
+
+The NOLOGIN mcp_readonly role has SELECT on auth tables and future auth-owned tables. It is not
+granted to any login by this project. Runtime service roles remain non-superuser.

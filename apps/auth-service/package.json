@@ -3,12 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --dir ../.. exec nest start auth-service --watch",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "prisma generate && pnpm --dir ../.. exec nest start auth-service --watch",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "lint": "eslint src test",
-    "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "prisma generate && jest --runInBand",
+    "prisma": "prisma",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "seed:admin": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@tea/contracts": "workspace:*",
@@ -25,12 +29,21 @@
     "nestjs-pino": "^4.4.0",
     "pino-http": "^10.5.0",
     "pino": "^9.9.0",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "@nestjs/microservices": "^11.2.8",
+    "@nestjs/jwt": "^11.0.0",
+    "amqplib": "^0.10.9",
+    "amqp-connection-manager": "^4.1.0",
+    "@prisma/client": "6.19.3",
+    "argon2": "^0.44.0"
   },
   "devDependencies": {
     "@tea/tsconfig": "workspace:*",
     "@tea/eslint-config": "workspace:*",
     "@nestjs/testing": "^11.0.0",
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "@types/amqplib": "^0.10.7",
+    "prisma": "6.19.3",
+    "tsx": "^4.20.0"
   }
 }

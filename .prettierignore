@@ -10,3 +10,4 @@ SPEC.md
 .codex/
 .aws/
 apps/web/next-env.d.ts
+**/generated/

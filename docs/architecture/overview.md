@@ -6,9 +6,11 @@ liveness and Swagger for development. Gateway has no database. Each domain servi
 PostgreSQL roles cannot connect to sibling service databases. RabbitMQ will provide request-response
 and asynchronous domain events. Redis will supply caching and rate limits; Mailpit captures dev mail.
 
-Stage 0 implements the workspace, real HTTP processes, environment validation, structured logging,
+The foundation implements the workspace, real HTTP processes, environment validation, structured logging,
 correlation IDs, shutdown hooks, Swagger, and development infrastructure configuration.
-It does not implement broker transport, database adapters, authentication, orders or payments.
+Stage 1 adds gateway/auth RMQ transport, Prisma-backed authentication, session rotation, RBAC and
+transactional UserRegistered Outbox publication. Orders, catalog, payments and marketing consumers
+are not implemented yet.
 Business API routes will use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

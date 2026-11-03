@@ -18,3 +18,5 @@ export interface ApiError {
   details?: unknown;
   correlationId: string;
 }
+
+export * from './auth';

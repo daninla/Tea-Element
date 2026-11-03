@@ -15,11 +15,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:dev
+      - run: pnpm infra:up
+      - run: pnpm db:migrate
+      - run: pnpm seed:admin
+      - run: pnpm seed:admin
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
       - run: pnpm format:check
+      - run: pnpm test:integration
       - run: docker compose -f infra/docker-compose.yml config --quiet
       - run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml config --quiet
       - name: Verify application liveness

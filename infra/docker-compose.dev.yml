@@ -10,9 +10,15 @@ services:
       [
         'sh',
         '-c',
-        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm db:migrate',
       ]
 
+    environment:
+      HUSKY: '0'
+      DATABASE_URL: postgresql://auth:tea_dev_auth@postgres:5432/auth_db
+    depends_on:
+      postgres:
+        condition: service_healthy
   gateway:
     image: node:22-bookworm-slim
     working_dir: /workspace
@@ -25,6 +31,7 @@ services:
       ]
     environment:
       PORT: 4000
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
       CORS_ORIGIN: http://localhost:3000
     depends_on:
       workspace:

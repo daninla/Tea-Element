@@ -1,15 +1,33 @@
-# gateway
+# Gateway
 
-Stage 0 service foundation. HTTP liveness: `http://localhost:4000/health`.
-Swagger: `http://localhost:4000/docs`. Business features are not implemented yet.
+HTTP boundary on port 4000; no Prisma dependency or database access. `/health` is public liveness;
+Swagger is at `/docs`. Business routes use `/api/v1`. Run root `pnpm setup:dev` before starting.
 
-From the repository root: `pnpm --filter @tea/gateway dev`.
-Optional local overrides: copy `.env.example` to `.env` in this application directory.
-Configuration validates the port, CORS origin, environment and log level at startup.
-`/health` is process liveness, not database or broker readiness.
+| Method | Path                  | Access                                                 |
+| ------ | --------------------- | ------------------------------------------------------ |
+| POST   | /api/v1/auth/register | Public, validated RegisterDto; role injection rejected |
+| POST   | /api/v1/auth/login    | Public                                                 |
+| POST   | /api/v1/auth/refresh  | Public; refresh cookie required                        |
+| POST   | /api/v1/auth/logout   | Public; idempotent, clears cookies                     |
+| GET    | /api/v1/auth/me       | Valid access JWT                                       |
+| GET    | /api/v1/admin/auth/me | Valid ADMIN access JWT                                 |
 
-Health uses `modules/health/application` and `presentation`, wired in `health.module.ts`.
-It has no domain state or external adapters, so those layers are intentionally absent.
-Future business modules must follow SPEC section 4.4. Never import a sibling service.
+Controllers delegate to ForwardAuth, which uses the AuthClient port and Nest RMQ adapter.
+Global JwtAuthGuard denies by default; @Public is explicit. RolesGuard enforces @Roles and an ADMIN
+policy for registered `/api/v1/admin/*` routes. All unsafe requests require Origin equal to CORS_ORIGIN.
+The browser sends credentials with requests. Registration accepts optional marketingConsent=false.
 
-Verification: `pnpm --filter @tea/gateway test` (environment validation and HTTP boundary).
+Access and refresh credentials are returned only in HttpOnly, SameSite=Lax cookies. Access path is `/`;
+refresh path is `/api/v1/auth`. Secure is mandatory in production and disabled for local HTTP development.
+No token is returned in the response body. Auth responses use Cache-Control: no-store.
+JWT verification restricts HS256, issuer `tea-auth` and audience `tea-gateway`.
+CORS defaults to `http://localhost:3000`. Auth/error messages never expose database errors or credentials.
+Errors use `{ statusCode, code, message, correlationId }`. RPC correlation IDs are carried to outbox events.
+
+Rate limiting currently uses in-process Throttler storage (30 requests/minute/IP). Liveness is exempt.
+A multi-instance deployment needs shared rate-limit storage (planned hardening stage).
+No reverse-proxy trust is enabled by default, so X-Forwarded-For cannot bypass rate limits directly.
+Swagger lists cookie authentication; for unsafe requests the caller must also supply the allowed Origin.
+
+Use `pnpm test:integration` after a build for end-to-end security and transport verification.
+Customer-facing auth pages and Next.js middleware are scheduled with storefront/account features.

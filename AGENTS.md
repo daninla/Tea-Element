@@ -18,6 +18,6 @@
 
 ## Current milestone
 
-Stage 0 only: workspace, application liveness, infrastructure configuration, checks and documentation.
-No business event is published yet, and no application database schema exists yet.
-See `docs/implementation-status.md` before starting a new milestone.
+Stage 1: auth persistence, RMQ request-response, registration/login/refresh/logout/me, gateway guards,
+admin seed and UserRegistered Outbox publication. No marketing consumer or customer auth UI yet.
+Read `docs/implementation-status.md` before starting a new milestone.

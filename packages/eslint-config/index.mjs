@@ -7,6 +7,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/generated/**',
       '**/.next/**',
       '**/node_modules/**',
       '**/.turbo/**',
@@ -30,6 +31,7 @@ export default tseslint.config(
         console: 'readonly',
         fetch: 'readonly',
         AbortSignal: 'readonly',
+        clearTimeout: 'readonly',
         setTimeout: 'readonly',
         URL: 'readonly',
         Buffer: 'readonly',

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Leaf } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { RetryButton } from '@/components/ui/retry-button';
 import { Button } from '@/components/ui/button';
 export async function StatePanel({
   kind = 'unavailable',
@@ -14,9 +15,13 @@ export async function StatePanel({
       <Leaf size={32} strokeWidth={1.2} aria-hidden="true" />
       <h2>{kind === 'unavailable' ? common('unavailable') : t(kind)}</h2>
       <p>{kind === 'unavailable' ? common('unavailableDetail') : t(`${kind}Detail`)}</p>
-      <Button asChild variant="outline">
-        <Link href="/catalog">{kind === 'unavailable' ? common('retry') : common('allTea')}</Link>
-      </Button>
+      {kind === 'unavailable' ? (
+        <RetryButton />
+      ) : (
+        <Button asChild variant="outline">
+          <Link href="/catalog">{common('allTea')}</Link>
+        </Button>
+      )}
     </div>
   );
 }

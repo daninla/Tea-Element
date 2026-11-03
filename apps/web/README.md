@@ -43,9 +43,18 @@ robots remain noindex until deployment and real store content are ready.
 
 ## Verification
 
-`pnpm --filter @tea/web test` runs 55 tests for URL validation/pagination, portion selection,
+`pnpm --filter @tea/web test` runs 62 tests for URL validation/pagination, portion selection,
 structured-data escaping, SSR-safe money formatting, persisted carts, checkout validation and replay
 metadata recovery. Root lint, typecheck, test, build and format
 checks also cover this application. Browser checks at 375px/1280px cover filters, search suggestions,
 pagination, gallery, unavailable portions, cart persistence/quantities, checkout validation, delivery and
 pickup order creation, confirmation and cancellation; no horizontal document overflow was found.
+
+## Equipment section
+
+`/teaware` contains teaware and accessory filters and is linked from navigation, footer and the homepage.
+Tea catalog remains `/catalog`; header search explicitly uses `section=ALL` so equipment is searchable.
+Equipment detail/cart/checkout/order views show pieces, no gram weight/query parameter and no brewing
+guide. Filter submissions, resets and pagination stay within the selected section. The four new generated
+photos and full prompts are documented in [equipment provenance](public/images/equipment-prompts.md).
+No supplier claims or real purchase/fulfillment are implied by these demonstration products.

@@ -22,4 +22,6 @@ Stage 4: persisted guest cart, authenticated server cart, guest COD checkout, pr
 transactional Outbox and idempotent reservation/cancellation saga. Orders and catalog have migrations
 and active business consumers. All storefront orders are demonstration fixtures. Online payment is
 stage 4a; customer auth/account UI remains stage 5; fulfillment/admin transitions remain stage 6.
+The equipment extension adds `/teaware`, category sections, nullable piece weights, independent piece
+inventory and mixed-unit OrderCreated v2; preserve v1 consumer/legacy reservation compatibility.
 Read `docs/implementation-status.md` before starting a new milestone.

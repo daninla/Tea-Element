@@ -26,3 +26,9 @@ Authenticated clients also have `POST /api/v1/orders`, `GET/PUT /api/v1/cart` an
 `POST /api/v1/cart/merge` (UUID Idempotency-Key). Cart CRUD is exposed through atomic replacement;
 additional item-specific convenience routes from SPEC are not implemented. COD only in stage 4.
 See orders-service README for validation, statuses, reservation compensation and SMTP behavior.
+
+Equipment extension: `GET /api/v1/products?section=EQUIPMENT` lists teaware/accessories;
+`section=ALL` searches both sections, while the default remains TEA. Categories expose their section.
+Equipment variants have `weightGrams: null` and products have `brewingGuide: null`. Cart/order input
+still accepts variantId/quantity only; the server selects and validates stock units. Checkout supports
+mixed tea/equipment items without a new endpoint or caller-supplied prices/units.

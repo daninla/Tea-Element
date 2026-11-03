@@ -63,3 +63,11 @@ its own databases/topology. Existing application data is not reset. `pnpm test:i
 
 Account UI, email lookup/verified linking, shipping administration, online payment and marketing are
 separate milestones. No endpoint or transition for those features is presented as implemented here.
+
+## Mixed tea/equipment orders
+
+Quotes/snapshots use null weight for piece goods and numeric weights for tea. All new orders publish
+OrderCreated v2 with explicit stockUnit/stockQuantity through the new versioned routing key. No orders
+schema migration is needed because existing item snapshots are immutable JSON; historical orders still
+render correctly. Creation idempotency and guest/owner access are unchanged. Integration also covers
+mixed reservations, competition for the last equipment piece and v1 compatibility; see ADR 0006.

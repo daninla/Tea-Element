@@ -3,7 +3,8 @@
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
 **Current milestone: stage 4 carts and guest checkout.** The Ukrainian storefront supports browsing,
 a persistent cart, server-calculated prices, guest orders with payment on receipt, private tracking and
-cancellation. Orders and catalog use a transactional Outbox and an idempotent stock reservation saga.
+cancellation. A separate teaware/accessories section supports piece goods in mixed orders with tea.
+Orders and catalog use a transactional Outbox and an idempotent stock reservation saga.
 All orders are explicitly demonstrations without real payment or fulfillment. Online payment is stage 4a;
 customer account UI, administration and marketing remain later milestones.
 
@@ -24,7 +25,7 @@ pnpm dev
 Environment defaults are usable for local development. To override them, copy the application's
 `.env.example` to `.env` inside that application directory. Never commit real credentials.
 The migration command targets auth-service, catalog-service and orders-service.
-Run `pnpm db:seed` for the local admin and demo catalog (12 teas, 36 portions, 2 promotions). Run `pnpm seed:admin` to provision a
+Run `pnpm db:seed` for the local admin and demo catalog (12 teas, 4 equipment products, 40 variants, 2 promotions). Run `pnpm seed:admin` to provision a
 local admin from the private auth-service `.env`; re-running preserves its password.
 Check all seven applications from another terminal with `pnpm health`.
 

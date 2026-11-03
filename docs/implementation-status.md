@@ -92,7 +92,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (143 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (159 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.
@@ -104,3 +104,18 @@ is represented as implemented before its milestone.
 - Host port 5432 was occupied, so project PostgreSQL uses `127.0.0.1:5433`; Compose, environment examples and startup documentation agree.
 
 The optional all-container application override has been checked for configuration validity only. No production deployment is included.
+
+## Extension — teaware and accessories
+
+Implemented on owner request: `/teaware`, separate teaware/accessories categories, primary navigation,
+homepage feature, cross-section search and four illustrative demo products (gaiwan, cup, strainer, tongs).
+Equipment uses null gram weight/brewing guide, unit prices and independent integer piece inventory.
+Tea keeps its existing gram-based stock. Cart, checkout, order snapshots and structured-data URLs
+handle both kinds without displaying null weights or tea brewing instructions for equipment.
+
+Mixed orders reserve all grams/pieces atomically. OrderCreated v2 carries explicit units through a
+versioned routing key/queue, while the v1 consumer and legacy reservation cancellation remain active.
+Integration verifies fresh migrations, repeatable seeds preserving piece reservations, equipment stock
+filter parity, mixed checkout, last-piece competition without partial tea reservation, cancellation and
+legacy v1 Outbox/reservation processing. Browser checks cover 375px/1280px, equipment filters, global
+search, correct units, mixed confirmation and cancellation. All product data/photos remain illustrative.

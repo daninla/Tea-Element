@@ -6,7 +6,7 @@ Owns `catalog_db` and its isolated generated Prisma client. Serves catalog read 
 ## Setup
 
 From the root: `pnpm setup:dev`, `pnpm infra:up`, `pnpm db:migrate`, `pnpm db:seed`, then `pnpm dev`.
-`db:seed` provisions the auth admin plus 7 catalog categories, 12 demo teas, 36 variants (25/50/100 g)
+`db:seed` provisions the auth admin plus 9 categories, 12 demo teas, 4 equipment products, 40 variants
 and 2 promotions. It is transactional and preserves existing rows, prices, inventory and reservations.
 Descriptions, origins, years, brewing guides, prices and stock are demo data, not supplier claims.
 Seed image paths remain empty; the storefront supplies explicitly illustrative fallback assets. No fabricated sales counts are seeded.
@@ -67,3 +67,18 @@ After `pnpm build`, `pnpm test:catalog:integration` creates/migrates catalog_sta
 and uses isolated RPC topology and ports 4200/4202. It restores its fixture changes and deletes its queue.
 `pnpm test:integration` runs auth, catalog and orders suites. The orders integration verifies real
 reservation/cancellation/rollback and concurrency against a separate temporary catalog database. Integration requires local Docker access.
+
+## Teaware and accessories extension
+
+Categories expose `section` (TEA/EQUIPMENT). Product lists accept `section=TEA|EQUIPMENT|ALL`,
+defaulting to TEA for unscoped lists; an explicit category without section selects its own section.
+Use ALL for cross-section search. Equipment categories are `teaware` and `accessories`.
+The idempotent seed now contains 9 categories, 12 teas, 4 equipment products and 40 variants. Existing
+rows/prices/gram and piece reservations are preserved. Equipment image paths point to illustrative local
+assets; their descriptions, capacities, materials, prices and stocks are synthetic demo data.
+
+Equipment variants have null `weightGrams`, a null product brewing guide and a price per piece.
+`stockPieces - reservedPieces` determines availability in both SQL filters and domain mapping; tea still
+uses gram counters. A piece is never encoded as one gram. OrderCreated v2 carries explicit units; its
+consumer verifies each line against catalog data and reserves all mixed units or nothing. v1 messages
+and legacy gram reservations remain compatible. Readonly table grants cover the added columns.

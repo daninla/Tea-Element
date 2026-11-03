@@ -26,3 +26,8 @@ The stateless health module has only an application query and a presentation con
 Add domain and infrastructure layers when actual state and adapters exist.
 All external DTOs and event payloads must be shared through contracts, never service imports.
 See SPEC sections 4–7 for the target business and trust boundaries.
+
+The teaware extension keeps products in catalog-service. Category section distinguishes TEA/EQUIPMENT;
+nullable variant weights represent piece goods, with independent stock/reserved piece counters. Mixed
+orders use the existing saga with explicit-unit OrderCreated v2, retaining v1 processing and old order
+snapshots. No new service/database/dependency is introduced. See ADR 0006.

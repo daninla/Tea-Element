@@ -43,3 +43,16 @@ Consumers commit processed_events with state and outgoing events. Order-ID locks
 records also make semantic duplicates with a new eventId safe. A cancellation tombstone prevents late
 creation from reserving stock. Five-minute pending expiry emits cancellation; a late reservation response
 cannot revive an order. No production payment event is published in stage 4.
+
+## OrderCreated version 2 — equipment extension
+
+New orders publish OrderCreated / 2 using routing key `orders.order_created.v2` and durable queue
+`catalog.order_created_v2`. Payload: orderId and items[{productId, variantId, stockUnit (GRAM|PIECE),
+stockQuantity (positive integer consumed per item), quantity}]. No price, contact or bearer is published.
+Catalog verifies the stock unit/amount against the active variant. All stock rows lock in product-ID
+order; mixed carts reserve entirely or emit StockReservationFailed without partial changes.
+
+The v1 event shape and `catalog.order_created` queue are retained for pending historical messages.
+Both versions share order/event idempotency. Stock result/cancellation/confirmation events remain v1.
+Cancellation reads both old `{productId, grams}` and new `{productId, unit, amount}` reservation rows.
+Each versioned consumer has its own retry and DLQ queues. See ADR 0006.

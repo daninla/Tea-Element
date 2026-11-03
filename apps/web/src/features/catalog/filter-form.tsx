@@ -1,4 +1,5 @@
-import Link from 'next/link';
+import { catalogHref } from './catalog-query';
+import { FilterReset } from './filter-reset';
 import type { CatalogQuery, CategoryView } from '@tea/contracts';
 import { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ export async function FilterForm({
   const common = await getTranslations('common');
   const action = query.section === 'EQUIPMENT' ? '/teaware' : '/catalog';
   return (
-    <form action={action} className="filter-form">
+    <form key={catalogHref(query)} action={action} className="filter-form">
       {query.section === 'ALL' && <input type="hidden" name="section" value="ALL" />}
       <div className="filter-field">
         <label htmlFor={`${prefix}-search`}>{t('search')}</label>
@@ -109,12 +110,12 @@ export async function FilterForm({
         </select>
       </div>
       <Button type="submit">{t(query.section === 'EQUIPMENT' ? 'applyProducts' : 'apply')}</Button>
-      <Link
+      <FilterReset
         href={query.section === 'ALL' ? '/catalog?section=ALL' : action}
         className="filter-reset"
       >
         {common('reset')}
-      </Link>
+      </FilterReset>
     </form>
   );
 }

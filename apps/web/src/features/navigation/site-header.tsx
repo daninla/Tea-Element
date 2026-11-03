@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { CartButton } from '@/features/cart/cart-button';
 import Link from 'next/link';
 import { Leaf, ArrowUpRight } from 'lucide-react';
@@ -20,7 +21,13 @@ export async function SiteHeader() {
             <span>{common('brand')}</span>
           </Link>
           <div className="header-search-area">
-            <Search />
+            <Suspense
+              fallback={
+                <div className="header-search skeleton" aria-hidden="true" style={{ height: 36 }} />
+              }
+            >
+              <Search />
+            </Suspense>
           </div>
           <CartButton />
           <Link href="/catalog" className="header-catalog">

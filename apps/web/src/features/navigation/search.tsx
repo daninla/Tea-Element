@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useId, useState } from 'react';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { searchHref } from './search-query';
 import { useQuery } from '@tanstack/react-query';
 import { Search as SearchIcon, ArrowUpRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -7,11 +9,27 @@ import Link from 'next/link';
 import { catalogApi } from '@/lib/api/catalog';
 import { formatMoney } from '@/lib/utils';
 export function Search() {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const initialValue =
+    pathname === '/catalog' || pathname?.startsWith('/catalog/') || pathname === '/teaware'
+      ? (params?.get('q')?.trim() ?? '')
+      : '';
+  return (
+    <SearchInput key={`${pathname}?${params?.toString() ?? ''}`} initialValue={initialValue} />
+  );
+}
+function SearchInput({ initialValue }: { initialValue: string }) {
   const t = useTranslations('nav');
-  const [value, setValue] = useState('');
-  const [debounced, setDebounced] = useState('');
+  const router = useRouter();
+  const [value, setValue] = useState(initialValue);
+  const [debounced, setDebounced] = useState(initialValue);
   const [open, setOpen] = useState(false);
   const id = useId();
+  const query = value.trim();
+  const typing = query !== debounced;
+  const showSuggestions = open && query.length >= 2;
+  const href = searchHref(value);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(value.trim()), 250);
     return () => clearTimeout(timer);
@@ -20,7 +38,7 @@ export function Search() {
     queryKey: ['search', debounced],
     queryFn: ({ signal }) =>
       catalogApi.products({ q: debounced, pageSize: 4, section: 'ALL' }, signal),
-    enabled: debounced.length >= 2 && open,
+    enabled: debounced.length >= 2 && open && !typing,
   });
   return (
     <div
@@ -33,7 +51,11 @@ export function Search() {
         action="/catalog"
         role="search"
         className="header-search"
-        onSubmit={() => setOpen(false)}
+        onSubmit={(event) => {
+          event.preventDefault();
+          setOpen(false);
+          router.push(href);
+        }}
       >
         <input type="hidden" name="section" value="ALL" />
         <label className="sr-only" htmlFor={id}>
@@ -54,19 +76,23 @@ export function Search() {
           placeholder={t('searchPlaceholder')}
           maxLength={100}
           autoComplete="off"
-          aria-controls={open && debounced.length >= 2 ? `${id}-results` : undefined}
+          aria-controls={showSuggestions ? `${id}-results` : undefined}
         />
         <button type="submit" className="search-submit" aria-label={t('search')}>
           <SearchIcon size={19} aria-hidden="true" />
         </button>
       </form>
-      {open && debounced.length >= 2 && (
+      {showSuggestions && (
         <div className="search-results" id={`${id}-results`}>
           <p className="eyebrow">{t('searchResults')}</p>
-          {results.isError ? (
-            <p>{t('viewAll')}</p>
-          ) : results.isFetching ? (
-            <div className="search-skeleton skeleton" />
+          {typing || results.isFetching || results.isPending ? (
+            <div
+              className="search-skeleton skeleton"
+              role="status"
+              aria-label={t('searchLoading')}
+            />
+          ) : results.isError ? (
+            <p>{t('searchError')}</p>
           ) : !results.data?.items.length ? (
             <p>{t('noResults')}</p>
           ) : (
@@ -81,12 +107,8 @@ export function Search() {
               ))}
             </ul>
           )}
-          <Link
-            className="text-link"
-            href={`/catalog?section=ALL&q=${encodeURIComponent(value.trim())}`}
-            onClick={() => setOpen(false)}
-          >
-            {t('viewAll')}
+          <Link className="text-link" href={href} onClick={() => setOpen(false)}>
+            {t('viewSearchResults', { query })}
             <ArrowUpRight size={15} aria-hidden="true" />
           </Link>
         </div>

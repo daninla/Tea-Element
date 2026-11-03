@@ -1,0 +1,21 @@
+-- Local development credentials only. Use managed secrets outside development.
+CREATE ROLE auth LOGIN PASSWORD 'tea_dev_auth';
+CREATE DATABASE auth_db OWNER auth;
+REVOKE ALL ON DATABASE auth_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE auth_db TO auth;
+CREATE ROLE catalog LOGIN PASSWORD 'tea_dev_catalog';
+CREATE DATABASE catalog_db OWNER catalog;
+REVOKE ALL ON DATABASE catalog_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE catalog_db TO catalog;
+CREATE ROLE orders LOGIN PASSWORD 'tea_dev_orders';
+CREATE DATABASE orders_db OWNER orders;
+REVOKE ALL ON DATABASE orders_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE orders_db TO orders;
+CREATE ROLE payments LOGIN PASSWORD 'tea_dev_payments';
+CREATE DATABASE payments_db OWNER payments;
+REVOKE ALL ON DATABASE payments_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE payments_db TO payments;
+CREATE ROLE marketing LOGIN PASSWORD 'tea_dev_marketing';
+CREATE DATABASE marketing_db OWNER marketing;
+REVOKE ALL ON DATABASE marketing_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE marketing_db TO marketing;

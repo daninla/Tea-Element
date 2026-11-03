@@ -1,0 +1,278 @@
+services:
+  workspace:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: &workspace-volumes
+      - ..:/workspace
+      - workspace-modules:/workspace/node_modules
+      - workspace-pnpm:/root/.local/share/pnpm
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile',
+      ]
+
+  gateway:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/gateway dev',
+      ]
+    environment:
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    ports: ['127.0.0.1:4000:4000']
+
+  auth-service:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/auth-service dev',
+      ]
+    environment:
+      PORT: 4001
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://auth:tea_dev_auth@postgres:5432/auth_db
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  catalog-service:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/catalog-service dev',
+      ]
+    environment:
+      PORT: 4002
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  orders-service:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/orders-service dev',
+      ]
+    environment:
+      PORT: 4003
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://orders:tea_dev_orders@postgres:5432/orders_db
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  payments-service:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/payments-service dev',
+      ]
+    environment:
+      PORT: 4004
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://payments:tea_dev_payments@postgres:5432/payments_db
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      PAYMENT_PROVIDER: fake
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  marketing-service:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/marketing-service dev',
+      ]
+    environment:
+      PORT: 4005
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://marketing:tea_dev_marketing@postgres:5432/marketing_db
+      RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes: *workspace-volumes
+    command:
+      [
+        'sh',
+        '-c',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm --filter @tea/web dev',
+      ]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      INTERNAL_API_URL: http://gateway:4000
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      workspace:
+        condition: service_completed_successfully
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+volumes:
+  workspace-modules:
+  workspace-pnpm:

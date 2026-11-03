@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm format:check
+      - run: docker compose -f infra/docker-compose.yml config --quiet
+      - run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml config --quiet
+      - name: Verify application liveness
+        run: |
+          pnpm dev > /tmp/tea-dev.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if pnpm health; then exit 0; fi
+            sleep 3
+          done
+          cat /tmp/tea-dev.log
+          exit 1

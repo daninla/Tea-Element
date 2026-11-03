@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+pnpm-lock.yaml
+SPEC.md
+
+.agents/
+.codex/
+.aws/
+apps/web/next-env.d.ts

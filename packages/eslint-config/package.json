@@ -1,0 +1,11 @@
+{
+  "name": "@tea/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.mjs",
+  "peerDependencies": {
+    "eslint": "^9",
+    "typescript-eslint": "^8"
+  }
+}

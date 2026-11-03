@@ -1,0 +1,36 @@
+{
+  "name": "@tea/catalog-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --dir ../.. exec nest start catalog-service --watch",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "lint": "eslint src test",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "@tea/contracts": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "class-validator": "^0.14.0",
+    "class-transformer": "^0.5.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "zod": "^3.25.0",
+    "dotenv": "^16.6.0",
+    "nestjs-pino": "^4.4.0",
+    "pino-http": "^10.5.0",
+    "pino": "^9.9.0",
+    "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "@tea/tsconfig": "workspace:*",
+    "@tea/eslint-config": "workspace:*",
+    "@nestjs/testing": "^11.0.0",
+    "@types/express": "^5.0.0"
+  }
+}

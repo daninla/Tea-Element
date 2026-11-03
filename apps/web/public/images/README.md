@@ -18,3 +18,5 @@ or watermarks. Original generated files remain in the user's Codex generated_ima
 Files are served via next/image. Only local API image paths are currently accepted; the generated
 category art is used when a real catalog image is not yet provided. No external image host is trusted
 by default. The complete original generation briefs are recorded in this chat's image_gen calls.
+
+Equipment images and their complete built-in ImageGen prompts are recorded in [equipment-prompts.md](equipment-prompts.md).

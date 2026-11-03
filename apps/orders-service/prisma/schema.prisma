@@ -1,0 +1,91 @@
+generator client {
+ provider = "prisma-client-js"
+ output = "../generated/prisma"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+ shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+enum OrderStatus {
+ PENDING
+ CONFIRMED
+ REJECTED
+ CANCELLED
+ SHIPPED
+ COMPLETED
+}
+model Order {
+ id String @id @default(uuid()) @db.Uuid
+ number String @unique
+ userId String? @map("user_id") @db.Uuid
+ status OrderStatus @default(PENDING)
+ items Json
+ subtotal Int
+ discount Int
+ total Int
+ firstName String @map("customer_first_name")
+ lastName String @map("customer_last_name")
+ email String @map("customer_email")
+ phone String @map("customer_phone")
+ delivery Json
+ paymentMethod String @default("CASH_ON_DELIVERY") @map("payment_method")
+ paymentStatus String @default("UNPAID") @map("payment_status")
+ comment String @default("")
+ marketingConsentAt DateTime? @map("marketing_consent_at")
+ termsAcceptedAt DateTime @default(now()) @map("terms_accepted_at")
+ accessTokenHash String @map("access_token_hash") @db.Char(64)
+ tokenNonce String @map("token_nonce")
+ idempotencyHash String @unique @map("idempotency_hash") @db.Char(64)
+ requestHash String @map("request_hash") @db.Char(64)
+ reservationExpiresAt DateTime @map("reservation_expires_at")
+ receiptSentAt DateTime? @map("receipt_sent_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ history OrderStatusHistory[]
+ @@index([userId, createdAt])
+ @@index([status, reservationExpiresAt])
+ @@index([receiptSentAt])
+ @@map("orders")
+}
+model OrderStatusHistory {
+ id String @id @default(uuid()) @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ status OrderStatus
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+ @@index([orderId, createdAt])
+ @@map("order_status_history")
+}
+model Cart {
+ id String @id @default(uuid()) @db.Uuid
+ userId String @unique @map("user_id") @db.Uuid
+ items Json
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@map("carts")
+}
+model Outbox {
+  id            String    @id @db.Uuid
+  eventName     String    @map("event_name")
+  payload       Json
+  correlationId String    @map("correlation_id")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([publishedAt, nextAttemptAt])
+  @@map("outbox")
+}
+
+model ProcessedEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @unique @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("processed_events")
+}

@@ -4,6 +4,10 @@ import { z } from 'zod';
 config({ path: resolve(__dirname, '../../.env') });
 
 const schema = z.object({
+  EVENTS_NAMESPACE: z
+    .string()
+    .regex(/^[a-z0-9.-]+$/)
+    .default('tea'),
   CATALOG_RPC_QUEUE: z.string().min(1).default('catalog.rpc'),
   DATABASE_URL: z
     .string()

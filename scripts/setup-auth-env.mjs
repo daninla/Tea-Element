@@ -50,3 +50,18 @@ try {
     { mode: 0o600 },
   );
 }
+
+const ordersEnv = path.join(root, 'apps/orders-service/.env');
+let ordersContent;
+try {
+  ordersContent = await readFile(ordersEnv, 'utf8');
+} catch {
+  ordersContent = await readFile(path.join(root, 'apps/orders-service/.env.example'), 'utf8');
+}
+if (!/^ORDER_ACCESS_SECRET=.+$/m.test(ordersContent)) {
+  ordersContent =
+    ordersContent.replace(/^ORDER_ACCESS_SECRET=.*$/m, '') +
+    `\nORDER_ACCESS_SECRET=${randomBytes(48).toString('hex')}\n`;
+}
+await writeFile(ordersEnv, ordersContent, { mode: 0o600 });
+await chmod(ordersEnv, 0o600);

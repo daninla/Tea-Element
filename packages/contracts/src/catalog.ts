@@ -1,4 +1,5 @@
 export const CATALOG_PATTERNS = {
+  quote: 'catalog.quote',
   categories: 'catalog.categories',
   products: 'catalog.products',
   product: 'catalog.product',

@@ -1,0 +1,113 @@
+import type { DomainEvent } from './auth';
+export const ORDERS_PATTERNS = {
+  quote: 'orders.quote',
+  create: 'orders.create',
+  get: 'orders.get',
+  cancel: 'orders.cancel',
+  cart: 'orders.cart',
+  saveCart: 'orders.save_cart',
+  mergeCart: 'orders.merge_cart',
+} as const;
+export const ORDER_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+  'REJECTED',
+  'CANCELLED',
+  'SHIPPED',
+  'COMPLETED',
+] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export interface CartItemInput {
+  variantId: string;
+  quantity: number;
+}
+export interface QuotedItem extends CartItemInput {
+  productId: string;
+  slug: string;
+  name: string;
+  weightGrams: number;
+  unitPrice: number;
+  originalPrice: number;
+  inStock: boolean;
+}
+export interface CartQuote {
+  items: QuotedItem[];
+  unavailableVariantIds: string[];
+  subtotal: number;
+  discount: number;
+  total: number;
+}
+export interface DeliveryInput {
+  method: 'NOVA_POSHTA_BRANCH' | 'NOVA_POSHTA_COURIER' | 'PICKUP';
+  city: string;
+  address: string;
+}
+export interface CreateOrderInput {
+  items: CartItemInput[];
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  delivery: DeliveryInput;
+  paymentMethod: 'CASH_ON_DELIVERY';
+  comment?: string;
+  marketingConsent: boolean;
+  acceptTerms: true;
+}
+export interface OrderView {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  items: QuotedItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  delivery: DeliveryInput;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  paymentMethod: 'CASH_ON_DELIVERY';
+  createdAt: string;
+  history: { status: OrderStatus; at: string }[];
+}
+export interface CreatedOrder {
+  order: OrderView;
+  accessToken: string;
+}
+export interface OrdersRequest<T = unknown> {
+  input: T;
+  context: { correlationId: string; userId?: string };
+}
+export type OrdersResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: string; message: string; statusCode: number } };
+export interface StockLine {
+  productId: string;
+  variantId: string;
+  weightGrams: number;
+  quantity: number;
+}
+export type OrderCreated = DomainEvent<'OrderCreated', { orderId: string; items: StockLine[] }>;
+export type OrderCancelled = DomainEvent<
+  'OrderCancelled',
+  { orderId: string; reason: 'CUSTOMER' | 'RESERVATION_TIMEOUT' }
+>;
+export type StockReserved = DomainEvent<'StockReserved', { orderId: string }>;
+export type StockReservationFailed = DomainEvent<'StockReservationFailed', { orderId: string }>;
+export type OrderConfirmed = DomainEvent<'OrderConfirmed', { orderId: string }>;
+export type CheckoutEvent =
+  OrderCreated | OrderCancelled | StockReserved | StockReservationFailed | OrderConfirmed;
+export const CHECKOUT_ROUTES = {
+  OrderCreated: 'orders.order_created',
+  OrderCancelled: 'orders.order_cancelled',
+  StockReserved: 'catalog.stock_reserved',
+  StockReservationFailed: 'catalog.stock_reservation_failed',
+  OrderConfirmed: 'orders.order_confirmed',
+} as const;
+export const CHECKOUT_SUBSCRIPTIONS = [
+  ['catalog.order_created', 'OrderCreated'],
+  ['catalog.order_cancelled', 'OrderCancelled'],
+  ['orders.stock_reserved', 'StockReserved'],
+  ['orders.stock_reservation_failed', 'StockReservationFailed'],
+] as const;

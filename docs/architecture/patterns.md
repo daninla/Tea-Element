@@ -1,18 +1,24 @@
 # Pattern implementation status
 
-| Pattern                          | Current status                                                                 | Source / next work                                                           |
-| -------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| API Gateway                      | Auth/catalog HTTP-to-RMQ routing and global security guards                    | apps/gateway/src/modules/auth                                                |
-| Database per Service             | Five isolated service databases; auth/catalog Prisma migrations                | infra/postgres; apps/auth-service/prisma; apps/catalog-service/prisma        |
-| Repository / Clean layers        | Domain ports, application use-cases and adapters                               | apps/auth-service/src/modules/auth                                           |
-| Event-driven architecture        | First producer and durable topology; no consumer yet                           | auth-service/src/shared/outbox                                               |
-| Transactional Outbox             | Customer, first session and event commit together; confirmed publisher retries | auth-service/modules/auth/infrastructure/prisma-auth-store.ts; shared/outbox |
-| Idempotent Consumer              | Planned with the first business consumer                                       | SPEC stage 7                                                                 |
-| Saga                             | Planned with checkout                                                          | SPEC stages 4 and 4a                                                         |
-| CQRS-lite                        | Planned                                                                        | SPEC stage 7                                                                 |
-| Strategy                         | Planned                                                                        | SPEC stages 4a and 7                                                         |
-| Payment ACL / idempotent webhook | Planned                                                                        | SPEC stage 4a                                                                |
+| Pattern                          | Current status                                                                     | Source / next work                           |
+| -------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
+| API Gateway                      | Auth/catalog/orders HTTP-to-RMQ routing, Origin/JWT/RBAC and private bearer access | apps/gateway/src/modules                     |
+| Database per Service             | Five isolated databases; auth/catalog/orders Prisma migrations                     | infra/postgres; apps/*/prisma                |
+| Repository / Clean layers        | Domain ports/policies, application use-cases and infrastructure adapters           | modules/auth, catalog, stock, orders         |
+| Event-driven architecture        | Registration producer and live checkout consumers                                  | shared/outbox; stock/order workers           |
+| Transactional Outbox             | State and event commit together; confirmed delivery/retry                          | auth, catalog and orders shared/outbox       |
+| Idempotent Consumer              | Event marker and side effect share one transaction; order-level semantic dedup     | prisma-stock-store.ts; prisma-order-store.ts |
+| Saga                             | COD reservation → confirmation/rejection; cancellation/timeout compensation        | OrderCreated/StockReserved/OrderCancelled    |
+| CQRS-lite                        | Planned                                                                            | SPEC stage 7                                 |
+| Strategy                         | Planned                                                                            | SPEC stages 4a and 7                         |
+| Payment ACL / idempotent webhook | Planned                                                                            | SPEC stage 4a                                |
 
-The Outbox integration test forces a failure at the outbox insert and verifies user/session rollback,
-then confirms durable event delivery. Registration has no saga or compensation step.
-Consumer idempotency and choreography are not claimed before an actual consumer is implemented.
+Orders integration exercises real HTTP, broker and PostgreSQL: duplicate/concurrent submissions,
+semantic/event duplicates, rollback after an injected Outbox failure, competing last-stock reservations,
+reordered cancellation/creation, expiry and late success. Durable retry queues quarantine poison messages.
+Registration separately tests transaction rollback and confirmed delivery. These are at-least-once
+messages: correctness comes from idempotent transactions, not a claim of exactly-once delivery.
+
+Private access uses a hashed bearer or trusted owner ID, never order number/email alone. Idempotency
+keys and request fingerprints protect checkout and guest-cart merge from uncertain HTTP responses.
+JSON snapshots and key-derived guest-token recovery are documented in ADR 0005.

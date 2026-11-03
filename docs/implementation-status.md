@@ -55,21 +55,44 @@ filters, mobile filter dialog submission, search suggestions and results, pagina
 portion URLs and unavailable portions. Checkout and customer authentication UI are still outside this
 milestone. The demo notice states that ordering is not open.
 
+## Stage 4 — carts and guest orders
+
+Implemented: persisted guest cart, header counter/drawer, quantities/removal, fresh server quotes and
+price-change review, guest checkout with Ukrainian validation, manual delivery/pickup and optional
+marketing consent, private order tracking/status polling and cancellation. Authenticated API clients
+have isolated server carts with idempotent guest merges and can create/read their own orders.
+Customer login/account screens remain stage 5; the storefront detects sessions issued by the existing API.
+
+Orders own a separate Prisma database, immutable price/contact/delivery snapshots, hashed guest access,
+idempotency fingerprints, status history and transactional Outbox. Catalog reserves all grams atomically,
+publishes success/failure via Outbox and tracks processed events. Cancellation and five-minute pending
+expiry compensate reservations; a cancellation tombstone prevents late creation from reserving stock.
+Confirmed COD orders retain reserved grams; shipping/physical stock deduction remains administration.
+A durable SMTP worker sends the private link to local Mailpit. The storefront explicitly identifies all
+orders as demonstration data without real payment or fulfillment. Demo terms describe test-data storage.
+
+Real HTTP/RMQ/PostgreSQL integration covers clean migrations, repeatable seeds, current discounts,
+validation, concurrent duplicate submissions, request conflicts, missing/wrong tokens, ownership,
+idempotent cart merge, reservation duplicates/reordering, rollback on Outbox failure, competing orders
+without oversell, rejection, cancellation, timeout, SMTP receipt and retry/DLQ quarantine. Browser checks
+at 375px/1280px cover drawer, persistent cart, quantities, form errors, delivery and pickup checkout,
+confirmation, cancellation and no horizontal document overflow. No browser console errors were observed
+in the completed purchase/cancellation flow.
+
 ## Remaining stages
 
-4. Cart, guest checkout, stock reservation saga, Outbox and idempotency.
-   4a. Fake/LiqPay payment providers, verified webhooks, expiry, reconciliation and refunds.
-5. Account, verified guest order linking.
-6. Administration.
-7. Event-based marketing and email.
-8. SEO, accessibility, resilience, performance and complete acceptance tests.
+- **4a:** Fake/LiqPay payment providers, verified webhooks, expiry, reconciliation and refunds.
+- **5:** Account/login UI, verified guest order linking, registration from an order and private email lookup.
+- **6:** Administration and fulfillment/inventory journal.
+- **7:** Event-based marketing and email campaigns.
+- **8:** SEO, accessibility, resilience, performance and complete acceptance tests.
 
 The MVP acceptance checklist in SPEC is not yet satisfied. No application schema or business endpoint
 is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (91 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (143 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

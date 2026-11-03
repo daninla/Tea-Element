@@ -36,3 +36,15 @@ For an existing PostgreSQL volume, apply it before creating catalog migrations:
 ```sh
 docker compose -f infra/docker-compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U tea_bootstrap -d postgres < infra/postgres/catalog-access.sql
 ```
+
+Stage 4 also provisions `orders_shadow` and readonly default privileges through `postgres/orders-access.sql`.
+For an existing volume, apply this infrastructure provisioning before creating orders migrations:
+
+```sh
+docker compose -f infra/docker-compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U tea_bootstrap -d postgres < infra/postgres/orders-access.sql
+```
+
+Application tables are still managed exclusively by Prisma Migrate. `pnpm db:migrate` now includes
+orders. Container mode configures orders SMTP to `mailpit:1025`; the browser origin remains localhost.
+`pnpm test:orders:integration` uses fresh temporary databases and isolated durable queues on ports
+4300/4302/4303, delivers fake receipts to Mailpit, and removes its own databases/topology afterwards.

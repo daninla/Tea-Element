@@ -17,4 +17,4 @@ flowchart TD
   Marketing --> MarketingDB[(marketing_db)]
 ```
 
-This is the target topology. Stage 0 starts independent HTTP processes; broker edges arrive with business features.
+This is the target topology. Auth/catalog/orders HTTP/RMQ and checkout event edges are active through stage 4. Payments and marketing business consumers remain later milestones.

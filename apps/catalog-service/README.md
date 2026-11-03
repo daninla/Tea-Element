@@ -1,6 +1,6 @@
 # Catalog service
 
-Owns `catalog_db` and its isolated generated Prisma client. Serves read-only business RPC on
+Owns `catalog_db` and its isolated generated Prisma client. Serves catalog read and internal quote RPC on
 `catalog.rpc`; HTTP port 4002 exposes only operational `/health` and `/docs`. Public clients use gateway.
 
 ## Setup
@@ -9,7 +9,7 @@ From the root: `pnpm setup:dev`, `pnpm infra:up`, `pnpm db:migrate`, `pnpm db:se
 `db:seed` provisions the auth admin plus 7 catalog categories, 12 demo teas, 36 variants (25/50/100 g)
 and 2 promotions. It is transactional and preserves existing rows, prices, inventory and reservations.
 Descriptions, origins, years, brewing guides, prices and stock are demo data, not supplier claims.
-Images intentionally remain empty until storefront assets are added. No fabricated sales counts are seeded.
+Seed image paths remain empty; the storefront supplies explicitly illustrative fallback assets. No fabricated sales counts are seeded.
 
 For new schema changes: `pnpm --filter @tea/catalog-service prisma migrate dev --name <name>`.
 Infrastructure script `infra/postgres/catalog-access.sql` provisions catalog_shadow and readonly grants;
@@ -45,13 +45,25 @@ public views through pure domain pricing rules. Count, page ids and details shar
 snapshot and one time instant. Tests check SQL/domain consistency. Large-catalog search indexing and
 Redis caching are deferred; no stale cache is served in this milestone.
 
-No catalog mutation API, stock reservation consumer, purchase/movement journal or PromotionStarted
-producer is implemented yet. Seed imports are operational fixtures and do not publish business events.
-Those workflows require validated writes, Outbox and idempotency in their respective milestones.
+## Reservation consumer (stage 4)
+
+`catalog.order_created` and `catalog.order_cancelled` consume durable events from `tea.events`.
+`stock_reservations` records each order result; `processed_events` deduplicates each event in the same
+transaction as inventory and Outbox. Inventory locks are acquired by sorted product ID. All portions
+share gram inventory, including different weights in the same order. Failure reserves nothing and emits
+StockReservationFailed; success increments reserved grams and emits StockReserved. Repeated creation
+for an existing order never adds another reservation. Cancellation decrements a prior reservation and
+records a RELEASED tombstone, protecting against reversed delivery order. Confirmed COD stock remains
+reserved; physical deduction on fulfillment is a later admin workflow.
+
+Publishers use confirms and durable retry state; consumers retry via TTL queues then quarantine in DLQ.
+See [events](../../docs/architecture/events.md) and ADR 0005. No catalog mutation HTTP API, procurement
+journal or PromotionStarted producer exists yet. Seeds are operational fixtures and emit no events.
 
 ## Verification
 
 `pnpm --filter @tea/catalog-service test` covers use-cases, pricing, stock availability and liveness.
 After `pnpm build`, `pnpm test:catalog:integration` creates/migrates catalog_stage2_test, seeds twice,
 and uses isolated RPC topology and ports 4200/4202. It restores its fixture changes and deletes its queue.
-`pnpm test:integration` runs both the auth and catalog suites. Integration requires local Docker access.
+`pnpm test:integration` runs auth, catalog and orders suites. The orders integration verifies real
+reservation/cancellation/rollback and concurrency against a separate temporary catalog database. Integration requires local Docker access.

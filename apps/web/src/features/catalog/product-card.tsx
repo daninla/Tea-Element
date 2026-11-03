@@ -7,7 +7,13 @@ import { useTranslations } from 'next-intl';
 import type { ProductView } from '@tea/contracts';
 import { formatMoney } from '@/lib/utils';
 import { productImage } from './product-image';
-export function ProductCard({ product }: { product: ProductView }) {
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: ProductView;
+  priority?: boolean;
+}) {
   const t = useTranslations('common');
   const [selected, setSelected] = useState(product.variants[0]?.id);
   const variant = product.variants.find((v) => v.id === selected) ?? product.variants[0];
@@ -19,6 +25,7 @@ export function ProductCard({ product }: { product: ProductView }) {
         <Image
           src={productImage(product)}
           alt={product.name}
+          priority={priority}
           fill
           sizes="(max-width: 640px) 45vw, (max-width: 1000px) 30vw, 24vw"
         />

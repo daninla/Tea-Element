@@ -34,7 +34,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const common = await getTranslations('common');
   return (
-    <html lang="uk" className={`${inter.variable} ${cormorant.variable}`}>
+    <html
+      lang="uk"
+      data-scroll-behavior="smooth"
+      className={`${inter.variable} ${cormorant.variable}`}
+    >
       <body>
         <NextIntlClientProvider>
           <Providers>

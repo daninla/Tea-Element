@@ -34,7 +34,7 @@ export function ProductGallery({ product }: { product: ProductView }) {
               aria-pressed={selected === i}
               onClick={() => setSelected(i)}
             >
-              <Image src={image} alt="" width={78} height={78} />
+              <Image src={image} alt="" fill sizes="78px" />
             </button>
           ))}
         </div>

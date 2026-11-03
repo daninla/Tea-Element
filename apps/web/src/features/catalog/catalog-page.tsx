@@ -83,8 +83,8 @@ export async function CatalogPage({ raw, category }: { raw: RawCatalogQuery; cat
             <StatePanel kind="empty" />
           ) : (
             <div className="product-grid catalog-grid">
-              {result.items.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {result.items.map((product, index) => (
+                <ProductCard key={product.id} product={product} priority={index < 3} />
               ))}
             </div>
           )}

@@ -4,10 +4,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 export function formatMoney(kopecks: number) {
-  return new Intl.NumberFormat('uk-UA', {
-    style: 'currency',
-    currency: 'UAH',
-    minimumFractionDigits: kopecks % 100 ? 2 : 0,
-    maximumFractionDigits: 2,
-  }).format(kopecks / 100);
+  if (!Number.isSafeInteger(kopecks) || kopecks < 0) throw new Error('Invalid display amount');
+  const whole = Math.floor(kopecks / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+  const fraction = kopecks % 100;
+  return `${whole}${fraction ? `,${String(fraction).padStart(2, '0')}` : ''}\u00a0₴`;
 }

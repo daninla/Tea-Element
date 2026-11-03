@@ -20,7 +20,7 @@ describe('gateway HTTP boundary', () => {
       .expect(200)
       .expect({ status: 'ok', service: 'gateway' });
   });
-  it('does not expose unimplemented business endpoints', async () => {
-    await request(app.getHttpServer()).post('/api/v1/orders/guest').send({}).expect(404);
+  it('rejects guest checkout without a trusted Origin', async () => {
+    await request(app.getHttpServer()).post('/api/v1/orders/guest').send({}).expect(403);
   });
 });

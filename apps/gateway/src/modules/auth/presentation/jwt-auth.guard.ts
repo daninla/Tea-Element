@@ -43,6 +43,7 @@ export class JwtAuthGuard implements CanActivate {
       request.user = claims.parse(decoded);
       return true;
     } catch {
+      if (isPublic && optional) return true;
       throw new UnauthorizedException({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     }
   }

@@ -1039,3 +1039,257 @@ img {
     font-size: 9px;
   }
 }
+/* Product detail */
+.detail-section {
+  padding-top: 28px;
+}
+.product-detail {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 70px;
+  margin-block: 36px 50px;
+  align-items: start;
+}
+.detail-image {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--soft-sand);
+}
+.detail-image img {
+  object-fit: cover;
+}
+.detail-image .badge {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  left: 20px;
+}
+.gallery-thumbnails {
+  display: flex;
+  gap: 10px;
+  margin-top: 13px;
+}
+.gallery-thumbnails button {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: transparent;
+}
+.gallery-thumbnails button[aria-pressed='true'] {
+  border-color: var(--primary-ink);
+  outline: 1px solid var(--primary-ink);
+  outline-offset: 2px;
+}
+.gallery-thumbnails img {
+  display: block;
+  object-fit: cover;
+}
+.image-note {
+  margin-top: 14px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.detail-copy {
+  padding-top: 8px;
+}
+.detail-copy h1 {
+  font-size: clamp(43px, 4.6vw, 66px);
+  margin: 15px 0 8px;
+}
+.detail-original {
+  color: var(--muted);
+  font-size: 16px;
+}
+.detail-description {
+  margin-block: 22px 30px;
+  color: var(--muted);
+  max-width: 450px;
+  line-height: 1.9;
+  font-size: 13px;
+}
+.portion-selector {
+  border-block: 1px solid var(--border);
+  padding-block: 24px;
+}
+.portion-selector h2 {
+  font-family: var(--font-inter), Arial, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0;
+  margin-bottom: 18px;
+}
+.portion-options {
+  display: flex;
+  gap: 10px;
+}
+.portion-options button {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 94px;
+  padding: 13px 18px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.portion-options button small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.portion-options button[aria-pressed='true'] {
+  border-color: var(--primary-ink);
+  background: var(--soft-sage);
+}
+.portion-options .portion-unavailable {
+  border-style: dashed;
+}
+.portion-unavailable > span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.selection-summary {
+  margin-top: 24px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+.detail-price {
+  font-size: 26px;
+  font-weight: 500;
+}
+.detail-price .old-price {
+  font-size: 14px;
+  display: inline;
+  margin-left: 10px;
+}
+.availability {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary-ink);
+  font-size: 10px;
+}
+.availability.unavailable {
+  color: var(--muted);
+}
+.ordering-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 22px;
+  padding: 13px;
+  border-radius: 6px;
+  background: var(--soft-sage);
+  font-size: 11px;
+  color: var(--muted);
+}
+.ordering-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.product-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin-top: 25px;
+}
+.product-facts dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+.product-facts dd {
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+.brewing-panel {
+  background: var(--soft-sage);
+  border-radius: 8px;
+  padding: 35px 40px;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 30px;
+  align-items: center;
+}
+.brewing-panel h2 {
+  font-size: 37px;
+  margin-top: 12px;
+}
+.brewing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  text-align: center;
+}
+.brewing-stats svg {
+  color: var(--primary-ink);
+  margin: 0 auto 12px;
+}
+.brewing-stats p {
+  font-size: 10px;
+  color: var(--muted);
+}
+.brewing-stats strong {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: 31px;
+  font-weight: 500;
+}
+@media (max-width: 1000px) {
+  .product-detail {
+    gap: 35px;
+  }
+  .portion-options button {
+    min-width: 80px;
+    padding-inline: 12px;
+  }
+  .selection-summary {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .brewing-panel {
+    padding: 28px;
+  }
+}
+@media (max-width: 640px) {
+  .product-detail {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    margin-top: 25px;
+  }
+  .detail-copy h1 {
+    font-size: 49px;
+  }
+  .detail-description {
+    margin-block: 20px;
+  }
+  .portion-options {
+    gap: 8px;
+  }
+  .portion-options button {
+    flex: 1;
+    padding: 12px 8px;
+  }
+  .product-facts {
+    gap: 25px;
+  }
+  .brewing-panel {
+    grid-template-columns: 1fr;
+    padding: 27px 20px;
+    gap: 28px;
+  }
+  .brewing-panel h2 {
+    font-size: 36px;
+  }
+  .brewing-stats {
+    gap: 9px;
+  }
+  .brewing-stats p {
+    font-size: 9px;
+  }
+  .brewing-stats strong {
+    font-size: 29px;
+  }
+}

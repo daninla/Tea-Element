@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { z } from 'zod';
 import { Role } from '@tea/contracts';
 import { readEnvironment } from '../../../config/environment';
-import { cookie, PUBLIC, type AuthenticatedRequest } from './auth-policy';
+import { cookie, PUBLIC, OPTIONAL_AUTH, type AuthenticatedRequest } from './auth-policy';
 const claims = z.object({
   sub: z.string().uuid(),
   email: z.string().email(),
@@ -23,11 +23,16 @@ export class JwtAuthGuard implements CanActivate {
     @Inject(JwtService) private readonly jwt: JwtService,
   ) {}
   async canActivate(context: ExecutionContext) {
-    if (
-      this.reflector.getAllAndOverride<boolean>(PUBLIC, [context.getHandler(), context.getClass()])
-    )
-      return true;
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const optional = this.reflector.getAllAndOverride<boolean>(OPTIONAL_AUTH, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    if (isPublic && (!optional || !cookie(request, 'tea_access'))) return true;
     try {
       const decoded: unknown = await this.jwt.verifyAsync(cookie(request, 'tea_access'), {
         secret: readEnvironment().JWT_ACCESS_SECRET,

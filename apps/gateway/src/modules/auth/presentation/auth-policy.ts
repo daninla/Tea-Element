@@ -13,3 +13,6 @@ export function cookie(request: Request, name: string): string {
   const value = cookies?.[name];
   return typeof value === 'string' && value.length <= 2048 ? value : '';
 }
+
+export const OPTIONAL_AUTH = 'tea.optional_auth';
+export const OptionalAuth = () => SetMetadata(OPTIONAL_AUTH, true);

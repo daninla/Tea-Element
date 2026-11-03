@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from 'express';
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -13,6 +14,15 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
   app.use(helmet());
+  app.use('/api/v1/orders', (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+  });
+  app.use('/api/v1/cart', (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use(cookieParser());
   app.useGlobalFilters(new HttpErrorFilter());
   app.enableCors({ origin: env.CORS_ORIGIN, credentials: true });

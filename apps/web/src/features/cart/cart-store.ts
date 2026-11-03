@@ -94,5 +94,6 @@ export function reconcileCart(
       else result.delete(id);
     }
   }
-  return [...result].slice(0, 50).map(([variantId, quantity]) => ({ variantId, quantity }));
+  if (result.size > 50) throw new Error('Cart merge exceeds the portion limit');
+  return [...result].map(([variantId, quantity]) => ({ variantId, quantity }));
 }

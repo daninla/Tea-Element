@@ -54,3 +54,8 @@ describe('cart edits during session synchronization', () => {
     ).toEqual([{ variantId: id, quantity: 3 }]);
   });
 });
+
+it('does not silently discard local additions when remote portions reach the limit', () => {
+  const remote = Array.from({ length: 50 }, (_, i) => ({ variantId: String(i), quantity: 1 }));
+  expect(() => reconcileCart(remote, [], [{ variantId: id, quantity: 1 }])).toThrow();
+});

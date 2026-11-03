@@ -29,6 +29,8 @@ is represented as implemented before its milestone.
 - `pnpm dev` starts all seven applications; `pnpm health` confirms every process.
 - The Ukrainian page was checked at 375px and 1280px; the mobile document has no horizontal overflow.
 - Both Compose configurations pass `docker compose config --quiet`.
-- Container startup and database isolation at runtime are unverified: the local user cannot access `/var/run/docker.sock`, including outside the execution sandbox.
+- Docker access is verified after refreshing the login session. PostgreSQL, RabbitMQ, Redis and Mailpit are running and healthy.
+- PostgreSQL created all five service databases; each non-superuser service role has CONNECT access only to its own service database.
+- Host port 5432 was occupied, so project PostgreSQL uses `127.0.0.1:5433`; Compose, environment examples and startup documentation agree.
 
-Provide Docker daemon access before validating infrastructure startup. No production deployment is included.
+The optional all-container application override has been checked for configuration validity only. No production deployment is included.

@@ -1,6 +1,7 @@
 # Development infrastructure
 
 `pnpm infra:up` starts PostgreSQL 16, RabbitMQ, Redis and Mailpit and waits for health checks.
+PostgreSQL is published on `127.0.0.1:5433` (container port 5432) to coexist with a host PostgreSQL instance.
 All published ports bind to localhost. Credentials are development-only.
 PostgreSQL initializes five isolated databases with distinct non-superuser owners.
 Initialization runs on the first startup of a fresh volume; it never migrates application schemas.

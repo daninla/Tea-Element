@@ -7,7 +7,7 @@ and marketing are not implemented yet. The frontend clearly labels the shop as u
 ## Start locally (four commands)
 
 Prerequisites: Node.js >=20.19 (Node 22 recommended), pnpm 11.25, Docker Engine with Compose v2.
-The current user must have access to the Docker daemon. Ports 3000, 4000–4005, 5432, 5672,
+The current user must have access to the Docker daemon. Ports 3000, 4000–4005, 5433, 5672,
 6379, 8025, 1025 and 15672 must be available.
 
 ```sh

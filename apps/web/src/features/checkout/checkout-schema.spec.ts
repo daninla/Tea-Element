@@ -1,0 +1,45 @@
+import { checkoutSchema } from './checkout-schema';
+const fields = {
+  firstName: 'Гість',
+  lastName: 'Тест',
+  phone: '+380501234567',
+  email: 'test@example.test',
+  delivery: { method: 'NOVA_POSHTA_BRANCH', city: 'Київ', address: 'Відділення 1' },
+  paymentMethod: 'CASH_ON_DELIVERY',
+  comment: '',
+  acceptTerms: true,
+  marketingConsent: false,
+};
+describe('guest checkout form', () => {
+  it('works without a user ID or marketing consent', () => {
+    expect(checkoutSchema.safeParse(fields).success).toBe(true);
+  });
+  it('requires affirmative terms independently from marketing', () => {
+    expect(
+      checkoutSchema.safeParse({ ...fields, acceptTerms: false, marketingConsent: true }).success,
+    ).toBe(false);
+  });
+  it.each(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER'])(
+    'requires city and address for %s',
+    (method) => {
+      expect(
+        checkoutSchema.safeParse({ ...fields, delivery: { method, city: '', address: '' } })
+          .success,
+      ).toBe(false);
+    },
+  );
+  it('does not require a shipping address for pickup', () => {
+    expect(
+      checkoutSchema.safeParse({ ...fields, delivery: { method: 'PICKUP', city: '', address: '' } })
+        .success,
+    ).toBe(true);
+  });
+  it.each([
+    { phone: '0501234567' },
+    { firstName: ' ' },
+    { email: 'bad' },
+    { paymentMethod: 'ONLINE_CARD' },
+  ])('rejects invalid checkout values', (extra) => {
+    expect(checkoutSchema.safeParse({ ...fields, ...extra }).success).toBe(false);
+  });
+});

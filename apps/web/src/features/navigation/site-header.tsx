@@ -1,3 +1,4 @@
+import { CartButton } from '@/features/cart/cart-button';
 import Link from 'next/link';
 import { Leaf, ArrowUpRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
@@ -21,6 +22,7 @@ export async function SiteHeader() {
           <div className="header-search-area">
             <Search />
           </div>
+          <CartButton />
           <Link href="/catalog" className="header-catalog">
             {common('catalog')}
             <ArrowUpRight size={16} aria-hidden="true" />

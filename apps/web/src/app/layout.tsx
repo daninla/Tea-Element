@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
     title: { default: t('title'), template: `%s · ${t('title')}` },
     description: t('description'),
+    referrer: 'no-referrer',
     robots: { index: false, follow: false },
     openGraph: {
       title: t('title'),

@@ -1,5 +1,9 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useCart } from '@/features/cart/cart-store';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { Check, Info } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { VariantView } from '@tea/contracts';
@@ -12,12 +16,17 @@ export function PortionSelector({
   variants: VariantView[];
   initialWeight?: string;
 }) {
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+  const add = useCart((s) => s.add);
+  const cartT = useTranslations('cart');
   const params = useSearchParams();
   const t = useTranslations('product');
   const common = useTranslations('common');
   const variant = selectedVariant(variants, params.get('weight') ?? initialWeight);
   if (!variant) return null;
   function select(weight: number) {
+    setAdded(false);
     const url = new URL(window.location.href);
     url.searchParams.set('weight', String(weight));
     window.history.replaceState(null, '', url);
@@ -52,6 +61,33 @@ export function PortionSelector({
           {variant.inStock ? common('inStock') : t('unavailablePortion')}
         </p>
       </div>
+      <div className="purchase-controls">
+        <label htmlFor="purchase-quantity">{cartT('quantity')}</label>
+        <input
+          id="purchase-quantity"
+          type="number"
+          min={1}
+          max={99}
+          value={quantity}
+          onChange={(e) =>
+            setQuantity(Math.max(1, Math.min(99, Math.trunc(Number(e.target.value)) || 1)))
+          }
+        />
+        <Button
+          disabled={!variant.inStock}
+          onClick={() => {
+            add(variant.id, quantity);
+            setAdded(true);
+          }}
+        >
+          {cartT('add')}
+        </Button>
+      </div>
+      {added && (
+        <p className="added-notice" role="status">
+          {cartT('added')} <Link href="/cart">{cartT('viewCart')}</Link>
+        </p>
+      )}
       <p className="ordering-note">
         <Info size={17} aria-hidden="true" />
         {t('orderingSoon')}

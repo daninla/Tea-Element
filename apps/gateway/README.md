@@ -47,3 +47,7 @@ are never accepted from clients. POST `/api/v1/payments/webhook/:provider` accep
 data/signature fields; `fake`/`liqpay` must match the configured provider. Only this explicitly marked
 callback handler bypasses Origin checks and authenticates by provider signature. Its body is never logged.
 No payment database/provider integration exists inside gateway. Full workflow is in payments-service.
+
+Stage 4a.3 adds Origin-protected POST /orders/:number/payment/retry|cod (UUID Idempotency-Key) and
+/payments/simulate (Fake development only). All require private guest or owner access; neither accepts
+an amount or caller-selected payment attempt. Provider callback Origin exemption is unchanged.

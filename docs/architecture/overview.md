@@ -22,7 +22,9 @@ current API v7 signing, verified/normalized observations and bounded status/full
 Stage 4a.2 adds isolated payments Prisma storage, audit/Outbox/refund jobs and payment consumers.
 Gateway payment APIs recheck private order access over RPC. Reconciliation/deadlines and late-money
 refund compensation extend the saga without cross-service database reads; see ADR 0009.
-Online storefront controls remain stage 4a.3. Marketing consumers are not implemented yet.
+Stage 4a.3 adds storefront payment controls, private return access and idempotent multi-attempt/COD
+commands. Attempt abandonment compensates late funds without cancelling newer attempts; see ADR 0010.
+Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

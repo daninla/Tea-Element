@@ -108,9 +108,24 @@ callback audit, concurrent replay, atomic Outbox rollback, deadlines/stock relea
 lost callback reconciliation and cancellation/refund idempotency. See ADR 0009. Storefront checkout
 continues to offer demonstration COD; online UI, retry/COD-switch and multi-attempt policy are next.
 
+## Stage 4a.3 — storefront payment flow and multiple attempts
+
+Implemented: online/COD checkout choice, preparation/result pages, server-confirmed outcome polling,
+per-order same-tab guest-token restoration, guarded hosted POST form and explicit offline success/refusal
+controls. Failed active attempts can retry with an idempotent command or switch to COD while preserving
+the original reservation deadline. Multiple attempts and abandonment tombstones persist independently;
+late historical outcomes cannot change a newer attempt or COD order. Existing order/payment rows remain
+compatible through lazy order-side attempt history recovery. See ADR 0010.
+
+Real integration adds concurrent command replay, conflict, unchanged deadlines, legacy recovery, COD
+switch and late abandoned-attempt refunds. Browser acceptance at 375/1280px covers online choice,
+refusal/retry/success, refresh without URL bearer, mixed orders, COD/cancellation and forged result flags.
+There is no horizontal document overflow or payment-flow console error. Live payments remain disabled;
+merchant LiqPay sandbox acceptance has not been performed without the owner's account configuration.
+
 ## Remaining stages
 
-- **4a.3:** Storefront payment choice/redirect/result flow, private-token restoration, retry/COD-switch commands, multi-attempt policy and merchant sandbox acceptance. Provider adapters and durable backend are implemented in 4a.1–4a.2.
+- **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
 - **5:** Account/login UI, verified guest order linking, registration from an order and private email lookup.
 - **6:** Administration and fulfillment/inventory journal.
 - **7:** Event-based marketing and email campaigns.
@@ -121,7 +136,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (243 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (258 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

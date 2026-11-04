@@ -82,3 +82,14 @@ order expiry also progresses while payments are unavailable. Guest/owner cancell
 awaiting payment; paid cancellation remains future administration. Late success cannot revive a cancelled
 order, and refund-before-success cannot overwrite REFUNDED with PAID. PaymentRefunded compensates any
 unfulfilled active order. No guest token or contact data is included in payment events.
+
+## Retry and COD switch (stage 4a.3)
+
+POST /orders/:number/payment/retry or /cod with private access and UUID Idempotency-Key executes under
+the existing order lock. Failure now marks payment FAILED while keeping AWAITING_PAYMENT until the
+original deadline. Retry creates one new attempt/history entry per command; COD confirms the existing
+reservation. The deadline never extends. PaymentAttemptAbandoned compensates a pending old attempt
+without cancelling the order. Known historical outcomes cannot overwrite the active attempt/COD state.
+Legacy active attempts gain history before the first command. PaymentExpired still cancels/releases.
+OrderView now includes active attempt ID, payment status and optional payment deadline. No amount,
+redirect URL, identity or contact change is accepted by these commands. See ADR 0010.

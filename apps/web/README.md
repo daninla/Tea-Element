@@ -43,7 +43,7 @@ robots remain noindex until deployment and real store content are ready.
 
 ## Verification
 
-`pnpm --filter @tea/web test` runs 70 tests for URL validation/pagination, portion selection,
+`pnpm --filter @tea/web test` runs 81 tests for URL validation/pagination, portion selection,
 structured-data escaping, SSR-safe money formatting, persisted carts, checkout validation and replay
 metadata recovery. Root lint, typecheck, test, build and format
 checks also cover this application. Browser checks at 375px/1280px cover filters, search suggestions,
@@ -63,3 +63,18 @@ Equipment detail/cart/checkout/order views show pieces, no gram weight/query par
 guide. Filter submissions, resets and pagination stay within the selected section. The four new generated
 photos and full prompts are documented in [equipment provenance](public/images/equipment-prompts.md).
 No supplier claims or real purchase/fulfillment are implied by these demonstration products.
+
+## Storefront payments (stage 4a.3)
+
+Checkout offers demonstration online/COD choice. Online orders wait for reservation on
+/order/[number]/pay; /order/[number]/result shows success only after orders RPC confirms PAID.
+Private access restores per order from same-tab sessionStorage; URL result flags never confirm payment.
+Hosted LiqPay forms contain only data/signature and preserve the private token locally. Navigation is
+blocked if guest storage cannot preserve access. Fake mode exposes explicit offline success/refusal
+controls, never a card form. Authenticated ownership works through the same private gateway boundary.
+
+Failure offers idempotent retry or COD switch without extending the reservation. Errors, pending states
+and bounded preparation retries are localized. Browser checks at 375/1280px cover refusal/retry/success,
+refresh without URL bearer, mixed tea/equipment COD switch/cancellation and forged success flags.
+No horizontal overflow or payment-flow console error was observed. Real merchant sandbox acceptance
+remains external; live keys/real charges are disabled. See ADR 0010.

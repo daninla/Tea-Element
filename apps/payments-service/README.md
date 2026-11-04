@@ -78,6 +78,17 @@ audit of invalid callbacks, concurrency, Outbox rollback, expiry/release, late-s
 lost callback reconciliation, tombstones and refund claim quarantine; cleanup removes its own fixtures.
 The root integration command includes this suite. No test contacts LiqPay.
 
-Remaining stage 4a.3: storefront choice/redirect/result polling with private-token restoration, payment
-retry/COD-switch commands, multi-attempt policy and real merchant sandbox acceptance. No working online
-checkout UI or live payment acceptance is claimed. See [ADR 0009](../../docs/adr/0009-durable-payment-saga.md).
+Stage 4a.3 implements the storefront and multiple attempts; only merchant sandbox acceptance remains external. Live payment acceptance is not claimed. See [ADR 0009](../../docs/adr/0009-durable-payment-saga.md).
+
+## Multiple attempts and offline UI
+
+Registration is idempotent per payment attempt UUID; orderId is indexed rather than unique. Abandonment
+has a per-attempt tombstone, independent of whole-order cancellation. Checkout/status resolve the active
+attempt from the private order response. Failed attempts remain auditable and are reconciled/refunded
+if they later receive money; they cannot confirm a new attempt. Stock remains reserved only until the
+original order deadline. See ADR 0010, which refines the first backend increment's failure behavior.
+
+POST /api/v1/payments/simulate is a private, Origin-protected Fake-only development endpoint. Number/token
+or trusted ownership is required; only SUCCEEDED/FAILED outcome is accepted. It reuses payability checks,
+provider signing and raw webhook audit. No signing key reaches the browser. LiqPay and production refuse
+simulation. Fake provider memory remains process-local; ledger/audit/jobs persist.

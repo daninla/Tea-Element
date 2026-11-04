@@ -87,3 +87,17 @@ Orders independently verify the attempt ID, amount and currency. Success cannot 
 refund cannot regress to paid when a delayed success event arrives. Cancelled/failed/expired payments
 with late success queue one durable full refund. Refund jobs are claimed before contacting a provider.
 An ambiguous result is quarantined for review/reconciliation rather than automatically resubmitted.
+
+## Attempt changes (stage 4a.3)
+
+PaymentAttemptAbandoned / v1: orders → payments.payment_attempt_abandoned, routing key
+orders.payment_attempt_abandoned, payload {orderId, paymentId}. Retry and COD-switch commands publish it
+transactionally before a replacement PaymentRequested or OrderConfirmed. Attempt-specific tombstones
+handle delivery before creation; whole-order cancellation still affects all attempts. No stock release
+is triggered by abandoning one attempt. Late success on it is refunded without touching newer payment
+state. Current payment reads use the active attempt ID stored by orders.
+
+PaymentFailed now retains AWAITING_PAYMENT/reserved stock until the original deadline, allowing the
+SPEC retry/COD alternative. PaymentExpired still cancels/releases. Known old-attempt outcomes cannot
+cancel/pay a newer attempt or COD order. Amount/currency/order membership is verified before ignoring
+an obsolete outcome. See ADR 0010 for state and compatibility details.

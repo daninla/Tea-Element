@@ -41,8 +41,12 @@ They are not automatically retried; a timeout may have an uncertain outcome. Pas
 only over the trusted internal transport and are never logged. Use TLS and private RabbitMQ credentials
 outside development. `AUTH_RPC_QUEUE` and `EVENTS_NAMESPACE` allow isolated integration tests.
 
-Password reset, email verification, verified guest-order linking and customer-facing auth screens are
-not part of the stage 1 acceptance scenario; they remain explicitly scheduled follow-up work.
+Stage 5 adds `modules/account`: profile, email confirmation, password recovery and registration from a
+private order. Challenges are single-use hashed proofs; the durable SMTP worker sends fragment links to
+WEB_URL via SMTP_URL (defaults: localhost:3000 and local Mailpit:1025). Verification commits
+UserEmailVerified Outbox atomically. Password reset revokes refresh sessions but existing access JWTs
+retain their remaining 15-minute lifetime. ORDERS_RPC_QUEUE supplies private order registration access.
+See ADR 0011 for expiry, retry and ownership policy.
 
 ## Verification
 

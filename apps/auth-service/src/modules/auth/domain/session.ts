@@ -25,5 +25,6 @@ export function publicUser(user: AuthUser): PublicUser {
     phone: user.phone,
     role: user.role,
     emailVerified: user.emailVerified,
+    ...(user.defaultDelivery !== undefined ? { defaultDelivery: user.defaultDelivery } : {}),
   };
 }

@@ -5,6 +5,9 @@ config({ path: resolve(__dirname, '../../.env') });
 
 const schema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
+  SMTP_URL: z.string().url().default('smtp://localhost:1025'),
+  WEB_URL: z.string().url().default('http://localhost:3000'),
+  ORDERS_RPC_QUEUE: z.string().default('orders.rpc'),
   AUTH_RPC_QUEUE: z.string().min(1).default('auth.rpc'),
   EVENTS_NAMESPACE: z
     .string()

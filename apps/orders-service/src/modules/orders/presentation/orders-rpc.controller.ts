@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { z } from 'zod';
 import { ORDERS_PATTERNS, type OrdersResult } from '@tea/contracts';
 import { OrderError } from '../domain/order-store';
+import { AccountOrders } from '../application/account-orders';
 import { ChangePayment } from '../application/change-payment';
 import { CreateOrder } from '../application/create-order';
 import { GetOrder } from '../application/get-order';
@@ -46,6 +47,7 @@ function user(id: string | undefined) {
 @Controller()
 export class OrdersRpcController {
   constructor(
+    @Inject(AccountOrders) private readonly account: AccountOrders,
     @Inject(ChangePayment) private readonly change: ChangePayment,
     @Inject(CreateOrder) private readonly create: CreateOrder,
     @Inject(GetOrder) private readonly get: GetOrder,
@@ -86,6 +88,23 @@ export class OrdersRpcController {
           x.key,
           c.correlationId,
         ),
+    );
+  }
+  @MessagePattern(ORDERS_PATTERNS.list) list(@Payload() raw: unknown) {
+    return handle(raw, z.object({ page: z.number().int().min(1).max(10000) }).strict(), (x, c) =>
+      this.account.execute({ action: 'LIST', userId: user(c.userId), page: x.page }),
+    );
+  }
+  @MessagePattern(ORDERS_PATTERNS.lookup) lookup(@Payload() raw: unknown) {
+    return handle(
+      raw,
+      z
+        .object({
+          number: z.string().regex(/^TE-[A-F0-9]{32}$/),
+          email: z.string().trim().email().max(320),
+        })
+        .strict(),
+      (x) => this.account.execute({ action: 'LOOKUP', ...x }),
     );
   }
   @MessagePattern(ORDERS_PATTERNS.cart) cart(@Payload() raw: unknown) {

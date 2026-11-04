@@ -1,5 +1,5 @@
 import type { PaymentRequested, PaymentOutcome, PaymentAttemptAbandoned } from './payments';
-import type { DomainEvent } from './auth';
+import type { UserEmailVerified, DomainEvent } from './auth';
 export const ORDERS_PATTERNS = {
   quote: 'orders.quote',
   create: 'orders.create',
@@ -9,6 +9,8 @@ export const ORDERS_PATTERNS = {
   saveCart: 'orders.save_cart',
   mergeCart: 'orders.merge_cart',
   changePayment: 'orders.change_payment',
+  list: 'orders.list',
+  lookup: 'orders.lookup',
 } as const;
 export const ORDER_STATUSES = [
   'PENDING',
@@ -128,6 +130,7 @@ export type CheckoutEvent =
   | StockReservationFailed
   | OrderConfirmed
   | OrderPaid
+  | UserEmailVerified
   | PaymentRequested
   | PaymentAttemptAbandoned
   | PaymentOutcome;
@@ -139,6 +142,7 @@ export const CHECKOUT_ROUTES = {
   StockReservationFailed: 'catalog.stock_reservation_failed',
   OrderConfirmed: 'orders.order_confirmed',
   OrderPaid: 'orders.order_paid',
+  UserEmailVerified: 'auth.user_email_verified',
   PaymentRequested: 'orders.payment_requested',
   PaymentAttemptAbandoned: 'orders.payment_attempt_abandoned',
   PaymentSucceeded: 'payments.payment_succeeded',
@@ -147,6 +151,7 @@ export const CHECKOUT_ROUTES = {
   PaymentRefunded: 'payments.payment_refunded',
 } as const;
 export const CHECKOUT_SUBSCRIPTIONS = [
+  ['orders.user_email_verified', 'UserEmailVerified'],
   ['catalog.order_created', 'OrderCreated'],
   ['catalog.order_created_v2', 'OrderCreatedV2'],
   ['catalog.order_cancelled', 'OrderCancelled'],
@@ -160,3 +165,11 @@ export const CHECKOUT_SUBSCRIPTIONS = [
   ['orders.stock_reserved', 'StockReserved'],
   ['orders.stock_reservation_failed', 'StockReservationFailed'],
 ] as const;
+
+export interface OrderPageView {
+  items: OrderView[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}

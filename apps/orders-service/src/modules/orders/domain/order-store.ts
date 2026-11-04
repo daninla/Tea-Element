@@ -1,4 +1,6 @@
 import type {
+  UserEmailVerified,
+  OrderPageView,
   CartItemInput,
   CartQuote,
   CreateOrderInput,
@@ -50,6 +52,10 @@ export abstract class OrderStore {
     mergeKey?: string,
   ): Promise<CartItemInput[]>;
   abstract handle(event: StockReserved | StockReservationFailed | PaymentOutcome): Promise<void>;
+  abstract linkVerified(event: UserEmailVerified): Promise<void>;
+  abstract reconcileVerified(): Promise<void>;
+  abstract list(userId: string, page: number): Promise<OrderPageView>;
+  abstract lookup(number: string, email: string): Promise<{ accepted: true }>;
   abstract expire(): Promise<void>;
 }
 export abstract class QuoteProvider {

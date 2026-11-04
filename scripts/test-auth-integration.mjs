@@ -311,6 +311,135 @@ try {
     where: { payload: { path: ['payload', 'userId'], equals: user.id } },
   });
   assert.ok(event.publishedAt);
+  // Stage 5: HTTP account boundary and transactional, single-use email proofs.
+  const { emailToken } = requireAuth('./dist/modules/account/domain/email-token');
+  const { PrismaAccountStore } = requireAuth(
+    './dist/modules/account/infrastructure/prisma-account-store',
+  );
+  const { ChallengeMailWorker } = requireAuth(
+    './dist/modules/account/infrastructure/challenge-mail-worker',
+  );
+  const account = new PrismaAccountStore(db);
+  const proof = await db.emailChallenge.findFirstOrThrow({
+    where: { userId: user.id, kind: 'VERIFY_EMAIL' },
+  });
+  const verification = emailToken(proof.id, proof.nonce, proof.kind, secret);
+  assert.notEqual(proof.tokenHash, verification);
+  const mailer = new ChallengeMailWorker(db);
+  try {
+    await mailer.send();
+    assert.ok((await db.emailChallenge.findUniqueOrThrow({ where: { id: proof.id } })).mailedAt);
+  } finally {
+    await mailer.onModuleDestroy();
+  }
+  const login = await status(
+    await api('/auth/login', { method: 'POST', input: { email, password } }),
+    200,
+  );
+  const active = cookies(login);
+  const profile = {
+    firstName: 'Updated',
+    lastName: 'Buyer',
+    phone: '+380501234567',
+    defaultDelivery: { method: 'NOVA_POSHTA_BRANCH', city: 'Київ', address: 'Відділення 5' },
+  };
+  await status(
+    await api('/auth/profile', {
+      method: 'PATCH',
+      cookie: active,
+      input: { ...profile, role: 'ADMIN' },
+    }),
+    400,
+  );
+  const updated = await status(
+    await api('/auth/profile', { method: 'PATCH', cookie: active, input: profile }),
+    200,
+  );
+  assert.deepEqual((await updated.json()).defaultDelivery, profile.defaultDelivery);
+  await status(
+    await api('/auth/email/confirm', {
+      method: 'POST',
+      input: { token: verification.slice(0, -1) + '!' },
+    }),
+    400,
+  );
+  // A failed Outbox write must roll back both proof consumption and verification.
+  const failingAccount = new PrismaAccountStore(
+    db.$extends({
+      query: {
+        outbox: {
+          create() {
+            throw new Error('injected outbox failure');
+          },
+        },
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    failingAccount.confirm('VERIFY_EMAIL', verification, 'account-rollback'),
+  );
+  assert.equal(
+    (await db.emailChallenge.findUniqueOrThrow({ where: { id: proof.id } })).usedAt,
+    null,
+  );
+  assert.equal((await db.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerifiedAt, null);
+  await status(
+    await api('/auth/email/confirm', { method: 'POST', input: { token: verification } }),
+    200,
+  );
+  await status(
+    await api('/auth/email/confirm', { method: 'POST', input: { token: verification } }),
+    400,
+  );
+  assert.equal((await (await api('/auth/me', { cookie: active })).json()).emailVerified, true);
+  await publisher.flush();
+  const verifiedMessage = await channel.get(`${namespace}.orders.user_email_verified`, {
+    noAck: true,
+  });
+  assert.equal(JSON.parse(verifiedMessage.content.toString()).name, 'UserEmailVerified');
+  assert.equal(
+    await channel.get(`${namespace}.orders.user_email_verified`, { noAck: true }),
+    false,
+  );
+  const neutral = await status(
+    await api('/auth/password/request', {
+      method: 'POST',
+      input: { email: 'unknown@example.test' },
+    }),
+    200,
+  );
+  const known = await status(
+    await api('/auth/password/request', { method: 'POST', input: { email } }),
+    200,
+  );
+  assert.deepEqual(await neutral.json(), await known.json());
+  const reset = await db.emailChallenge.findFirstOrThrow({
+    where: { userId: user.id, kind: 'RESET_PASSWORD' },
+  });
+  const resetToken = emailToken(reset.id, reset.nonce, reset.kind, secret);
+  await assert.rejects(() => account.confirm('VERIFY_EMAIL', resetToken, 'wrong-purpose'));
+  const newPassword = randomBytes(24).toString('base64url');
+  await status(
+    await api('/auth/password/reset', {
+      method: 'POST',
+      input: { token: resetToken, password: newPassword },
+    }),
+    200,
+  );
+  await status(
+    await api('/auth/password/reset', {
+      method: 'POST',
+      input: { token: resetToken, password: newPassword },
+    }),
+    400,
+  );
+  assert.equal(await db.refreshToken.count({ where: { userId: user.id, revokedAt: null } }), 0);
+  await status(await api('/auth/refresh', { method: 'POST', cookie: active, input: {} }), 401);
+  await status(await api('/auth/login', { method: 'POST', input: { email, password } }), 401);
+  await status(
+    await api('/auth/login', { method: 'POST', input: { email, password: newPassword } }),
+    200,
+  );
   // No registered handler can expose an admin endpoint without the global role guard.
   let limited = false;
   for (let i = 0; i < 35; i++) {
@@ -321,7 +450,7 @@ try {
   }
   assert.equal(limited, true);
   console.log(
-    'Auth integration passed: PostgreSQL + RabbitMQ + HTTP, RBAC, CSRF, expiry, refresh replay/concurrency, logout, Argon2, Outbox and rate limiting.',
+    'Auth integration passed: PostgreSQL + RabbitMQ + HTTP, RBAC, CSRF, expiry, refresh replay/concurrency, logout, Argon2, Outbox, profile, SMTP proof delivery, single-use verification, atomic verification rollback, purpose binding, neutral password recovery, refresh revocation and rate limiting.',
   );
 } finally {
   for (const child of children) child.kill('SIGTERM');
@@ -343,6 +472,8 @@ try {
   if (channel) {
     await channel.deleteQueue(`${namespace}.marketing.user_registered`);
     await channel.deleteQueue(`${namespace}.marketing.user_registered.dlq`);
+    await channel.deleteQueue(`${namespace}.orders.user_email_verified`);
+    await channel.deleteQueue(`${namespace}.orders.user_email_verified.dlq`);
     await channel.deleteQueue(rpcQueue);
     await channel.deleteExchange(`${namespace}.events`);
     await channel.deleteExchange(`${namespace}.events.dlx`);

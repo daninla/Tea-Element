@@ -93,3 +93,11 @@ without cancelling the order. Known historical outcomes cannot overwrite the act
 Legacy active attempts gain history before the first command. PaymentExpired still cancels/releases.
 OrderView now includes active attempt ID, payment status and optional payment deadline. No amount,
 redirect URL, identity or contact change is accepted by these commands. See ADR 0010.
+
+## Verified account history (stage 5)
+
+UserEmailVerified links only unowned matching-email orders created before the proof. A local identity
+projection and periodic reconciliation cover delayed commits without cross-service database access.
+Processed events and ownership updates commit together. Later guest orders require a fresh proof.
+GET /orders accepts a trusted owner ID and bounded page number; private tokens never appear in history.
+POST /orders/lookup always acknowledges neutrally and rate-limits requeued private receipts. See ADR 0011.

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { readEnvironment } from './config/environment';
+import { AccountModule } from './modules/account/account.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 @Module({
@@ -25,6 +26,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     HealthModule,
     AuthModule,
+    AccountModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import type { UserRegistered } from '@tea/contracts';
+import type { AuthEvent } from '@tea/contracts';
 import { PrismaService } from '../prisma.service';
 import { RabbitEventBus } from './rabbit-event-bus';
 import { readEnvironment } from '../../config/environment';
@@ -33,7 +33,7 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
         if (!id) return;
         const row = await tx.outbox.findUniqueOrThrow({ where: { id } });
         try {
-          await this.bus.publish(row.payload as unknown as UserRegistered);
+          await this.bus.publish(row.payload as unknown as AuthEvent);
           await tx.outbox.update({
             where: { id },
             data: { publishedAt: new Date(), attempts: { increment: 1 } },

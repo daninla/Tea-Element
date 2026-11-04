@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma, type User } from '../../../../generated/prisma';
+import { readEnvironment } from '../../../config/environment';
+import { newEmailChallenge } from '../../account/domain/email-token';
 import { Role, type UserRegistered } from '@tea/contracts';
 import { PrismaService } from '../../../shared/prisma.service';
 import {
@@ -19,6 +21,7 @@ function mapped(user: User): AuthUser {
     phone: user.phone,
     role: user.role as Role,
     emailVerified: user.emailVerifiedAt !== null,
+    defaultDelivery: user.defaultDelivery as unknown as AuthUser['defaultDelivery'],
     passwordHash: user.passwordHash,
     isActive: user.isActive,
   };
@@ -58,6 +61,9 @@ export class PrismaAuthStore extends AuthStore {
             phone: input.phone,
             marketingConsentAt: input.marketingConsent ? new Date() : null,
           },
+        });
+        await tx.emailChallenge.create({
+          data: newEmailChallenge(user.id, 'VERIFY_EMAIL', readEnvironment().JWT_ACCESS_SECRET),
         });
         await tx.refreshToken.create({ data: { ...sessionData(session), userId: user.id } });
         await tx.outbox.create({

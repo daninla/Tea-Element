@@ -43,11 +43,13 @@ model Order {
  idempotencyHash String @unique @map("idempotency_hash") @db.Char(64)
  requestHash String @map("request_hash") @db.Char(64)
  reservationExpiresAt DateTime @map("reservation_expires_at")
+ lookupRequestedAt DateTime? @map("lookup_requested_at")
  receiptSentAt DateTime? @map("receipt_sent_at")
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
  history OrderStatusHistory[]
  @@index([userId, createdAt])
+ @@index([email,createdAt])
  @@index([status, reservationExpiresAt])
  @@index([receiptSentAt])
  @@index([status,paymentExpiresAt])
@@ -124,4 +126,16 @@ model PaymentCommand {
  updatedAt DateTime @updatedAt @map("updated_at")
  @@unique([orderId,key])
  @@map("payment_commands")
+}
+
+model VerifiedIdentity {
+ id String @id @default(uuid()) @db.Uuid
+ userId String @unique @map("user_id") @db.Uuid
+ email String @unique
+ verifiedAt DateTime @map("verified_at")
+ lastLinkedAt DateTime @default(now()) @map("last_linked_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([lastLinkedAt])
+ @@map("verified_identities")
 }

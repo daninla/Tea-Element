@@ -9,6 +9,12 @@ export const AUTH_PATTERNS = {
   refresh: 'auth.refresh',
   logout: 'auth.logout',
   me: 'auth.me',
+  profile: 'auth.profile',
+  requestEmail: 'auth.request_email',
+  confirmEmail: 'auth.confirm_email',
+  requestPassword: 'auth.request_password',
+  resetPassword: 'auth.reset_password',
+  registerFromOrder: 'auth.register_from_order',
 } as const;
 export interface PublicUser {
   id: string;
@@ -18,6 +24,7 @@ export interface PublicUser {
   phone: string | null;
   role: Role;
   emailVerified: boolean;
+  defaultDelivery?: import('./orders').DeliveryInput | null;
 }
 export interface RegisterInput {
   email: string;
@@ -76,3 +83,12 @@ export const USER_REGISTERED_ROUTING_KEY = 'auth.user_registered';
 export const EVENTS_EXCHANGE = 'tea.events';
 export const EVENTS_DLX = 'tea.events.dlx';
 export const MARKETING_REGISTRATION_QUEUE = 'marketing.user_registered';
+
+export type UserEmailVerified = DomainEvent<'UserEmailVerified', { userId: string; email: string }>;
+export type AuthEvent = UserRegistered | UserEmailVerified;
+export interface ProfileInput {
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  defaultDelivery: import('./orders').DeliveryInput | null;
+}

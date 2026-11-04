@@ -72,6 +72,8 @@ services:
       DATABASE_URL: postgresql://auth:tea_dev_auth@postgres:5432/auth_db
       RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
       REDIS_URL: redis://redis:6379
+      SMTP_URL: smtp://mailpit:1025
+      WEB_URL: http://localhost:3000
     depends_on:
       workspace:
         condition: service_completed_successfully

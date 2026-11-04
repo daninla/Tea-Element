@@ -51,3 +51,15 @@ No payment database/provider integration exists inside gateway. Full workflow is
 Stage 4a.3 adds Origin-protected POST /orders/:number/payment/retry|cod (UUID Idempotency-Key) and
 /payments/simulate (Fake development only). All require private guest or owner access; neither accepts
 an amount or caller-selected payment attempt. Provider callback Origin exemption is unchanged.
+
+## Account endpoints (stage 5)
+
+Authenticated: PATCH `/api/v1/auth/profile`, POST `/api/v1/auth/email/request`, GET
+`/api/v1/orders?page=1`. User IDs come exclusively from the verified session. Profile accepts names,
+nullable phone and nullable defaultDelivery; email/role fields are rejected.
+
+Public, throttled: POST `/api/v1/auth/email/confirm`, `/api/v1/auth/password/request`,
+`/api/v1/auth/password/reset`, `/api/v1/auth/register-from-order`, `/api/v1/orders/lookup`.
+Browser Origin protection still applies. Lookup and recovery requests return neutral acknowledgements.
+Registration from an order accepts only number, private token, password and optional marketing consent.
+Reset clears browser session cookies after the auth transaction succeeds. See ADR 0011.

@@ -8,6 +8,7 @@ import { OrderStore, QuoteProvider } from './domain/order-store';
 import { PrismaOrderStore } from './infrastructure/prisma-order-store';
 import { RmqQuoteProvider } from './infrastructure/rmq-quote-provider';
 import { ReceiptWorker } from './infrastructure/receipt-worker';
+import { AccountOrders } from './application/account-orders';
 import { ChangePayment } from './application/change-payment';
 import { CreateOrder } from './application/create-order';
 import { GetOrder } from './application/get-order';
@@ -48,6 +49,7 @@ import { OrderWorker } from './presentation/order-worker';
     { provide: QuoteProvider, useClass: RmqQuoteProvider },
     CreateOrder,
     ChangePayment,
+    AccountOrders,
     GetOrder,
     CancelOrder,
     ReadCart,

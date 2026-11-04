@@ -16,6 +16,7 @@ import { RabbitEventBus } from '../../shared/outbox/rabbit-event-bus';
 @Module({
   imports: [JwtModule.register({})],
   controllers: [AuthRpcController],
+  exports: [Register, PasswordHasher, PrismaService],
   providers: [
     PrismaService,
     Register,

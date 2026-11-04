@@ -7,6 +7,7 @@ import { readEnvironment } from '../../config/environment';
 import { AuthClient } from './domain/auth-client';
 import { RmqAuthClient } from './infrastructure/rmq-auth-client';
 import { ForwardAuth } from './application/forward-auth';
+import { AccountController } from './presentation/account.controller';
 import { AuthController, AdminAuthController } from './presentation/auth.controller';
 import { OriginGuard } from './presentation/origin.guard';
 import { JwtAuthGuard } from './presentation/jwt-auth.guard';
@@ -30,7 +31,7 @@ import { RolesGuard } from './presentation/roles.guard';
       },
     ]),
   ],
-  controllers: [AuthController, AdminAuthController],
+  controllers: [AuthController, AdminAuthController, AccountController],
   providers: [
     ForwardAuth,
     { provide: AuthClient, useClass: RmqAuthClient },

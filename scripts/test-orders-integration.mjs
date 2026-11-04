@@ -495,6 +495,88 @@ try {
     body: {},
   });
   await reserved(product.id, 25);
+  // Verification is a real broker event, with a proof-time cutoff and idempotent ownership.
+  const accountUser = randomUUID();
+  const beforeProof = await http('/orders?page=1', { cookie: await cookie(accountUser) });
+  assert.equal(beforeProof.total, 0);
+  const proofEvent = {
+    eventId: randomUUID(),
+    name: 'UserEmailVerified',
+    version: 1,
+    occurredAt: new Date().toISOString(),
+    correlationId: randomUUID(),
+    payload: { userId: accountUser, email: body.email },
+  };
+  await publish(proofEvent, 'auth.user_email_verified');
+  await publish(proofEvent, 'auth.user_email_verified');
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: created.order.id } })).userId ===
+      accountUser,
+    'verified guest linking',
+  );
+  await http(`/orders/${created.order.number}`, { cookie: await cookie(accountUser) });
+  await http(`/orders/${created.order.number}`, { cookie: await cookie(other), status: 404 });
+  await http(`/orders/${created.order.number}?token=${created.accessToken}`);
+  const history = await http('/orders?page=1', { cookie: await cookie(accountUser) });
+  assert.ok(history.items.some((x) => x.id === created.order.id));
+  assert.ok(
+    history.items.every((x) => x.accessToken === undefined && x.accessTokenHash === undefined),
+  );
+  assert.ok(history.items.length <= 10);
+  await http('/orders?page=0', { cookie: await cookie(accountUser), status: 400 });
+  await http('/orders?page=1', { status: 401 });
+  const future = await localStore.create(
+    body,
+    { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+    quote,
+  );
+  await localStore.reconcileVerified();
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: future.order.id } })).userId,
+    null,
+  );
+  await localStore.linkVerified({
+    ...proofEvent,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+  });
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: future.order.id } })).userId,
+    accountUser,
+  );
+  // Reconciliation covers an order whose commit arrived after the verification event.
+  const late = await localStore.create(
+    body,
+    { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+    quote,
+  );
+  await orders.order.update({
+    where: { id: late.order.id },
+    data: { createdAt: new Date(Date.parse(proofEvent.occurredAt) - 1000) },
+  });
+  await localStore.reconcileVerified();
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: late.order.id } })).userId,
+    accountUser,
+  );
+  const wrongLookup = await http('/orders/lookup', {
+    method: 'POST',
+    body: { number: created.order.number, email: 'wrong@example.test' },
+  });
+  const missingLookup = await http('/orders/lookup', {
+    method: 'POST',
+    body: { number: 'TE-' + 'F'.repeat(32), email: body.email },
+  });
+  const correctLookup = await http('/orders/lookup', {
+    method: 'POST',
+    body: { number: created.order.number, email: body.email },
+  });
+  assert.deepEqual(wrongLookup, missingLookup);
+  assert.deepEqual(correctLookup, missingLookup);
+  assert.ok(
+    (await orders.order.findUniqueOrThrow({ where: { id: created.order.id } })).lookupRequestedAt,
+  );
   // Permanent malformed event is retried then quarantined instead of blocking a queue.
   await publish({ bad: true }, 'orders.order_created.v2');
   await waitFor(async () => {
@@ -502,7 +584,7 @@ try {
     return q.messageCount > 0;
   }, 'dead letter');
   console.log(
-    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility and DLQ.',
+    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility, verified guest linking, private history, proof cutoff/reconciliation, neutral lookup and DLQ.',
   );
 } finally {
   for (const child of children)

@@ -5,14 +5,14 @@ import {
   EVENTS_DLX,
   MARKETING_REGISTRATION_QUEUE,
   USER_REGISTERED_ROUTING_KEY,
-  type UserRegistered,
+  type AuthEvent,
 } from '@tea/contracts';
 import { readEnvironment } from '../../config/environment';
 @Injectable()
 export class RabbitEventBus implements OnModuleDestroy {
   private connection?: ChannelModel;
   private channel?: ConfirmChannel;
-  async publish(event: UserRegistered) {
+  async publish(event: AuthEvent) {
     const namespace = readEnvironment().EVENTS_NAMESPACE;
     const exchange = namespace === 'tea' ? EVENTS_EXCHANGE : `${namespace}.events`;
     const dlx = namespace === 'tea' ? EVENTS_DLX : `${namespace}.events.dlx`;
@@ -51,6 +51,18 @@ export class RabbitEventBus implements OnModuleDestroy {
           deadLetterRoutingKey: USER_REGISTERED_ROUTING_KEY,
         });
         await channel.bindQueue(queue, exchange, USER_REGISTERED_ROUTING_KEY);
+        const verifiedQueue =
+          namespace === 'tea'
+            ? 'orders.user_email_verified'
+            : `${namespace}.orders.user_email_verified`;
+        await channel.assertQueue(`${verifiedQueue}.dlq`, { durable: true });
+        await channel.bindQueue(`${verifiedQueue}.dlq`, dlx, 'auth.user_email_verified');
+        await channel.assertQueue(verifiedQueue, {
+          durable: true,
+          deadLetterExchange: dlx,
+          deadLetterRoutingKey: 'auth.user_email_verified',
+        });
+        await channel.bindQueue(verifiedQueue, exchange, 'auth.user_email_verified');
         this.channel = channel;
       } catch {
         await connection.close().catch(() => {});
@@ -66,7 +78,7 @@ export class RabbitEventBus implements OnModuleDestroy {
       const timer = setTimeout(() => reject(new Error('Publisher confirmation timed out')), 3000);
       channel.publish(
         exchange,
-        USER_REGISTERED_ROUTING_KEY,
+        event.name === 'UserRegistered' ? USER_REGISTERED_ROUTING_KEY : 'auth.user_email_verified',
         Buffer.from(JSON.stringify(event)),
         {
           persistent: true,

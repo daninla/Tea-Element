@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -65,4 +65,16 @@ export class OrderTokenDto {
 
 export class PaymentCommandDto extends OrderNumberDto {
   @IsIn(['retry', 'cod']) action!: 'retry' | 'cod';
+}
+
+export class OrderLookupDto extends OrderNumberDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
+}
+export class OrderListDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000) page?: number;
 }

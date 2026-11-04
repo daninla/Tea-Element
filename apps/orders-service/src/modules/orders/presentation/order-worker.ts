@@ -2,6 +2,7 @@ import { Inject, Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { z } from 'zod';
 import { RabbitEventBus } from '../../../shared/outbox/rabbit-event-bus';
 import { readEnvironment } from '../../../config/environment';
+import { AccountOrders } from '../application/account-orders';
 import { HandleOrderEvent } from '../application/handle-order-event';
 import { ExpireReservations } from '../application/expire-reservations';
 const stockSchema = z
@@ -32,11 +33,22 @@ const paymentSchema = z
   })
   .strict();
 const schema = z.union([stockSchema, paymentSchema]);
+const verifiedSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    version: z.literal(1),
+    occurredAt: z.string().datetime(),
+    correlationId: z.string().min(1).max(100),
+    name: z.literal('UserEmailVerified'),
+    payload: z.object({ userId: z.string().uuid(), email: z.string().email().max(320) }).strict(),
+  })
+  .strict();
 @Injectable()
 export class OrderWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
   private active?: Promise<void>;
   constructor(
+    @Inject(AccountOrders) private readonly account: AccountOrders,
     @Inject(RabbitEventBus) private readonly bus: RabbitEventBus,
     @Inject(HandleOrderEvent) private readonly handler: HandleOrderEvent,
     @Inject(ExpireReservations) private readonly expire: ExpireReservations,
@@ -65,6 +77,15 @@ export class OrderWorker implements OnModuleInit, OnModuleDestroy {
       await this.bus.subscribe(queue, async (raw) => {
         await this.handler.execute(schema.parse(raw));
       });
+    await this.bus.subscribe(
+      'orders.user_email_verified',
+      (raw) =>
+        this.account.execute({
+          action: 'VERIFY',
+          event: verifiedSchema.parse(raw),
+        }) as Promise<void>,
+    );
+    await this.account.execute({ action: 'RECONCILE' });
     await this.expire.execute();
   }
   async onModuleDestroy() {

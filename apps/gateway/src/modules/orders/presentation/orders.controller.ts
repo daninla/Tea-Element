@@ -17,6 +17,7 @@ import {
   type CartQuote,
   type CreatedOrder,
   type OrderView,
+  type OrderPageView,
   type CartItemInput,
 } from '@tea/contracts';
 import {
@@ -26,6 +27,8 @@ import {
 } from '../../auth/presentation/auth-policy';
 import { ForwardOrders } from '../application/forward-orders';
 import {
+  OrderLookupDto,
+  OrderListDto,
   PaymentCommandDto,
   CartDto,
   CreateOrderDto,
@@ -35,6 +38,21 @@ import {
 @Controller('api/v1/orders')
 export class OrdersController {
   constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  @Get() list(@Query() q: OrderListDto, @Req() req: AuthenticatedRequest) {
+    return this.orders.execute<OrderPageView>(ORDERS_PATTERNS.list, {
+      input: { page: q.page ?? 1 },
+      context: { correlationId: String(req.id), userId: req.user!.sub },
+    });
+  }
+  @Public() @Post('lookup') @HttpCode(200) @Throttle({ default: { limit: 3, ttl: 60000 } }) lookup(
+    @Body() input: OrderLookupDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.orders.execute<{ accepted: true }>(ORDERS_PATTERNS.lookup, {
+      input,
+      context: { correlationId: String(req.id) },
+    });
+  }
   @Public()
   @Post('guest')
   @Throttle({ default: { limit: 10, ttl: 60000 } })

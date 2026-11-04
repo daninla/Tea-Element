@@ -40,9 +40,9 @@ export class ReceiptWorker implements OnModuleInit, OnModuleDestroy {
         await this.transport.sendMail({
           from: 'Чайний елемент <orders@tea-element.test>',
           to: order.email,
-          subject: `Замовлення ${order.number}`,
-          messageId: `<order-${order.id}@tea-element.test>`,
-          text: `Дякуємо! Замовлення ${order.number} отримано.\nСума товарів: ${(order.total / 100).toFixed(2)} UAH. Оплата при отриманні.\nСтатус, склад і доставка: ${link.href}\nПосилання приватне — не передавайте його іншим. Це демонстраційний магазин.`,
+          subject: `${order.lookupRequestedAt ? 'Приватне посилання' : 'Замовлення'} ${order.number}`,
+          messageId: `<order-${order.id}-${order.lookupRequestedAt?.getTime() ?? 'initial'}@tea-element.test>`,
+          text: `Дякуємо! Замовлення ${order.number} отримано.\nСума товарів: ${(order.total / 100).toFixed(2)} UAH. Спосіб оплати: ${order.paymentMethod === 'ONLINE_CARD' ? 'онлайн (тестовий режим)' : 'при отриманні'}.\nСтатус, склад і доставка: ${link.href}\nПосилання приватне — не передавайте його іншим. Це демонстраційний магазин.`,
         });
         await tx.order.update({ where: { id: order.id }, data: { receiptSentAt: new Date() } });
       },

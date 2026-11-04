@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  UserEmailVerified,
   CartItemInput,
   CartQuote,
   CreateOrderInput,
@@ -420,6 +421,84 @@ export class PrismaOrderStore extends OrderStore {
       }
       await tx.processedEvent.create({ data: { eventId: event.eventId } });
     });
+  }
+  async linkVerified(event: UserEmailVerified) {
+    await this.db.$transaction(async (tx) => {
+      const p = event.payload;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`verified:${p.userId}`},0))`;
+      if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
+      const previous = await tx.verifiedIdentity.findUnique({ where: { userId: p.userId } });
+      if (previous && previous.email !== p.email)
+        throw new OrderError('IDENTITY_MISMATCH', 'Verified identity changed', 409);
+      const verifiedAt = new Date(
+        Math.max(previous?.verifiedAt.getTime() ?? 0, Date.parse(event.occurredAt)),
+      );
+      await tx.verifiedIdentity.upsert({
+        where: { userId: p.userId },
+        create: { userId: p.userId, email: p.email, verifiedAt },
+        update: { verifiedAt },
+      });
+      await tx.order.updateMany({
+        where: { userId: null, email: p.email, createdAt: { lte: verifiedAt } },
+        data: { userId: p.userId },
+      });
+      await tx.processedEvent.create({ data: { eventId: event.eventId } });
+    });
+  }
+  async reconcileVerified() {
+    const rows = await this.db.verifiedIdentity.findMany({
+      orderBy: { lastLinkedAt: 'asc' },
+      take: 20,
+    });
+    for (const row of rows)
+      await this.db.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { userId: null, email: row.email, createdAt: { lte: row.verifiedAt } },
+          data: { userId: row.userId },
+        });
+        await tx.verifiedIdentity.update({
+          where: { id: row.id },
+          data: { lastLinkedAt: new Date() },
+        });
+      });
+  }
+  async list(userId: string, page: number) {
+    const pageSize = 10;
+    return this.db.$transaction(async (tx) => {
+      const total = await tx.order.count({ where: { userId } });
+      const rows = await tx.order.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { history: { orderBy: { createdAt: 'asc' } } },
+      });
+      return {
+        items: rows.map(view),
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      };
+    });
+  }
+  async lookup(number: string, email: string): Promise<{ accepted: true }> {
+    await this.db.$transaction(async (tx) => {
+      const row = await tx.order.findUnique({ where: { number } });
+      if (!row || row.email !== email.trim().toLowerCase()) return;
+      const now = new Date();
+      await tx.order.updateMany({
+        where: {
+          id: row.id,
+          OR: [
+            { lookupRequestedAt: null },
+            { lookupRequestedAt: { lt: new Date(now.getTime() - 60000) } },
+          ],
+        },
+        data: { lookupRequestedAt: now, receiptSentAt: null },
+      });
+    });
+    return { accepted: true };
   }
   async expire() {
     const pending = await this.db.order.findMany({

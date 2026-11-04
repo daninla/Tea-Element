@@ -101,3 +101,13 @@ PaymentFailed now retains AWAITING_PAYMENT/reserved stock until the original dea
 SPEC retry/COD alternative. PaymentExpired still cancels/releases. Known old-attempt outcomes cannot
 cancel/pay a newer attempt or COD order. Amount/currency/order membership is verified before ignoring
 an obsolete outcome. See ADR 0010 for state and compatibility details.
+
+## UserEmailVerified / 1
+
+Producer: auth-service account confirmation; route `auth.user_email_verified`; consumer queue
+`orders.user_email_verified` with standard `.retry` and `.dlq`. Payload: `{userId: UUID, email: string}`.
+Envelope occurredAt is the email proof timestamp. It contains contact data; never log event bodies.
+Consuming writes the verified-identity projection, links eligible unowned orders and records eventId
+in one transaction. Only createdAt <= occurredAt orders qualify. Repeated or older events cannot expand
+the cutoff backward or overwrite another owner. Reconciliation handles delayed order commits.
+Verification state, challenge consumption and producer Outbox commit atomically. See ADR 0011.

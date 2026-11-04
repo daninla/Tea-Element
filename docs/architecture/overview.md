@@ -24,6 +24,9 @@ Gateway payment APIs recheck private order access over RPC. Reconciliation/deadl
 refund compensation extend the saga without cross-service database reads; see ADR 0009.
 Stage 4a.3 adds storefront payment controls, private return access and idempotent multi-attempt/COD
 commands. Attempt abandonment compensates late funds without cancelling newer attempts; see ADR 0010.
+Stage 5 adds customer account UI, one-use email proofs, password recovery, profile/default delivery
+and private order history. UserEmailVerified links historical guest orders through an idempotent
+orders projection and reconciliation, with no shared databases; see ADR 0011.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

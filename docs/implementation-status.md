@@ -123,10 +123,24 @@ refusal/retry/success, refresh without URL bearer, mixed orders, COD/cancellatio
 There is no horizontal document overflow or payment-flow console error. Live payments remain disabled;
 merchant LiqPay sandbox acceptance has not been performed without the owner's account configuration.
 
+## Stage 5 — customer account
+
+Implemented: login/registration, cookie-session refresh, logout, one-use email confirmation and password
+recovery, profile/default delivery, private paginated order history and repeat-order cart quotes.
+Registration from a private guest order takes its trusted contact snapshot. Neutral email lookup resends
+access only to the stored matching address. Guest orders link only after proof, through transactional
+UserEmailVerified Outbox and an idempotent orders consumer with reconciliation and a proof-time cutoff.
+Later guest purchases require another confirmation. See ADR 0011.
+Desktop account acceptance passed; the 375px visual check remains pending because the browser
+viewport override did not take effect.
+
+All messages use local Mailpit and test contacts. Existing access JWTs can survive logout/password reset
+for their remaining lifetime (up to 15 minutes); refresh sessions are revoked. Real merchant LiqPay and
+production email acceptance remain external work.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
-- **5:** Account/login UI, verified guest order linking, registration from an order and private email lookup.
 - **6:** Administration and fulfillment/inventory journal.
 - **7:** Event-based marketing and email campaigns.
 - **8:** SEO, accessibility, resilience, performance and complete acceptance tests.
@@ -136,7 +150,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (258 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (268 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

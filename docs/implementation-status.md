@@ -87,14 +87,30 @@ merchant/attempt/amount/currency checks, exact decimal conversion, bounded statu
 and normalized observations without card/contact data. Fake supports success/refusal, duplicate callback
 parsing, lost-callback status reads and replayed full refunds. No external call is made by tests/demo.
 
-This is the provider boundary only (ADR 0008). No payment database, raw callback audit, payment event
-consumer, expiry/reconciliation worker, public payment API or storefront payment UI exists yet. Stage 4
-COD behavior remains active. Live keys are rejected; the LiqPay adapter has not been accepted against
-an owner's sandbox account. Durable workflow and full stage 4a acceptance remain below.
+The provider-only checkpoint is documented in ADR 0008; the next increment adds durable workflow.
+
+## Stage 4a.2 — durable payment backend
+
+Implemented: isolated Prisma payment ledger, raw callback audit, refund jobs, cancellation tombstones,
+transactional Outbox and processed-event consumers. Successful online reservation commits
+AWAITING_PAYMENT and PaymentRequested; verified success commits PAID/OrderPaid. Gateway checkout/status
+revalidate guest token or authenticated ownership through orders RPC. Only signed provider callbacks
+bypass browser Origin checks. Client amounts/redirects are rejected.
+
+Callbacks audit before rejection and apply semantic idempotency under order locks. Reconciliation,
+30-minute expiry, independent order timeout and late-success refunds compensate stock/payment races.
+Refund-before-success cannot regress either ledger or order. Durable claims quarantine ambiguous
+refunds for review rather than retrying external side effects blindly. Fake state remains process-local,
+while the ledger/audit/jobs persist. No real merchant sandbox request or live payment is claimed.
+
+The new real gateway/RMQ/PostgreSQL suite covers fresh migrations, private guest/owner access, invalid
+callback audit, concurrent replay, atomic Outbox rollback, deadlines/stock release, late refund/reordering,
+lost callback reconciliation and cancellation/refund idempotency. See ADR 0009. Storefront checkout
+continues to offer demonstration COD; online UI, retry/COD-switch and multi-attempt policy are next.
 
 ## Remaining stages
 
-- **4a:** Durable payment ledger/audit, idempotent webhook workflow, saga events, authorized APIs, expiry/reconciliation/refund workers and storefront payment UI. Provider adapters are implemented in 4a.1.
+- **4a.3:** Storefront payment choice/redirect/result flow, private-token restoration, retry/COD-switch commands, multi-attempt policy and merchant sandbox acceptance. Provider adapters and durable backend are implemented in 4a.1–4a.2.
 - **5:** Account/login UI, verified guest order linking, registration from an order and private email lookup.
 - **6:** Administration and fulfillment/inventory journal.
 - **7:** Event-based marketing and email campaigns.
@@ -105,7 +121,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (229 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (243 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

@@ -51,10 +51,12 @@ pnpm format:check
 
 Tests exercise service HTTP boundaries, auth/catalog use-cases, Outbox retry semantics, catalog URL
 validation, product selection, structured data escaping and deterministic currency formatting.
-After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth, catalog and order behavior using a
+After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth, catalog, order and payment behavior using a
 dedicated test databases and isolated broker queues; Docker must be accessible. The orders suite also
 checks no oversell, replay/reordering, cancellation, timeout and local SMTP; it deletes its temporary
-databases and queues. Run it alone with `pnpm test:orders:integration`.
+databases and queues. Run it alone with `pnpm test:orders:integration`. The payment suite uses three fresh databases and
+checks signed audit, private access, atomic outcomes, deadline/stock compensation and late refunds;
+run it alone with `pnpm test:payments:integration`. The storefront online-payment UI remains next.
 Turborepo builds contracts before dependent applications. Watch mode uses Nest CLI monorepo projects.
 Git hooks use Husky, lint-staged and Commitlint when a writable Git repository is available.
 CI repeats quality checks, validates both Compose configurations and smoke-tests all HTTP apps.

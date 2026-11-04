@@ -56,3 +56,34 @@ The v1 event shape and `catalog.order_created` queue are retained for pending hi
 Both versions share order/event idempotency. Stock result/cancellation/confirmation events remain v1.
 Cancellation reads both old `{productId, grams}` and new `{productId, unit, amount}` reservation rows.
 Each versioned consumer has its own retry and DLQ queues. See ADR 0006.
+
+## Online payment events (stage 4a.2, version 1)
+
+Contracts: `packages/contracts/src/payments.ts` and `orders.ts`. No contact details, access tokens,
+provider keys, raw callbacks or card data enter these events. All amounts are integer UAH kopecks.
+
+| Event            | Producer | Consumer queue             | Payload                                                      | Trigger                                                                                        |
+| ---------------- | -------- | -------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| PaymentRequested | orders   | payments.payment_requested | paymentId, orderId, orderNumber, amount, currency, expiresAt | Online stock reservation commits AWAITING_PAYMENT with a unique attempt and 30-minute deadline |
+| PaymentSucceeded | payments | orders.payment_succeeded   | paymentId, orderId, amount, currency                         | Verified callback or reconciliation commits success                                            |
+| PaymentFailed    | payments | orders.payment_failed      | paymentId, orderId, amount, currency                         | Verified failure commits; pending order cancels and compensates stock                          |
+| PaymentExpired   | payments | orders.payment_expired     | paymentId, orderId, amount, currency                         | Unpaid ledger entry expires; order cancels and compensates stock                               |
+| PaymentRefunded  | payments | orders.payment_refunded    | paymentId, orderId, amount, currency                         | Provider-confirmed full refund commits                                                         |
+| OrderPaid        | orders   | no subscriber yet          | orderId                                                      | PaymentSucceeded changes AWAITING_PAYMENT to PAID                                              |
+
+OrderCancelled v1 also binds `payments.order_cancelled`. Its existing CUSTOMER/RESERVATION_TIMEOUT
+reason contract is preserved; RESERVATION_TIMEOUT covers payment deadline/failure compensation too.
+Payment routing keys are `orders.payment_requested`, `payments.payment_succeeded`,
+`payments.payment_failed`, `payments.payment_expired`, `payments.payment_refunded`, `orders.order_paid`.
+They use the existing durable exchange/retry/DLQ topology and confirmed Outbox publishers.
+
+PaymentRequested/OrderCancelled consumers commit processed markers atomically. Cancellation before
+creation leaves a durable order tombstone. Callback/reconciliation observations serialize by order ID;
+semantic status transitions produce one outcome even when callback deliveries have no event ID.
+Raw callback envelopes, signature validity and outcome are stored in payments_db before rejection;
+this audit is deliberately independent of the atomic payment-state/Outbox transaction.
+
+Orders independently verify the attempt ID, amount and currency. Success cannot revive cancellation;
+refund cannot regress to paid when a delayed success event arrives. Cancelled/failed/expired payments
+with late success queue one durable full refund. Refund jobs are claimed before contacting a provider.
+An ambiguous result is quarantined for review/reconciliation rather than automatically resubmitted.

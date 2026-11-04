@@ -15,8 +15,8 @@ its Prisma migrations. `pnpm dev` starts the service, publishers, consumers, exp
 - `POST /api/v1/cart/merge`: authenticated merge, UUID `Idempotency-Key`; replay never adds twice.
 
 All writes require the configured browser Origin. Limits: 50 distinct portions, quantities 1–99,
-integer kopecks and a bounded total. Input cannot contain prices, totals or owner IDs. COD is the only
-payment method in stage 4. Shipment pricing is not calculated; no carrier API is called.
+integer kopecks and a bounded total. Input cannot contain prices, totals or owner IDs. COD was the stage 4
+payment method; stage 4a.2 also accepts ONLINE_CARD through the API. Shipment pricing is not calculated; no carrier API is called.
 Manual branch/courier delivery requires city/address; pickup does not. Contacts and acceptance of demo
 terms are required; marketing consent is independent, false by default and stored with its timestamp.
 
@@ -41,7 +41,8 @@ all grams or none; stock result + reservation + processed event + catalog Outbox
 record StockReserved → CONFIRMED or StockReservationFailed → REJECTED atomically with history/marker.
 An advisory lock serializes per-order transitions. Duplicate IDs and repeated creation for one order do
 not reserve twice. Cancellation creates a RELEASED tombstone even if it arrives before creation.
-Pending orders expire in five minutes and publish OrderCancelled. Late stock success cannot revive them.
+Pending reservations expire in five minutes and publish OrderCancelled. Online reservations instead
+enter AWAITING_PAYMENT with a 30-minute payment deadline, PaymentRequested and a unique payment attempt. Late stock success cannot revive them.
 Confirmed COD orders keep reserved grams until cancellation; shipment/deduction is stage 6.
 
 Confirm publishers use SKIP LOCKED and exponential backoff. Durable queues reconnect, retry failures
@@ -61,7 +62,7 @@ temporary databases, deploys migrations, seeds twice and exercises gateway/RMQ/d
 4300/4302/4303. It tests rollback, no oversell, duplicates, access, cancellation/expiry and DLQ, then removes
 its own databases/topology. Existing application data is not reset. `pnpm test:integration` includes it.
 
-Account UI, email lookup/verified linking, shipping administration, online payment and marketing are
+Account UI, email lookup/verified linking, shipping administration, online payment UI and marketing are
 separate milestones. No endpoint or transition for those features is presented as implemented here.
 
 ## Mixed tea/equipment orders
@@ -71,3 +72,13 @@ OrderCreated v2 with explicit stockUnit/stockQuantity through the new versioned 
 schema migration is needed because existing item snapshots are immutable JSON; historical orders still
 render correctly. Creation idempotency and guest/owner access are unchanged. Integration also covers
 mixed reservations, competition for the last equipment piece and v1 compatibility; see ADR 0006.
+
+## Online payment backend (stage 4a.2)
+
+StockReserved changes an online order to AWAITING_PAYMENT and records PaymentRequested atomically.
+PaymentSucceeded must match the stored attempt/total/UAH; it changes a waiting order to PAID and emits
+OrderPaid. Failure/expiry cancels and publishes existing OrderCancelled compensation. Independent
+order expiry also progresses while payments are unavailable. Guest/owner cancellation is allowed while
+awaiting payment; paid cancellation remains future administration. Late success cannot revive a cancelled
+order, and refund-before-success cannot overwrite REFUNDED with PAID. PaymentRefunded compensates any
+unfulfilled active order. No guest token or contact data is included in payment events.

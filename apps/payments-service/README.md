@@ -9,8 +9,8 @@ for local overrides. Liveness does not query providers, databases or brokers.
 `modules/payments/domain/payment-provider.ts` defines the private PaymentProvider port:
 createCheckout, verifyWebhook, parseWebhook, getStatus and full refund. PaymentProvidersModule
 registers its selected implementation and exports the port for the next payment workflow increment.
-Domain code has no NestJS or Prisma dependency. No payment schema or HTTP/RMQ payment route exists yet;
-the storefront still uses demonstration COD.
+Domain code has no NestJS or Prisma dependency. The stage 4a.2 ledger and gateway/RMQ routes extend these adapters as described below.
+The storefront payment controls remain stage 4a.3; its checkout still offers demonstration COD.
 
 - FakePaymentProvider is the development default. It simulates pending/success/failure, signed callbacks,
   lost callbacks and full refunds offline. State/signing secrets are process-local; restart clears them.
@@ -30,8 +30,8 @@ sandbox adapter, set `PAYMENT_PROVIDER=liqpay`, `LIQPAY_PUBLIC_KEY`, `LIQPAY_PRI
 `PAYMENT_CALLBACK_URL` and `CORS_ORIGIN` in the private service `.env` or process environment.
 Both keys must start with sandbox_; live keys are intentionally rejected in this demonstration stage.
 LiqPay callback and storefront origins must use HTTPS. Return URLs must match that storefront origin.
-The callback address describes the future gateway endpoint; configuring it does not create that route.
-Do not send traffic there until the durable webhook workflow is implemented.
+The callback address must point to the gateway `/api/v1/payments/webhook/liqpay` route.
+Only the active provider accepts callbacks; Fake uses `/api/v1/payments/webhook/fake`.
 
 The implementation follows the current official API v7 tables, not the legacy v3 SDK samples on the
 same documentation pages. See [ADR 0008](../../docs/adr/0008-payment-provider-boundary.md) for references
@@ -44,6 +44,40 @@ No test contacts LiqPay. After `pnpm build`, run `pnpm demo:payments` for a comp
 pending → signed success → duplicate/tampering checks → lost-callback status read → replayed full refund.
 This exercises provider behavior, not a persisted order/payment saga.
 
-The remainder of stage 4a adds the payment ledger, raw callback audit, Outbox/idempotent consumers,
-authorized guest/owner APIs, expiry/reconciliation/refund workers, checkout UI and integration tests.
-No such behavior is represented as implemented by these adapters.
+## Stage 4a.2 — durable backend
+
+Owns an isolated Prisma payments_db: payment ledger, raw callback audit, full-refund jobs, cancellation
+tombstones, Outbox and processed markers. `pnpm db:migrate` includes payments; schema changes use
+Prisma Migrate. payments.rpc receives business requests; local HTTP remains health/docs only.
+
+Gateway API (no card/contact data accepted):
+
+- `POST /api/v1/payments/checkout` with number/token, or authenticated owner cookie: returns a stored
+  payment and provider checkout descriptor only for a reserved, unexpired online order.
+- `GET /api/v1/payments/status?number=&token=`: the same private order access, persisted payment state.
+- `POST /api/v1/payments/webhook/:provider` with data/signature: bounded raw audit before rejection,
+  selected-provider verification, amount/currency/attempt checks, atomic state/Outbox and semantic replay
+  protection. Only this callback handler bypasses browser Origin checks.
+
+PaymentRequested follows stock reservation and creates one attempt per order. OrderCancelled leaves a
+durable tombstone and schedules a full refund if needed. Maintenance reconciles every 30 seconds,
+expires unpaid entries after their 30-minute deadline and claims refunds before external calls.
+Expired/failed attempts still reconcile for late money. Orders independently enforce their deadline.
+A late success never revives a cancelled order. Raw callbacks never enter events, logs or API responses.
+
+Refund statuses REQUESTED/IN_FLIGHT/WAITING/COMPLETED/REVIEW_REQUIRED distinguish safe retries from
+uncertain external outcomes. An ambiguous request or stale claim requires review and status reconciliation;
+it is not submitted again automatically. Full/partial refund observations never regress to paid. There
+is no administrative review UI yet. Fake provider memory is still local to its process; payment ledger,
+audit and jobs persist, but a missing simulated provider record after restart can require refund review.
+Optionally set a private FAKE_PAYMENT_SECRET (32+ characters) for a development callback harness.
+
+After building, `pnpm test:payments:integration` exercises real gateway/RMQ/PostgreSQL with three
+fresh temporary databases, clean migration deployment and isolated queues. It tests guest/owner access,
+audit of invalid callbacks, concurrency, Outbox rollback, expiry/release, late-success refund, reordering,
+lost callback reconciliation, tombstones and refund claim quarantine; cleanup removes its own fixtures.
+The root integration command includes this suite. No test contacts LiqPay.
+
+Remaining stage 4a.3: storefront choice/redirect/result polling with private-token restoration, payment
+retry/COD-switch commands, multi-attempt policy and real merchant sandbox acceptance. No working online
+checkout UI or live payment acceptance is claimed. See [ADR 0009](../../docs/adr/0009-durable-payment-saga.md).

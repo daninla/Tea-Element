@@ -38,3 +38,12 @@ Customer-facing auth pages and Next.js middleware are scheduled with storefront/
 through the catalog module to `catalog.rpc`; gateway has no catalog database dependency. Queries are
 validated at both HTTP and RPC boundaries. Catalog reads allow 120 requests/minute/IP/route.
 Auth policies and limits remain in effect on authentication endpoints.
+
+## Payments backend (stage 4a.2)
+
+POST `/api/v1/payments/checkout` and GET `/api/v1/payments/status` accept number/token with optional
+owner authentication; payments rechecks access through orders RPC. Amounts, owner IDs and redirect URLs
+are never accepted from clients. POST `/api/v1/payments/webhook/:provider` accepts only bounded
+data/signature fields; `fake`/`liqpay` must match the configured provider. Only this explicitly marked
+callback handler bypasses Origin checks and authenticates by provider signature. Its body is never logged.
+No payment database/provider integration exists inside gateway. Full workflow is in payments-service.

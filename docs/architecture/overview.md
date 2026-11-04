@@ -19,8 +19,10 @@ publish through transactional Outbox and consume with atomic processed-event mar
 compensates even when creation is delivered late. Confirmed COD reservations await future fulfillment.
 Stage 4a.1 adds the internal PaymentProvider boundary with offline Fake and LiqPay sandbox adapters,
 current API v7 signing, verified/normalized observations and bounded status/full-refund requests.
-PaymentProvidersModule registers the selected adapter; no payment schema or public route is added.
-Payments and marketing consumers are not implemented yet. See ADR 0008 for the remaining payment workflow.
+Stage 4a.2 adds isolated payments Prisma storage, audit/Outbox/refund jobs and payment consumers.
+Gateway payment APIs recheck private order access over RPC. Reconciliation/deadlines and late-money
+refund compensation extend the saga without cross-service database reads; see ADR 0009.
+Online storefront controls remain stage 4a.3. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

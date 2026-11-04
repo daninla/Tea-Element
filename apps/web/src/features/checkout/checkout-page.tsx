@@ -44,6 +44,8 @@ export function CheckoutPage() {
     if (session.data) {
       for (const field of ['firstName', 'lastName', 'phone', 'email'] as const)
         if (!form.getFieldState(field).isDirty) form.setValue(field, session.data[field] ?? '');
+      if (session.data.defaultDelivery && !form.getFieldState('delivery').isDirty)
+        form.setValue('delivery', session.data.defaultDelivery);
     }
   }, [session.data, form]);
   async function submit(fields: CheckoutFields) {

@@ -1,3 +1,4 @@
+import { withSessionLock } from './session-lock';
 import type {
   CartItemInput,
   CartQuote,
@@ -15,13 +16,19 @@ export class OrdersApiError extends Error {
   }
 }
 const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
-export async function request<T>(
-  path: string,
-  method = 'GET',
-  body?: unknown,
-  key?: string,
-): Promise<T> {
-  const response = await fetch(`${base}${path}`, {
+const noRefresh = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/register-from-order',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/password/request',
+  '/auth/password/reset',
+  '/auth/email/confirm',
+]);
+let refreshing: Promise<boolean> | undefined;
+function rawRequest(path: string, method = 'GET', body?: unknown, key?: string) {
+  return fetch(`${base}${path}`, {
     method,
     credentials: 'include',
     cache: 'no-store',
@@ -29,6 +36,31 @@ export async function request<T>(
     ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(15000),
   });
+}
+async function refreshSession() {
+  if (!refreshing)
+    refreshing = withSessionLock(async () => {
+      // Another tab may have rotated the shared cookies while this tab waited for the lock.
+      const current = await rawRequest('/auth/me');
+      if (current.ok) return true;
+      if (current.status !== 401) return false;
+      return (await rawRequest('/auth/refresh', 'POST', {})).ok;
+    })
+      .catch(() => false)
+      .finally(() => {
+        refreshing = undefined;
+      });
+  return refreshing;
+}
+export async function request<T>(
+  path: string,
+  method = 'GET',
+  body?: unknown,
+  key?: string,
+): Promise<T> {
+  let response = await rawRequest(path, method, body, key);
+  if (response.status === 401 && !noRefresh.has(path) && (await refreshSession()))
+    response = await rawRequest(path, method, body, key);
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new OrdersApiError(response.status, String(error.code ?? 'UNAVAILABLE'));

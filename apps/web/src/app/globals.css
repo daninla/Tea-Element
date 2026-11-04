@@ -1819,3 +1819,79 @@ img {
 .payment-actions .button {
   white-space: normal;
 }
+
+.account-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.account-form {
+  max-width: 500px;
+  display: grid;
+  gap: 18px;
+}
+.account-form fieldset {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.account-form legend {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  margin-bottom: 16px;
+}
+.account-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block: 24px;
+}
+.account-links a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.account-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.account-grid {
+  display: grid;
+  gap: 48px;
+  margin-top: 36px;
+}
+.account-orders {
+  list-style: none;
+  padding: 0;
+}
+.account-orders li {
+  border-bottom: 1px solid var(--border);
+  padding-block: 22px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+.account-orders a {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 900px) {
+  .account-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .account-link span {
+    display: none;
+  }
+  .account-orders li > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+}

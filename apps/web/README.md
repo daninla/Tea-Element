@@ -38,7 +38,7 @@ photos are illustrative; see [asset provenance](public/images/README.md) and
 All orders are demonstrations without payment or fulfillment, with an explicit notice. The checkout
 works without an account. Existing authenticated sessions are detected, guest items merge idempotently
 into the server cart, and subsequent changes synchronize. Edits during synchronization are reconciled.
-Customer login/account UI and admin screens remain later milestones. Metadata and Product JSON-LD are included;
+Customer accounts are implemented in stage 5; admin screens remain stage 6. Metadata and Product JSON-LD are included;
 robots remain noindex until deployment and real store content are ready.
 
 ## Verification
@@ -78,3 +78,12 @@ and bounded preparation retries are localized. Browser checks at 375/1280px cove
 refresh without URL bearer, mixed tea/equipment COD switch/cancellation and forged success flags.
 No horizontal overflow or payment-flow console error was observed. Real merchant sandbox acceptance
 remains external; live keys/real charges are disabled. See ADR 0010.
+
+## Customer account (stage 5)
+
+`features/account` backs thin /login, /register, /forgot-password, /reset-password, /verify-email,
+/order-lookup and /account routes. Forms use RHF/Zod with localized Ukrainian copy. Email proofs stay
+in URL fragments until explicit submission. The browser uses HttpOnly cookies and serialized refresh,
+including Web Locks across tabs. Private order history is owner-scoped, paginated and periodically refreshed.
+Repeat-order actions request fresh server prices/stock. Profile delivery prefills untouched checkout fields.
+Middleware only provides a redirect; gateway authentication is the security boundary. See ADR 0011.

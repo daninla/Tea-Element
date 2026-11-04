@@ -11,6 +11,7 @@ export function OrderPage({ number }: { number: string }) {
   const { token, ready } = usePrivateAccess(number);
   const t = useTranslations('order');
   const cartT = useTranslations('cart');
+  const accountT = useTranslations('account');
   const client = useQueryClient();
   const [cancelError, setCancelError] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -130,6 +131,11 @@ export function OrderPage({ number }: { number: string }) {
               href={`/order/${order.number}/pay${token ? `?token=${encodeURIComponent(token)}` : ''}`}
             >
               {t('continuePayment')}
+            </Link>
+          )}
+          {token && !session.data && (
+            <Link className="text-link" href={`/register?order=${order.number}`}>
+              {accountT('fromOrderLink')}
             </Link>
           )}
           {token && (

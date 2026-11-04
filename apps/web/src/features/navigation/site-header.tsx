@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { AccountLink } from '@/features/account/account-link';
 import { CartButton } from '@/features/cart/cart-button';
 import Link from 'next/link';
 import { Leaf, ArrowUpRight } from 'lucide-react';
@@ -29,6 +30,7 @@ export async function SiteHeader() {
               <Search />
             </Suspense>
           </div>
+          <AccountLink />
           <CartButton />
           <Link href="/catalog" className="header-catalog">
             {common('catalog')}

@@ -19,6 +19,8 @@ export function CartSession() {
     refetchOnWindowFocus: true,
     refetchInterval: 60000,
   });
+  const identity = useRef<string | null | undefined>(undefined);
+  identity.current = session.isSuccess ? (session.data?.id ?? null) : undefined;
   const revision = useCart((s) => s.revision);
   const syncing = useRef(false);
   const synced = useRef(-1);
@@ -59,6 +61,7 @@ export function CartSession() {
       operation = initialized.current !== userId ? ordersApi.cart() : ordersApi.save(state.items);
     void operation
       .then((items) => {
+        if (identity.current !== userId) return;
         const current = useCart.getState();
         if (initialized.current !== userId) {
           current.replace(reconcileCart(items, before, current.items), userId);
@@ -69,9 +72,12 @@ export function CartSession() {
         setFailed(false);
         setTick((t) => t + 1);
       })
-      .catch(() => setFailed(true))
+      .catch(() => {
+        if (identity.current === userId) setFailed(true);
+      })
       .finally(() => {
         syncing.current = false;
+        if (identity.current !== userId) setTick((t) => t + 1);
       });
   }, [session.data, session.isSuccess, revision, tick]);
   return failed ? (

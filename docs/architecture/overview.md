@@ -17,7 +17,10 @@ no browser price is trusted. Stage 4 adds orders RPC, an isolated orders databas
 private guest/owner access, durable order receipts and a reservation/cancellation saga. Orders/catalog
 publish through transactional Outbox and consume with atomic processed-event markers. Cancellation
 compensates even when creation is delivered late. Confirmed COD reservations await future fulfillment.
-Payments and marketing consumers are not implemented yet.
+Stage 4a.1 adds the internal PaymentProvider boundary with offline Fake and LiqPay sandbox adapters,
+current API v7 signing, verified/normalized observations and bounded status/full-refund requests.
+PaymentProvidersModule registers the selected adapter; no payment schema or public route is added.
+Payments and marketing consumers are not implemented yet. See ADR 0008 for the remaining payment workflow.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

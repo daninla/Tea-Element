@@ -1,17 +1,17 @@
 # Pattern implementation status
 
-| Pattern                          | Current status                                                                     | Source / next work                           |
-| -------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
-| API Gateway                      | Auth/catalog/orders HTTP-to-RMQ routing, Origin/JWT/RBAC and private bearer access | apps/gateway/src/modules                     |
-| Database per Service             | Five isolated databases; auth/catalog/orders Prisma migrations                     | infra/postgres; apps/*/prisma                |
-| Repository / Clean layers        | Domain ports/policies, application use-cases and infrastructure adapters           | modules/auth, catalog, stock, orders         |
-| Event-driven architecture        | Registration producer and live checkout consumers                                  | shared/outbox; stock/order workers           |
-| Transactional Outbox             | State and event commit together; confirmed delivery/retry                          | auth, catalog and orders shared/outbox       |
-| Idempotent Consumer              | Event marker and side effect share one transaction; order-level semantic dedup     | prisma-stock-store.ts; prisma-order-store.ts |
-| Saga                             | COD reservation → confirmation/rejection; cancellation/timeout compensation        | OrderCreated/StockReserved/OrderCancelled    |
-| CQRS-lite                        | Planned                                                                            | SPEC stage 7                                 |
-| Strategy                         | Planned                                                                            | SPEC stages 4a and 7                         |
-| Payment ACL / idempotent webhook | Planned                                                                            | SPEC stage 4a                                |
+| Pattern                          | Current status                                                                       | Source / next work                           |
+| -------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------- |
+| API Gateway                      | Auth/catalog/orders HTTP-to-RMQ routing, Origin/JWT/RBAC and private bearer access   | apps/gateway/src/modules                     |
+| Database per Service             | Five isolated databases; auth/catalog/orders Prisma migrations                       | infra/postgres; apps/*/prisma                |
+| Repository / Clean layers        | Domain ports/policies, application use-cases and infrastructure adapters             | modules/auth, catalog, stock, orders         |
+| Event-driven architecture        | Registration producer and live checkout consumers                                    | shared/outbox; stock/order workers           |
+| Transactional Outbox             | State and event commit together; confirmed delivery/retry                            | auth, catalog and orders shared/outbox       |
+| Idempotent Consumer              | Event marker and side effect share one transaction; order-level semantic dedup       | prisma-stock-store.ts; prisma-order-store.ts |
+| Saga                             | COD reservation → confirmation/rejection; cancellation/timeout compensation          | OrderCreated/StockReserved/OrderCancelled    |
+| CQRS-lite                        | Planned                                                                              | SPEC stage 7                                 |
+| Strategy                         | PaymentProvider with Fake and LiqPay sandbox adapters; marketing planned             | SPEC stages 4a and 7                         |
+| Payment ACL / idempotent webhook | Provider verification/normalization implemented; durable webhook idempotency planned | SPEC stage 4a                                |
 
 Orders integration exercises real HTTP, broker and PostgreSQL: duplicate/concurrent submissions,
 semantic/event duplicates, rollback after an injected Outbox failure, competing last-stock reservations,

@@ -79,9 +79,22 @@ at 375px/1280px cover drawer, persistent cart, quantities, form errors, delivery
 confirmation, cancellation and no horizontal document overflow. No browser console errors were observed
 in the completed purchase/cancellation flow.
 
+## Stage 4a.1 — payment provider adapters
+
+Implemented: internal PaymentProvider port, registered offline Fake and LiqPay sandbox adapters,
+hosted POST form generation, current API v7/SHA3-256 signatures, timing-safe callback verification,
+merchant/attempt/amount/currency checks, exact decimal conversion, bounded status/full-refund requests
+and normalized observations without card/contact data. Fake supports success/refusal, duplicate callback
+parsing, lost-callback status reads and replayed full refunds. No external call is made by tests/demo.
+
+This is the provider boundary only (ADR 0008). No payment database, raw callback audit, payment event
+consumer, expiry/reconciliation worker, public payment API or storefront payment UI exists yet. Stage 4
+COD behavior remains active. Live keys are rejected; the LiqPay adapter has not been accepted against
+an owner's sandbox account. Durable workflow and full stage 4a acceptance remain below.
+
 ## Remaining stages
 
-- **4a:** Fake/LiqPay payment providers, verified webhooks, expiry, reconciliation and refunds.
+- **4a:** Durable payment ledger/audit, idempotent webhook workflow, saga events, authorized APIs, expiry/reconciliation/refund workers and storefront payment UI. Provider adapters are implemented in 4a.1.
 - **5:** Account/login UI, verified guest order linking, registration from an order and private email lookup.
 - **6:** Administration and fulfillment/inventory journal.
 - **7:** Event-based marketing and email campaigns.
@@ -92,7 +105,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (167 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (229 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

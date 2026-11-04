@@ -14,6 +14,13 @@ const schema = z.discriminatedUnion('name', [
   z
     .object({
       ...envelope,
+      name: z.literal('PaymentAttemptAbandoned'),
+      payload: z.object({ orderId: z.string().uuid(), paymentId: z.string().uuid() }).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      ...envelope,
       name: z.literal('PaymentRequested'),
       payload: z
         .object({
@@ -59,7 +66,11 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
     this.timer.unref();
   }
   private async run() {
-    for (const queue of ['payments.payment_requested', 'payments.order_cancelled'])
+    for (const queue of [
+      'payments.payment_requested',
+      'payments.order_cancelled',
+      'payments.payment_attempt_abandoned',
+    ])
       await this.bus.subscribe(queue, (raw) => this.handler.execute(schema.parse(raw)));
     await this.maintenance.execute();
   }

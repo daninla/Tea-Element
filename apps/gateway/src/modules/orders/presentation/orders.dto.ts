@@ -62,3 +62,7 @@ export class OrderNumberDto {
 export class OrderTokenDto {
   @IsOptional() @Matches(/^[A-Za-z0-9_-]{43}$/) token?: string;
 }
+
+export class PaymentCommandDto extends OrderNumberDto {
+  @IsIn(['retry', 'cod']) action!: 'retry' | 'cod';
+}

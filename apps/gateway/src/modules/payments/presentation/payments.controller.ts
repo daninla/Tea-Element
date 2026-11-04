@@ -23,6 +23,9 @@ export class PaymentAccessDto {
   @Matches(/^TE-[A-F0-9]{32}$/) number!: string;
   @IsOptional() @Matches(/^[A-Za-z0-9_-]{43}$/) token?: string;
 }
+export class SimulationDto extends PaymentAccessDto {
+  @IsIn(['SUCCEEDED', 'FAILED']) outcome!: 'SUCCEEDED' | 'FAILED';
+}
 export class ProviderDto {
   @IsIn(['fake', 'liqpay']) provider!: 'fake' | 'liqpay';
 }
@@ -49,6 +52,16 @@ export class PaymentsController {
   @Throttle({ default: { limit: 120, ttl: 60000 } })
   status(@Query() input: PaymentAccessDto, @Req() req: AuthenticatedRequest) {
     return this.payments.execute<PaymentView>(PAYMENTS_PATTERNS.status, {
+      input,
+      context: { correlationId: String(req.id), userId: req.user?.sub },
+    });
+  }
+  @Public()
+  @OptionalAuth()
+  @Post('simulate')
+  @HttpCode(200)
+  simulate(@Body() input: SimulationDto, @Req() req: AuthenticatedRequest) {
+    return this.payments.execute(PAYMENTS_PATTERNS.simulate, {
       input,
       context: { correlationId: String(req.id), userId: req.user?.sub },
     });

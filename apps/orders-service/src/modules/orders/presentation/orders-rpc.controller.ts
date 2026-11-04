@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { z } from 'zod';
 import { ORDERS_PATTERNS, type OrdersResult } from '@tea/contracts';
 import { OrderError } from '../domain/order-store';
+import { ChangePayment } from '../application/change-payment';
 import { CreateOrder } from '../application/create-order';
 import { GetOrder } from '../application/get-order';
 import { CancelOrder } from '../application/cancel-order';
@@ -45,6 +46,7 @@ function user(id: string | undefined) {
 @Controller()
 export class OrdersRpcController {
   constructor(
+    @Inject(ChangePayment) private readonly change: ChangePayment,
     @Inject(CreateOrder) private readonly create: CreateOrder,
     @Inject(GetOrder) private readonly get: GetOrder,
     @Inject(CancelOrder) private readonly cancel: CancelOrder,
@@ -71,6 +73,19 @@ export class OrdersRpcController {
   @MessagePattern(ORDERS_PATTERNS.cancel) cancelOrder(@Payload() raw: unknown) {
     return handle(raw, access, (x, c) =>
       this.cancel.execute({ ...x, userId: c.userId }, c.correlationId),
+    );
+  }
+  @MessagePattern(ORDERS_PATTERNS.changePayment) changePayment(@Payload() raw: unknown) {
+    return handle(
+      raw,
+      access.extend({ action: z.enum(['RETRY', 'COD']), key: z.string().uuid() }).strict(),
+      (x, c) =>
+        this.change.execute(
+          { number: x.number, token: x.token, userId: c.userId },
+          x.action,
+          x.key,
+          c.correlationId,
+        ),
     );
   }
   @MessagePattern(ORDERS_PATTERNS.cart) cart(@Payload() raw: unknown) {

@@ -11,6 +11,7 @@ import { RmqOrderAccess } from './infrastructure/rmq-order-access';
 import { HandlePaymentEvent } from './application/handle-payment-event';
 import { MaintainPayments } from './application/maintain-payments';
 import { GetPayment } from './application/get-payment';
+import { SimulatePayment } from './application/simulate-payment';
 import { RecordWebhook } from './application/record-webhook';
 import { PaymentsRpcController } from './presentation/payments-rpc.controller';
 import { PaymentWorker } from './presentation/payment-worker';
@@ -41,6 +42,7 @@ import { PaymentWorker } from './presentation/payment-worker';
     MaintainPayments,
     GetPayment,
     RecordWebhook,
+    SimulatePayment,
     PaymentWorker,
     { provide: PaymentStore, useClass: PrismaPaymentStore },
     { provide: PaymentOrderAccess, useClass: RmqOrderAccess },

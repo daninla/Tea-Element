@@ -1,4 +1,9 @@
-import type { PaymentRequested, OrderCancelled, PaymentView } from '@tea/contracts';
+import type {
+  PaymentRequested,
+  PaymentAttemptAbandoned,
+  OrderCancelled,
+  PaymentView,
+} from '@tea/contracts';
 import type { PaymentObservation, ProviderWebhook, PaymentIdentity } from './payment-provider';
 export interface StoredPayment extends PaymentView {
   provider: string;
@@ -6,7 +11,7 @@ export interface StoredPayment extends PaymentView {
 }
 export abstract class PaymentStore {
   abstract register(event: PaymentRequested): Promise<void>;
-  abstract cancel(event: OrderCancelled): Promise<void>;
+  abstract cancel(event: OrderCancelled | PaymentAttemptAbandoned): Promise<void>;
   abstract find(id: string): Promise<StoredPayment | null>;
   abstract forOrder(orderId: string): Promise<StoredPayment | null>;
   abstract audit(raw: ProviderWebhook, valid: boolean): Promise<string>;

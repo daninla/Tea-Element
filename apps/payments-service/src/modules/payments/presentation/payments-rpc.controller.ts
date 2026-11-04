@@ -2,6 +2,7 @@ import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { z } from 'zod';
 import { PAYMENTS_PATTERNS, type OrdersResult } from '@tea/contracts';
+import { SimulatePayment } from '../application/simulate-payment';
 import { RecordWebhook } from '../application/record-webhook';
 import { GetPayment } from '../application/get-payment';
 import { PaymentError } from '../domain/payment-store';
@@ -44,6 +45,7 @@ async function handle<T>(run: () => Promise<T>): Promise<OrdersResult<T>> {
 @Controller()
 export class PaymentsRpcController {
   constructor(
+    @Inject(SimulatePayment) private readonly simulation: SimulatePayment,
     @Inject(GetPayment) private readonly get: GetPayment,
     @Inject(RecordWebhook) private readonly webhook: RecordWebhook,
   ) {}
@@ -59,6 +61,25 @@ export class PaymentsRpcController {
   }
   @MessagePattern(PAYMENTS_PATTERNS.status) status(@Payload() raw: unknown) {
     return this.getPayment(raw, false);
+  }
+  @MessagePattern(PAYMENTS_PATTERNS.simulate) simulate(@Payload() raw: unknown) {
+    return handle(async () => {
+      const parsed = z
+        .object({
+          input: access.extend({ outcome: z.enum(['SUCCEEDED', 'FAILED']) }).strict(),
+          context,
+        })
+        .strict()
+        .safeParse(raw);
+      if (!parsed.success) throw new PaymentError('INVALID_INPUT', 400);
+      return this.simulation.execute(
+        {
+          input: { number: parsed.data.input.number, token: parsed.data.input.token },
+          context: parsed.data.context,
+        },
+        parsed.data.input.outcome,
+      );
+    });
   }
   @MessagePattern(PAYMENTS_PATTERNS.webhook) receive(@Payload() raw: unknown) {
     return handle(async () => {

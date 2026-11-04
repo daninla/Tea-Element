@@ -44,6 +44,9 @@ function view(row: Loaded): OrderView {
     email: row.email,
     phone: row.phone,
     paymentMethod: row.paymentMethod as OrderView['paymentMethod'],
+    paymentAttemptId: row.paymentAttemptId,
+    paymentStatus: row.paymentStatus,
+    paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     history: row.history.map((h) => ({ status: h.status, at: h.createdAt.toISOString() })),
   };
@@ -169,6 +172,93 @@ export class PrismaOrderStore extends OrderStore {
       return view(await this.accessible(tx, input));
     });
   }
+  async changePayment(
+    input: AccessInput,
+    action: 'RETRY' | 'COD',
+    key: string,
+    correlationId: string,
+  ) {
+    return this.db.$transaction(async (tx) => {
+      const initial = await this.accessible(tx, input);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${initial.id},0))`;
+      const row = await this.accessible(tx, input);
+      const replay = await tx.paymentCommand.findUnique({
+        where: { orderId_key: { orderId: row.id, key } },
+      });
+      if (replay) {
+        if (replay.action !== action)
+          throw new OrderError('IDEMPOTENCY_CONFLICT', 'Command key reused', 409);
+        return view(row);
+      }
+      if (
+        row.status !== 'AWAITING_PAYMENT' ||
+        row.paymentMethod !== 'ONLINE_CARD' ||
+        !row.paymentAttemptId ||
+        !row.paymentExpiresAt ||
+        row.paymentExpiresAt <= new Date()
+      )
+        throw new OrderError('INVALID_TRANSITION', 'Payment cannot be changed', 409);
+      if (action === 'RETRY' && row.paymentStatus !== 'FAILED')
+        throw new OrderError('INVALID_TRANSITION', 'Payment is not failed', 409);
+      await tx.paymentAttempt.upsert({
+        where: { id: row.paymentAttemptId },
+        create: { id: row.paymentAttemptId, orderId: row.id, status: row.paymentStatus },
+        update: {},
+      });
+      await this.event(tx, {
+        eventId: randomUUID(),
+        name: 'PaymentAttemptAbandoned',
+        version: 1,
+        occurredAt: new Date().toISOString(),
+        correlationId,
+        payload: { orderId: row.id, paymentId: row.paymentAttemptId },
+      });
+      if (action === 'COD') {
+        await tx.order.update({
+          where: { id: row.id },
+          data: {
+            paymentMethod: 'CASH_ON_DELIVERY',
+            paymentStatus: 'UNPAID',
+            paymentAttemptId: null,
+            paymentExpiresAt: null,
+          },
+        });
+        await this.transition(tx, row.id, 'CONFIRMED');
+        await this.event(tx, {
+          eventId: randomUUID(),
+          name: 'OrderConfirmed',
+          version: 1,
+          occurredAt: new Date().toISOString(),
+          correlationId,
+          payload: { orderId: row.id },
+        });
+      } else {
+        const paymentId = randomUUID();
+        await tx.paymentAttempt.create({ data: { id: paymentId, orderId: row.id } });
+        await tx.order.update({
+          where: { id: row.id },
+          data: { paymentAttemptId: paymentId, paymentStatus: 'UNPAID' },
+        });
+        await this.event(tx, {
+          eventId: randomUUID(),
+          name: 'PaymentRequested',
+          version: 1,
+          occurredAt: new Date().toISOString(),
+          correlationId,
+          payload: {
+            orderId: row.id,
+            paymentId,
+            orderNumber: row.number,
+            amount: row.total,
+            currency: 'UAH',
+            expiresAt: row.paymentExpiresAt.toISOString(),
+          },
+        });
+      }
+      await tx.paymentCommand.create({ data: { orderId: row.id, key, action } });
+      return view(await this.accessible(tx, input));
+    });
+  }
   async cart(userId: string) {
     const row = await this.db.cart.findUnique({ where: { userId } });
     return (row?.items ?? []) as unknown as CartItemInput[];
@@ -222,13 +312,22 @@ export class PrismaOrderStore extends OrderStore {
       const row = await tx.order.findUnique({ where: { id } });
       if (!row) throw new Error('Unknown order');
       if ('amount' in event.payload) {
-        if (
-          row.paymentMethod !== 'ONLINE_CARD' ||
-          row.paymentAttemptId !== event.payload.paymentId ||
-          row.total !== event.payload.amount ||
-          event.payload.currency !== 'UAH'
-        )
+        if (row.total !== event.payload.amount || event.payload.currency !== 'UAH')
           throw new OrderError('PAYMENT_MISMATCH', 'Payment does not match order', 400);
+        const known = await tx.paymentAttempt.findUnique({
+          where: { id: event.payload.paymentId },
+        });
+        if (row.paymentAttemptId !== event.payload.paymentId) {
+          if (!known || known.orderId !== id)
+            throw new OrderError('PAYMENT_MISMATCH', 'Unknown attempt', 400);
+          await tx.paymentAttempt.update({ where: { id: known.id }, data: { status: event.name } });
+          await tx.processedEvent.create({ data: { eventId: event.eventId } });
+          return;
+        }
+        if (row.paymentMethod !== 'ONLINE_CARD')
+          throw new OrderError('PAYMENT_MISMATCH', 'Payment method mismatch', 400);
+        if (known)
+          await tx.paymentAttempt.update({ where: { id: known.id }, data: { status: event.name } });
         if (event.name === 'PaymentSucceeded' && row.paymentStatus !== 'REFUNDED') {
           await tx.order.update({ where: { id }, data: { paymentStatus: 'PAID' } });
           if (row.status === 'AWAITING_PAYMENT') {
@@ -258,13 +357,13 @@ export class PrismaOrderStore extends OrderStore {
           }
         }
         if (
-          (event.name === 'PaymentFailed' || event.name === 'PaymentExpired') &&
-          row.status === 'AWAITING_PAYMENT'
-        ) {
-          await tx.order.update({
-            where: { id },
-            data: { paymentStatus: event.name === 'PaymentFailed' ? 'FAILED' : 'UNPAID' },
-          });
+          event.name === 'PaymentFailed' &&
+          row.status === 'AWAITING_PAYMENT' &&
+          row.paymentStatus !== 'PAID' &&
+          row.paymentStatus !== 'REFUNDED'
+        )
+          await tx.order.update({ where: { id }, data: { paymentStatus: 'FAILED' } });
+        if (event.name === 'PaymentExpired' && row.status === 'AWAITING_PAYMENT') {
           await this.transition(tx, id, 'CANCELLED');
           await this.event(tx, {
             eventId: randomUUID(),
@@ -287,6 +386,7 @@ export class PrismaOrderStore extends OrderStore {
         await this.transition(tx, id, next);
         if (next === 'AWAITING_PAYMENT') {
           const paymentId = randomUUID();
+          await tx.paymentAttempt.create({ data: { id: paymentId, orderId: id } });
           const expiresAt = new Date(Date.now() + 1800000);
           await tx.order.update({
             where: { id },

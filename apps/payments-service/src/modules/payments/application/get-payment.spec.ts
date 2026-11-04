@@ -3,7 +3,7 @@ import type { PaymentStore, PaymentOrderAccess } from '../domain/payment-store';
 import type { PaymentProvider } from '../domain/payment-provider';
 describe('GetPayment', () => {
   const orders = { get: jest.fn() };
-  const store = { forOrder: jest.fn() };
+  const store = { find: jest.fn() };
   const provider = { createCheckout: jest.fn() };
   const useCase = new GetPayment(
     store as unknown as PaymentStore,
@@ -18,16 +18,17 @@ describe('GetPayment', () => {
   it('checks order access before looking up any payment details', async () => {
     orders.get.mockRejectedValueOnce(new Error('ORDER_NOT_FOUND'));
     await expect(useCase.execute(request, false)).rejects.toThrow('ORDER_NOT_FOUND');
-    expect(store.forOrder).not.toHaveBeenCalled();
+    expect(store.find).not.toHaveBeenCalled();
   });
   it('creates checkout only for a reserved, unexpired online order', async () => {
     orders.get.mockResolvedValue({
       id: 'order',
+      paymentAttemptId: 'payment',
       number: 'TE-one',
       status: 'AWAITING_PAYMENT',
       paymentMethod: 'ONLINE_CARD',
     });
-    store.forOrder.mockResolvedValue({
+    store.find.mockResolvedValue({
       id: 'payment',
       orderId: 'order',
       status: 'PENDING',
@@ -40,8 +41,9 @@ describe('GetPayment', () => {
     provider.createCheckout.mockResolvedValue({ provider: 'FAKE', paymentId: 'payment' });
     expect(await useCase.execute(request, true)).toMatchObject({ checkout: { provider: 'FAKE' } });
     expect(provider.createCheckout.mock.calls[0]![0]).not.toHaveProperty('token');
-    store.forOrder.mockResolvedValueOnce({
+    store.find.mockResolvedValueOnce({
       id: 'payment',
+      orderId: 'order',
       status: 'PENDING',
       provider: 'FAKE',
       cancelRequested: true,

@@ -120,10 +120,7 @@ function signed(payment, override = {}) {
   return { data, signature: createHmac('sha256', secret).update(data).digest('base64') };
 }
 async function paymentFor(id) {
-  return waitFor(
-    () => db.payment.findUnique({ where: { orderId: id } }),
-    'payment ledger creation',
-  );
+  return waitFor(() => db.payment.findFirst({ where: { orderId: id } }), 'payment ledger creation');
 }
 async function status(order, value) {
   await waitFor(
@@ -347,8 +344,85 @@ try {
     'REFUNDED',
   );
   const failed = await create(variantId);
-  await webhook(failed.payment, { status: 'FAILED' });
-  await status(failed.order, 'CANCELLED');
+  await http('/payments/simulate', {
+    method: 'POST',
+    body: { number: failed.order.number, token: failed.accessToken, outcome: 'FAILED' },
+    origin: false,
+    status: 403,
+  });
+  await http('/payments/simulate', {
+    method: 'POST',
+    body: { number: failed.order.number, outcome: 'FAILED' },
+    status: 404,
+  });
+  await http('/payments/simulate', {
+    method: 'POST',
+    body: { number: failed.order.number, token: failed.accessToken, outcome: 'FAILED' },
+  });
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: failed.order.id } })).paymentStatus ===
+      'FAILED',
+    'payment refusal',
+  );
+  await status(failed.order, 'AWAITING_PAYMENT');
+  await reserved(product.id, 50);
+  // A legacy stage-4a.2 order has an active attempt ID but no attempt-history row.
+  await orders.paymentAttempt.delete({ where: { id: failed.payment.id } });
+  const retryKey = randomUUID();
+  const retryPath = '/orders/' + failed.order.number + '/payment/retry?token=' + failed.accessToken;
+  const [retried, replayedRetry] = await Promise.all([
+    http(retryPath, { method: 'POST', body: {}, key: retryKey }),
+    http(retryPath, { method: 'POST', body: {}, key: retryKey }),
+  ]);
+  assert.equal(retried.paymentAttemptId, replayedRetry.paymentAttemptId);
+  assert.notEqual(retried.paymentAttemptId, failed.payment.id);
+  assert.equal(retried.paymentExpiresAt, failed.payment.expiresAt.toISOString());
+  await waitFor(
+    () => db.payment.findUnique({ where: { id: retried.paymentAttemptId } }),
+    'new payment attempt',
+  );
+  assert.equal(await db.payment.count({ where: { orderId: failed.order.id } }), 2);
+  assert.equal(await orders.paymentCommand.count({ where: { orderId: failed.order.id } }), 1);
+  assert.equal(await orders.paymentAttempt.count({ where: { orderId: failed.order.id } }), 2);
+  await webhook(failed.payment);
+  await waitFor(
+    async () =>
+      (await db.payment.findUniqueOrThrow({ where: { id: failed.payment.id } })).status ===
+      'REFUNDED',
+    'old attempt late refund',
+  );
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: failed.order.id } })).status,
+    'AWAITING_PAYMENT',
+  );
+  const codPath = '/orders/' + failed.order.number + '/payment/cod?token=' + failed.accessToken;
+  await http(codPath, { method: 'POST', body: {}, key: retryKey, status: 409 });
+  const codKey = randomUUID();
+  const cod = await http(codPath, { method: 'POST', body: {}, key: codKey });
+  assert.equal(cod.status, 'CONFIRMED');
+  assert.equal(cod.paymentMethod, 'CASH_ON_DELIVERY');
+  await http(codPath, { method: 'POST', body: {}, key: codKey });
+  const abandoned = await db.payment.findUniqueOrThrow({ where: { id: retried.paymentAttemptId } });
+  await waitFor(
+    async () =>
+      (await db.payment.findUniqueOrThrow({ where: { id: abandoned.id } })).cancelRequested,
+    'attempt abandoned',
+  );
+  await webhook(abandoned);
+  await waitFor(
+    async () =>
+      (await db.payment.findUniqueOrThrow({ where: { id: abandoned.id } })).status === 'REFUNDED',
+    'COD race refund',
+  );
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: failed.order.id } })).status,
+    'CONFIRMED',
+  );
+  await http('/orders/' + failed.order.number + '/cancel?token=' + failed.accessToken, {
+    method: 'POST',
+    body: {},
+  });
   await reserved(product.id, 25);
   const expired = await create(variantId);
   await db.payment.update({ where: { id: expired.payment.id }, data: { expiresAt: new Date(0) } });
@@ -425,7 +499,7 @@ try {
   await store.refundResult(rollback.id, 'REVIEW_REQUIRED', randomUUID());
   assert.equal(await store.claimRefund(), null);
   console.log(
-    'Payments integration passed: fresh migrations, repeatable catalog seed, guest/owner access boundary, signed/raw webhook audit, concurrent duplicates, atomic Outbox rollback, paid state, expiry and stock compensation, late-success refund, refund reordering, lost callback reconciliation, durable tombstones and claimed refund quarantine.',
+    'Payments integration passed: fresh migrations, repeatable catalog seed, guest/owner access boundary, signed/raw webhook audit, concurrent duplicates, atomic Outbox rollback, paid state, expiry and stock compensation, late-success refund, refund reordering, lost callback reconciliation, durable tombstones, idempotent retry/COD commands, legacy attempt recovery, unchanged deadlines, abandoned-attempt refund races and claimed refund quarantine.',
   );
 } finally {
   for (const child of children)

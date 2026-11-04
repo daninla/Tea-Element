@@ -3,6 +3,7 @@ export const PAYMENTS_PATTERNS = {
   checkout: 'payments.checkout',
   status: 'payments.status',
   webhook: 'payments.webhook',
+  simulate: 'payments.simulate',
 } as const;
 export interface PaymentAccess {
   number: string;
@@ -41,4 +42,9 @@ export type PaymentRequested = DomainEvent<
 export type PaymentOutcome = DomainEvent<
   'PaymentSucceeded' | 'PaymentFailed' | 'PaymentExpired' | 'PaymentRefunded',
   { paymentId: string; orderId: string; amount: number; currency: 'UAH' }
+>;
+
+export type PaymentAttemptAbandoned = DomainEvent<
+  'PaymentAttemptAbandoned',
+  { orderId: string; paymentId: string }
 >;

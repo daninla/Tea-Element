@@ -1,4 +1,4 @@
-import type { PaymentRequested, PaymentOutcome } from './payments';
+import type { PaymentRequested, PaymentOutcome, PaymentAttemptAbandoned } from './payments';
 import type { DomainEvent } from './auth';
 export const ORDERS_PATTERNS = {
   quote: 'orders.quote',
@@ -8,6 +8,7 @@ export const ORDERS_PATTERNS = {
   cart: 'orders.cart',
   saveCart: 'orders.save_cart',
   mergeCart: 'orders.merge_cart',
+  changePayment: 'orders.change_payment',
 } as const;
 export const ORDER_STATUSES = [
   'PENDING',
@@ -71,6 +72,9 @@ export interface OrderView {
   phone: string;
   email: string;
   paymentMethod: 'CASH_ON_DELIVERY' | 'ONLINE_CARD';
+  paymentAttemptId?: string | null;
+  paymentStatus?: string;
+  paymentExpiresAt?: string | null;
   createdAt: string;
   history: { status: OrderStatus; at: string }[];
 }
@@ -125,6 +129,7 @@ export type CheckoutEvent =
   | OrderConfirmed
   | OrderPaid
   | PaymentRequested
+  | PaymentAttemptAbandoned
   | PaymentOutcome;
 export const CHECKOUT_ROUTES = {
   OrderCreated: 'orders.order_created',
@@ -135,6 +140,7 @@ export const CHECKOUT_ROUTES = {
   OrderConfirmed: 'orders.order_confirmed',
   OrderPaid: 'orders.order_paid',
   PaymentRequested: 'orders.payment_requested',
+  PaymentAttemptAbandoned: 'orders.payment_attempt_abandoned',
   PaymentSucceeded: 'payments.payment_succeeded',
   PaymentFailed: 'payments.payment_failed',
   PaymentExpired: 'payments.payment_expired',
@@ -145,6 +151,7 @@ export const CHECKOUT_SUBSCRIPTIONS = [
   ['catalog.order_created_v2', 'OrderCreatedV2'],
   ['catalog.order_cancelled', 'OrderCancelled'],
   ['payments.payment_requested', 'PaymentRequested'],
+  ['payments.payment_attempt_abandoned', 'PaymentAttemptAbandoned'],
   ['payments.order_cancelled', 'OrderCancelled'],
   ['orders.payment_succeeded', 'PaymentSucceeded'],
   ['orders.payment_failed', 'PaymentFailed'],

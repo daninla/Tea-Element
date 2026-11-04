@@ -20,8 +20,8 @@ export class GetPayment {
     checkout: boolean,
   ): Promise<PaymentView | PaymentCheckoutView> {
     const order = await this.orders.get(request.input, request.context);
-    const payment = await this.store.forOrder(order.id);
-    if (!payment) throw new PaymentError('PAYMENT_NOT_READY', 409);
+    const payment = order.paymentAttemptId ? await this.store.find(order.paymentAttemptId) : null;
+    if (!payment || payment.orderId !== order.id) throw new PaymentError('PAYMENT_NOT_READY', 409);
     const view: PaymentView = {
       id: payment.id,
       orderId: payment.orderId,

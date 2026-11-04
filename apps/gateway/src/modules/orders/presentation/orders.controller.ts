@@ -25,7 +25,13 @@ import {
   type AuthenticatedRequest,
 } from '../../auth/presentation/auth-policy';
 import { ForwardOrders } from '../application/forward-orders';
-import { CartDto, CreateOrderDto, OrderNumberDto, OrderTokenDto } from './orders.dto';
+import {
+  PaymentCommandDto,
+  CartDto,
+  CreateOrderDto,
+  OrderNumberDto,
+  OrderTokenDto,
+} from './orders.dto';
 @Controller('api/v1/orders')
 export class OrdersController {
   constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
@@ -65,6 +71,26 @@ export class OrdersController {
   ) {
     return this.orders.execute<OrderView>(ORDERS_PATTERNS.get, {
       input: { ...param, ...query },
+      context: { correlationId: String(req.id), userId: req.user?.sub },
+    });
+  }
+  @Public()
+  @OptionalAuth()
+  @HttpCode(200)
+  @Post(':number/payment/:action')
+  changePayment(
+    @Param() param: PaymentCommandDto,
+    @Query() query: OrderTokenDto,
+    @Headers('idempotency-key') key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.orders.execute<OrderView>(ORDERS_PATTERNS.changePayment, {
+      input: {
+        number: param.number,
+        ...query,
+        action: param.action === 'retry' ? 'RETRY' : 'COD',
+        key,
+      },
       context: { correlationId: String(req.id), userId: req.user?.sub },
     });
   }

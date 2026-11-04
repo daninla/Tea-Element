@@ -105,3 +105,23 @@ model CartMerge {
  @@unique([userId, key])
  @@map("cart_merges")
 }
+
+model PaymentAttempt {
+ id String @id @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ status String @default("PENDING")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([orderId,createdAt])
+ @@map("payment_attempts")
+}
+model PaymentCommand {
+ id String @id @default(uuid()) @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ key String @db.Uuid
+ action String
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@unique([orderId,key])
+ @@map("payment_commands")
+}

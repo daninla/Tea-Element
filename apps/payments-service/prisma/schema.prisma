@@ -18,7 +18,7 @@ enum PaymentStatus {
 }
 model Payment {
  id String @id @db.Uuid
- orderId String @unique @map("order_id") @db.Uuid
+ orderId String @map("order_id") @db.Uuid
  orderNumber String @map("order_number")
  amount Int
  currency String
@@ -31,6 +31,7 @@ model Payment {
  nextReconcileAt DateTime @default(now()) @map("next_reconcile_at")
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([orderId,createdAt])
  @@index([status,expiresAt])
  @@index([status,nextReconcileAt])
  @@map("payments")
@@ -87,3 +88,13 @@ model ProcessedEvent {
   @@map("processed_events")
 }
 
+
+model AbandonedAttempt {
+ id String @id @default(uuid()) @db.Uuid
+ paymentId String @unique @map("payment_id") @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([orderId])
+ @@map("abandoned_attempts")
+}

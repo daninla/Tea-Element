@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type {
   PaymentRequested,
+  PaymentAttemptAbandoned,
   OrderCancelled,
   CheckoutEvent,
   PaymentOutcome,
@@ -48,10 +49,11 @@ export class PrismaPaymentStore extends PaymentStore {
       const p = event.payload;
       await this.lock(tx, p.orderId);
       if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
-      const old = await tx.payment.findUnique({ where: { orderId: p.orderId } });
+      const old = await tx.payment.findUnique({ where: { id: p.paymentId } });
       if (old) {
         if (
           old.id !== p.paymentId ||
+          old.orderId !== p.orderId ||
           old.amount !== p.amount ||
           old.currency !== p.currency ||
           old.orderNumber !== p.orderNumber ||
@@ -59,7 +61,9 @@ export class PrismaPaymentStore extends PaymentStore {
         )
           throw new PaymentError('PAYMENT_CONFLICT', 409);
       } else {
-        const cancelled = !!(await tx.cancelledOrder.findUnique({ where: { orderId: p.orderId } }));
+        const cancelled =
+          !!(await tx.cancelledOrder.findUnique({ where: { orderId: p.orderId } })) ||
+          !!(await tx.abandonedAttempt.findUnique({ where: { paymentId: p.paymentId } }));
         await tx.payment.create({
           data: {
             id: p.paymentId,
@@ -85,18 +89,30 @@ export class PrismaPaymentStore extends PaymentStore {
         update: {},
       });
   }
-  async cancel(event: OrderCancelled) {
+  async cancel(event: OrderCancelled | PaymentAttemptAbandoned) {
     await this.db.$transaction(async (tx) => {
       const id = event.payload.orderId;
       await this.lock(tx, id);
       if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
-      await tx.cancelledOrder.upsert({
-        where: { orderId: id },
-        create: { orderId: id },
-        update: {},
+      if (event.name === 'OrderCancelled')
+        await tx.cancelledOrder.upsert({
+          where: { orderId: id },
+          create: { orderId: id },
+          update: {},
+        });
+      else
+        await tx.abandonedAttempt.upsert({
+          where: { paymentId: event.payload.paymentId },
+          create: { orderId: id, paymentId: event.payload.paymentId },
+          update: {},
+        });
+      const rows = await tx.payment.findMany({
+        where: {
+          orderId: id,
+          ...(event.name === 'PaymentAttemptAbandoned' ? { id: event.payload.paymentId } : {}),
+        },
       });
-      const row = await tx.payment.findUnique({ where: { orderId: id } });
-      if (row) {
+      for (const row of rows) {
         const next = await tx.payment.update({
           where: { id: row.id },
           data: { cancelRequested: true },
@@ -111,7 +127,10 @@ export class PrismaPaymentStore extends PaymentStore {
     return row ? view(row) : null;
   }
   async forOrder(orderId: string) {
-    const row = await this.db.payment.findUnique({ where: { orderId } });
+    const row = await this.db.payment.findFirst({
+      where: { orderId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
     return row ? view(row) : null;
   }
   async audit(raw: ProviderWebhook, valid: boolean) {

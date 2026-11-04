@@ -36,6 +36,12 @@ export abstract class OrderStore {
   ): Promise<CreatedOrder>;
   abstract get(input: AccessInput): Promise<OrderView>;
   abstract cancel(input: AccessInput, correlationId: string): Promise<OrderView>;
+  abstract changePayment(
+    input: AccessInput,
+    action: 'RETRY' | 'COD',
+    key: string,
+    correlationId: string,
+  ): Promise<OrderView>;
   abstract cart(userId: string): Promise<CartItemInput[]>;
   abstract saveCart(
     userId: string,

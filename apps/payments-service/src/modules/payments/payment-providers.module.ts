@@ -1,11 +1,24 @@
 import { Module } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { readEnvironment } from '../../config/environment';
+import { PaymentSimulator } from './domain/payment-simulator';
+import { PaymentError } from './domain/payment-store';
 import { PaymentProvider } from './domain/payment-provider';
 import { FakePaymentProvider } from './infrastructure/fake-payment-provider';
 import { LiqPayProvider } from './infrastructure/liqpay-provider';
 @Module({
   providers: [
+    {
+      provide: PaymentSimulator,
+      inject: [PaymentProvider],
+      useFactory: (provider: PaymentProvider) => ({
+        settle: (id: string, status: 'SUCCEEDED' | 'FAILED') => {
+          if (!(provider instanceof FakePaymentProvider))
+            throw new PaymentError('SIMULATION_DISABLED', 404);
+          return provider.settle(id, status);
+        },
+      }),
+    },
     {
       provide: PaymentProvider,
       useFactory: () => {
@@ -23,6 +36,6 @@ import { LiqPayProvider } from './infrastructure/liqpay-provider';
       },
     },
   ],
-  exports: [PaymentProvider],
+  exports: [PaymentProvider, PaymentSimulator],
 })
 export class PaymentProvidersModule {}

@@ -123,7 +123,7 @@ export function OrderPage({ number }: { number: string }) {
           )}
           <p className="muted-copy">{cartT('deliveryNote')}</p>
           <h3>{t('payment')}</h3>
-          <p>{t('cod')}</p>
+          <p>{t(order.paymentMethod === 'ONLINE_CARD' ? 'online' : 'cod')}</p>
           {token && (
             <>
               <h3>{t('tracking')}</h3>
@@ -136,7 +136,7 @@ export function OrderPage({ number }: { number: string }) {
               </a>
             </>
           )}
-          {['PENDING', 'CONFIRMED'].includes(order.status) && (
+          {['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT'].includes(order.status) && (
             <Button variant="outline" disabled={cancelling} onClick={() => void cancel()}>
               {cancelling ? t('cancelling') : t('cancel')}
             </Button>

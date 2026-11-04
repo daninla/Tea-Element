@@ -25,7 +25,7 @@ export const createInput = z
       })
       .strict()
       .refine((x) => x.method === 'PICKUP' || (x.city.length >= 2 && x.address.length >= 2)),
-    paymentMethod: z.literal('CASH_ON_DELIVERY'),
+    paymentMethod: z.enum(['CASH_ON_DELIVERY', 'ONLINE_CARD']),
     comment: z.string().trim().max(1000).optional(),
     marketingConsent: z.boolean(),
     acceptTerms: z.literal(true),

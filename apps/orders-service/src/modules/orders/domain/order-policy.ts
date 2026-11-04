@@ -11,8 +11,15 @@ export function validateOrderQuote(quote: CartQuote, items: CartItemInput[]) {
 export function reservationStatus(
   current: OrderStatus,
   event: 'StockReserved' | 'StockReservationFailed',
+  method: 'CASH_ON_DELIVERY' | 'ONLINE_CARD' = 'CASH_ON_DELIVERY',
 ): OrderStatus {
-  return current === 'PENDING' ? (event === 'StockReserved' ? 'CONFIRMED' : 'REJECTED') : current;
+  return current === 'PENDING'
+    ? event === 'StockReserved'
+      ? method === 'ONLINE_CARD'
+        ? 'AWAITING_PAYMENT'
+        : 'CONFIRMED'
+      : 'REJECTED'
+    : current;
 }
 export function mergeCartItems(
   current: CartItemInput[],

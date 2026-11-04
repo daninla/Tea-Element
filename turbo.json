@@ -23,7 +23,9 @@
         "PAYMENT_PROVIDER",
         "LIQPAY_PUBLIC_KEY",
         "LIQPAY_PRIVATE_KEY",
-        "PAYMENT_CALLBACK_URL"
+        "PAYMENT_CALLBACK_URL",
+        "FAKE_PAYMENT_SECRET",
+        "PAYMENTS_RPC_QUEUE"
       ]
     },
     "lint": {

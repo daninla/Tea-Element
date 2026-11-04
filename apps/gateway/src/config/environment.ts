@@ -5,6 +5,7 @@ config({ path: resolve(__dirname, '../../.env') });
 
 const schema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
+  PAYMENTS_RPC_QUEUE: z.string().default('payments.rpc'),
   ORDERS_RPC_QUEUE: z.string().default('orders.rpc'),
   AUTH_RPC_QUEUE: z.string().min(1).default('auth.rpc'),
   RABBITMQ_URL: z.string().url().default('amqp://tea:tea_dev@localhost:5672'),

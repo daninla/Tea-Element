@@ -11,6 +11,18 @@ const schema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
+    DATABASE_URL: z
+      .string()
+      .url()
+      .default('postgresql://payments:tea_dev_payments@localhost:5433/payments_db'),
+    RABBITMQ_URL: z.string().url().default('amqp://tea:tea_dev@localhost:5672'),
+    EVENTS_NAMESPACE: z
+      .string()
+      .regex(/^[a-z0-9.-]+$/)
+      .default('tea'),
+    PAYMENTS_RPC_QUEUE: z.string().default('payments.rpc'),
+    ORDERS_RPC_QUEUE: z.string().default('orders.rpc'),
+    FAKE_PAYMENT_SECRET: z.string().min(32).optional(),
     PAYMENT_PROVIDER: z.enum(['fake', 'liqpay']).default('fake'),
     LIQPAY_PUBLIC_KEY: z.string().optional(),
     LIQPAY_PRIVATE_KEY: z.string().optional(),

@@ -33,9 +33,14 @@ describe('order boundary validation', () => {
       { phone: '123' },
       { firstName: ' ' },
       { delivery: { method: 'NOVA_POSHTA_BRANCH', city: '', address: '' } },
-      { paymentMethod: 'ONLINE_CARD' },
+      { paymentMethod: 'UNSUPPORTED' },
     ])
       expect(createInput.safeParse({ ...input, ...extra }).success).toBe(false);
+  });
+  it('allows server-calculated online orders without an account', () => {
+    expect(createInput.parse({ ...input, paymentMethod: 'ONLINE_CARD' }).paymentMethod).toBe(
+      'ONLINE_CARD',
+    );
   });
   it('does not accept arbitrary tokens or order numbers', () => {
     expect(access.safeParse({ number: '123', token: 'bad' }).success).toBe(false);

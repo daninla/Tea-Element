@@ -11,7 +11,9 @@ import { LiqPayProvider } from './infrastructure/liqpay-provider';
       useFactory: () => {
         const env = readEnvironment();
         if (env.PAYMENT_PROVIDER === 'fake')
-          return new FakePaymentProvider(randomBytes(32).toString('hex'));
+          return new FakePaymentProvider(
+            env.FAKE_PAYMENT_SECRET ?? randomBytes(32).toString('hex'),
+          );
         return new LiqPayProvider({
           publicKey: env.LIQPAY_PUBLIC_KEY!,
           privateKey: env.LIQPAY_PRIVATE_KEY!,

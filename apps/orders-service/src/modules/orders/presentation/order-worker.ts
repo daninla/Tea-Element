@@ -4,7 +4,7 @@ import { RabbitEventBus } from '../../../shared/outbox/rabbit-event-bus';
 import { readEnvironment } from '../../../config/environment';
 import { HandleOrderEvent } from '../application/handle-order-event';
 import { ExpireReservations } from '../application/expire-reservations';
-const schema = z
+const stockSchema = z
   .object({
     eventId: z.string().uuid(),
     version: z.literal(1),
@@ -14,6 +14,24 @@ const schema = z
     payload: z.object({ orderId: z.string().uuid() }).strict(),
   })
   .strict();
+const paymentSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    version: z.literal(1),
+    occurredAt: z.string().datetime(),
+    correlationId: z.string().min(1).max(100),
+    name: z.enum(['PaymentSucceeded', 'PaymentFailed', 'PaymentExpired', 'PaymentRefunded']),
+    payload: z
+      .object({
+        paymentId: z.string().uuid(),
+        orderId: z.string().uuid(),
+        amount: z.number().int().min(1).max(2147483647),
+        currency: z.literal('UAH'),
+      })
+      .strict(),
+  })
+  .strict();
+const schema = z.union([stockSchema, paymentSchema]);
 @Injectable()
 export class OrderWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -36,7 +54,14 @@ export class OrderWorker implements OnModuleInit, OnModuleDestroy {
     this.timer.unref();
   }
   private async run() {
-    for (const queue of ['orders.stock_reserved', 'orders.stock_reservation_failed'])
+    for (const queue of [
+      'orders.stock_reserved',
+      'orders.stock_reservation_failed',
+      'orders.payment_succeeded',
+      'orders.payment_failed',
+      'orders.payment_expired',
+      'orders.payment_refunded',
+    ])
       await this.bus.subscribe(queue, async (raw) => {
         await this.handler.execute(schema.parse(raw));
       });

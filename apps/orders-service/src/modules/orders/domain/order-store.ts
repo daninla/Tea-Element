@@ -4,6 +4,7 @@ import type {
   CreateOrderInput,
   CreatedOrder,
   OrderView,
+  PaymentOutcome,
   StockReserved,
   StockReservationFailed,
 } from '@tea/contracts';
@@ -42,7 +43,7 @@ export abstract class OrderStore {
     merge: boolean,
     mergeKey?: string,
   ): Promise<CartItemInput[]>;
-  abstract handle(event: StockReserved | StockReservationFailed): Promise<void>;
+  abstract handle(event: StockReserved | StockReservationFailed | PaymentOutcome): Promise<void>;
   abstract expire(): Promise<void>;
 }
 export abstract class QuoteProvider {

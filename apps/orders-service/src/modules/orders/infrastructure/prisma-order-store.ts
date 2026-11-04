@@ -10,6 +10,7 @@ import type {
   QuotedItem,
   DeliveryInput,
   CheckoutEvent,
+  PaymentOutcome,
   StockReserved,
   StockReservationFailed,
 } from '@tea/contracts';
@@ -42,7 +43,7 @@ function view(row: Loaded): OrderView {
     lastName: row.lastName,
     email: row.email,
     phone: row.phone,
-    paymentMethod: 'CASH_ON_DELIVERY',
+    paymentMethod: row.paymentMethod as OrderView['paymentMethod'],
     createdAt: row.createdAt.toISOString(),
     history: row.history.map((h) => ({ status: h.status, at: h.createdAt.toISOString() })),
   };
@@ -94,6 +95,7 @@ export class PrismaOrderStore extends OrderStore {
           subtotal: quote.subtotal,
           discount: quote.discount,
           total: quote.total,
+          paymentMethod: input.paymentMethod,
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email,
@@ -153,7 +155,7 @@ export class PrismaOrderStore extends OrderStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${initial.id},0))`;
       const row = await this.accessible(tx, input);
       if (row.status === 'CANCELLED') return view(row);
-      if (!['PENDING', 'CONFIRMED'].includes(row.status))
+      if (!['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT'].includes(row.status))
         throw new OrderError('INVALID_TRANSITION', 'Order cannot be cancelled', 409);
       await this.transition(tx, row.id, 'CANCELLED');
       await this.event(tx, {
@@ -212,16 +214,100 @@ export class PrismaOrderStore extends OrderStore {
   private async transition(tx: Prisma.TransactionClient, id: string, status: OrderStatus) {
     await tx.order.update({ where: { id }, data: { status, history: { create: { status } } } });
   }
-  async handle(event: StockReserved | StockReservationFailed) {
+  async handle(event: StockReserved | StockReservationFailed | PaymentOutcome) {
     await this.db.$transaction(async (tx) => {
       const id = event.payload.orderId;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id},0))`;
       if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
       const row = await tx.order.findUnique({ where: { id } });
       if (!row) throw new Error('Unknown order');
-      const next = reservationStatus(row.status, event.name);
+      if ('amount' in event.payload) {
+        if (
+          row.paymentMethod !== 'ONLINE_CARD' ||
+          row.paymentAttemptId !== event.payload.paymentId ||
+          row.total !== event.payload.amount ||
+          event.payload.currency !== 'UAH'
+        )
+          throw new OrderError('PAYMENT_MISMATCH', 'Payment does not match order', 400);
+        if (event.name === 'PaymentSucceeded' && row.paymentStatus !== 'REFUNDED') {
+          await tx.order.update({ where: { id }, data: { paymentStatus: 'PAID' } });
+          if (row.status === 'AWAITING_PAYMENT') {
+            await this.transition(tx, id, 'PAID');
+            await this.event(tx, {
+              eventId: randomUUID(),
+              name: 'OrderPaid',
+              version: 1,
+              occurredAt: new Date().toISOString(),
+              correlationId: event.correlationId,
+              payload: { orderId: id },
+            });
+          }
+        }
+        if (event.name === 'PaymentRefunded') {
+          await tx.order.update({ where: { id }, data: { paymentStatus: 'REFUNDED' } });
+          if (['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'PAID'].includes(row.status)) {
+            await this.transition(tx, id, 'CANCELLED');
+            await this.event(tx, {
+              eventId: randomUUID(),
+              name: 'OrderCancelled',
+              version: 1,
+              occurredAt: new Date().toISOString(),
+              correlationId: event.correlationId,
+              payload: { orderId: id, reason: 'RESERVATION_TIMEOUT' },
+            });
+          }
+        }
+        if (
+          (event.name === 'PaymentFailed' || event.name === 'PaymentExpired') &&
+          row.status === 'AWAITING_PAYMENT'
+        ) {
+          await tx.order.update({
+            where: { id },
+            data: { paymentStatus: event.name === 'PaymentFailed' ? 'FAILED' : 'UNPAID' },
+          });
+          await this.transition(tx, id, 'CANCELLED');
+          await this.event(tx, {
+            eventId: randomUUID(),
+            name: 'OrderCancelled',
+            version: 1,
+            occurredAt: new Date().toISOString(),
+            correlationId: event.correlationId,
+            payload: { orderId: id, reason: 'RESERVATION_TIMEOUT' },
+          });
+        }
+        await tx.processedEvent.create({ data: { eventId: event.eventId } });
+        return;
+      }
+      const next = reservationStatus(
+        row.status,
+        event.name as 'StockReserved' | 'StockReservationFailed',
+        row.paymentMethod as OrderView['paymentMethod'],
+      );
       if (next !== row.status) {
         await this.transition(tx, id, next);
+        if (next === 'AWAITING_PAYMENT') {
+          const paymentId = randomUUID();
+          const expiresAt = new Date(Date.now() + 1800000);
+          await tx.order.update({
+            where: { id },
+            data: { paymentAttemptId: paymentId, paymentExpiresAt: expiresAt },
+          });
+          await this.event(tx, {
+            eventId: randomUUID(),
+            name: 'PaymentRequested',
+            version: 1,
+            occurredAt: new Date().toISOString(),
+            correlationId: event.correlationId,
+            payload: {
+              paymentId,
+              orderId: id,
+              orderNumber: row.number,
+              amount: row.total,
+              currency: 'UAH',
+              expiresAt: expiresAt.toISOString(),
+            },
+          });
+        }
         if (next === 'CONFIRMED')
           await this.event(tx, {
             eventId: randomUUID(),
@@ -237,14 +323,22 @@ export class PrismaOrderStore extends OrderStore {
   }
   async expire() {
     const pending = await this.db.order.findMany({
-      where: { status: 'PENDING', reservationExpiresAt: { lte: new Date() } },
+      where: {
+        OR: [
+          { status: 'PENDING', reservationExpiresAt: { lte: new Date() } },
+          { status: 'AWAITING_PAYMENT', paymentExpiresAt: { lte: new Date() } },
+        ],
+      },
       take: 20,
     });
     for (const order of pending)
       await this.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${order.id},0))`;
         const current = await tx.order.findUniqueOrThrow({ where: { id: order.id } });
-        if (current.status !== 'PENDING') return;
+        if (current.status !== 'PENDING' && current.status !== 'AWAITING_PAYMENT') return;
+        const deadline =
+          current.status === 'PENDING' ? current.reservationExpiresAt : current.paymentExpiresAt;
+        if (!deadline || deadline > new Date()) return;
         await this.transition(tx, order.id, 'CANCELLED');
         await this.event(tx, {
           eventId: randomUUID(),

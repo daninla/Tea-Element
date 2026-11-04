@@ -518,13 +518,7 @@ try {
     }),
   );
   if (channel) {
-    for (const base of [
-      'catalog.order_created',
-      'catalog.order_created_v2',
-      'catalog.order_cancelled',
-      'orders.stock_reserved',
-      'orders.stock_reservation_failed',
-    ])
+    for (const [base] of reqOrders('@tea/contracts').CHECKOUT_SUBSCRIPTIONS)
       for (const suffix of ['', '.retry', '.dlq'])
         await channel.deleteQueue(`${namespace}.${base}${suffix}`).catch(() => {});
     for (const q of [env.CATALOG_RPC_QUEUE, env.ORDERS_RPC_QUEUE])

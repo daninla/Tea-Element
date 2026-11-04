@@ -11,6 +11,7 @@ import {
 } from '../domain/payment-provider';
 import { validateCheckout, matchPayment, validateIdentity } from '../domain/payment-validation';
 import { decodePayload, encodePayload, equalSignature, validEnvelope } from './provider-codec';
+import { paymentTransition } from '../domain/payment-policy';
 const schema = z
   .object({
     paymentId: z.string(),
@@ -54,6 +55,10 @@ export class FakePaymentProvider extends PaymentProvider {
     matchPayment(parsed.data, expected);
     if (parsed.data.providerPaymentId !== `fake_${expected.paymentId}`)
       throw new PaymentProviderError('PAYMENT_MISMATCH');
+    // Signed simulator callbacks also supply the provider-side result in backend integration tests.
+    const previous = this.payments.get(expected.paymentId);
+    if (!previous || paymentTransition(previous.status, parsed.data.status) === parsed.data.status)
+      this.payments.set(expected.paymentId, { ...parsed.data });
     return parsed.data;
   }
   async getStatus(expected: PaymentIdentity) {

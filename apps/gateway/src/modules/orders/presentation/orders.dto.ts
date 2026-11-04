@@ -51,7 +51,7 @@ export class CreateOrderDto extends CartDto {
   @Matches(/^\+380\d{9}$/) phone!: string;
   @IsEmail() @MaxLength(320) email!: string;
   @ValidateNested() @Type(() => DeliveryDto) delivery!: DeliveryDto;
-  @Equals('CASH_ON_DELIVERY') paymentMethod!: 'CASH_ON_DELIVERY';
+  @IsIn(['CASH_ON_DELIVERY', 'ONLINE_CARD']) paymentMethod!: 'CASH_ON_DELIVERY' | 'ONLINE_CARD';
   @IsOptional() @IsString() @MaxLength(1000) comment?: string;
   @IsBoolean() marketingConsent!: boolean;
   @Equals(true) acceptTerms!: true;

@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { readEnvironment } from './config/environment';
 import { HealthModule } from './modules/health/health.module';
+import { PaymentProvidersModule } from './modules/payments/payment-providers.module';
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -23,6 +24,7 @@ import { HealthModule } from './modules/health/health.module';
       },
     }),
     HealthModule,
+    PaymentProvidersModule,
   ],
 })
 export class AppModule {}

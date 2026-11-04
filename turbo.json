@@ -18,7 +18,12 @@
         "RABBITMQ_URL",
         "NODE_ENV",
         "EVENTS_NAMESPACE",
-        "PORT"
+        "PORT",
+        "CORS_ORIGIN",
+        "PAYMENT_PROVIDER",
+        "LIQPAY_PUBLIC_KEY",
+        "LIQPAY_PRIVATE_KEY",
+        "PAYMENT_CALLBACK_URL"
       ]
     },
     "lint": {

@@ -1,0 +1,89 @@
+generator client {
+ provider = "prisma-client-js"
+ output = "../generated/prisma"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+ shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+enum PaymentStatus {
+ CREATED
+ PENDING
+ SUCCEEDED
+ FAILED
+ EXPIRED
+ REFUNDED
+ PARTIALLY_REFUNDED
+}
+model Payment {
+ id String @id @db.Uuid
+ orderId String @unique @map("order_id") @db.Uuid
+ orderNumber String @map("order_number")
+ amount Int
+ currency String
+ provider String
+ status PaymentStatus @default(CREATED)
+ providerPaymentId String? @map("provider_payment_id")
+ cancelRequested Boolean @default(false) @map("cancel_requested")
+ expiresAt DateTime @map("expires_at")
+ paidAt DateTime? @map("paid_at")
+ nextReconcileAt DateTime @default(now()) @map("next_reconcile_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([status,expiresAt])
+ @@index([status,nextReconcileAt])
+ @@map("payments")
+}
+model PaymentEvent {
+ id String @id @default(uuid()) @db.Uuid
+ paymentId String? @map("payment_id") @db.Uuid
+ rawPayload Json @map("raw_payload")
+ signatureValid Boolean @map("signature_valid")
+ outcome String @default("RECEIVED")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([paymentId,createdAt])
+ @@map("payment_events")
+}
+model CancelledOrder {
+ id String @id @default(uuid()) @db.Uuid
+ orderId String @unique @map("order_id") @db.Uuid
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@map("cancelled_orders")
+}
+model Refund {
+ id String @id @default(uuid()) @db.Uuid
+ paymentId String @unique @map("payment_id") @db.Uuid
+ amount Int
+ status String @default("REQUESTED")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([status,createdAt])
+ @@map("refunds")
+}
+model Outbox {
+  id            String    @id @db.Uuid
+  eventName     String    @map("event_name")
+  payload       Json
+  correlationId String    @map("correlation_id")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([publishedAt, nextAttemptAt])
+  @@map("outbox")
+}
+
+model ProcessedEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @unique @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("processed_events")
+}
+

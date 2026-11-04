@@ -10,6 +10,8 @@ datasource db {
 enum OrderStatus {
  PENDING
  CONFIRMED
+ AWAITING_PAYMENT
+ PAID
  REJECTED
  CANCELLED
  SHIPPED
@@ -30,6 +32,8 @@ model Order {
  phone String @map("customer_phone")
  delivery Json
  paymentMethod String @default("CASH_ON_DELIVERY") @map("payment_method")
+ paymentAttemptId String? @map("payment_attempt_id") @db.Uuid
+ paymentExpiresAt DateTime? @map("payment_expires_at")
  paymentStatus String @default("UNPAID") @map("payment_status")
  comment String @default("")
  marketingConsentAt DateTime? @map("marketing_consent_at")
@@ -46,6 +50,7 @@ model Order {
  @@index([userId, createdAt])
  @@index([status, reservationExpiresAt])
  @@index([receiptSentAt])
+ @@index([status,paymentExpiresAt])
  @@map("orders")
 }
 model OrderStatusHistory {

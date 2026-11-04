@@ -478,15 +478,27 @@ importers:
       '@nestjs/core':
         specifier: ^11.0.0
         version: 11.2.8(@nestjs/common@11.2.8(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/microservices@11.2.8)(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/microservices':
+        specifier: ^11.2.8
+        version: 11.2.8(@nestjs/common@11.2.8(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.8)(amqp-connection-manager@4.1.15(amqplib@0.10.9))(amqplib@0.10.9)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/platform-express':
         specifier: ^11.0.0
         version: 11.2.8(@nestjs/common@11.2.8(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.8)(supports-color@8.1.1)
       '@nestjs/swagger':
         specifier: ^11.0.0
         version: 11.4.7(@nestjs/common@11.2.8(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.8)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)
+      '@prisma/client':
+        specifier: 6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       '@tea/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      amqp-connection-manager:
+        specifier: ^4.1.15
+        version: 4.1.15(amqplib@0.10.9)
+      amqplib:
+        specifier: ^0.10.9
+        version: 0.10.9
       class-transformer:
         specifier: ^0.5.0
         version: 0.5.1
@@ -527,9 +539,15 @@ importers:
       '@tea/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
+      prisma:
+        specifier: 6.19.3
+        version: 6.19.3(typescript@5.9.3)
 
   apps/web:
     dependencies:

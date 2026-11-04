@@ -15,7 +15,12 @@ export class OrdersApiError extends Error {
   }
 }
 const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
-async function request<T>(path: string, method = 'GET', body?: unknown, key?: string): Promise<T> {
+export async function request<T>(
+  path: string,
+  method = 'GET',
+  body?: unknown,
+  key?: string,
+): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     method,
     credentials: 'include',

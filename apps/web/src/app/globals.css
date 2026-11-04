@@ -1783,3 +1783,39 @@ img {
     font-size: 36px;
   }
 }
+
+.payment-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 12px;
+}
+.payment-panel {
+  max-width: 680px;
+  padding: clamp(20px, 4vw, 40px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 20px;
+}
+.payment-panel h2 {
+  margin: 0;
+}
+.payment-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.payment-total strong {
+  font-size: 1.3rem;
+}
+.payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.payment-actions .button {
+  white-space: normal;
+}

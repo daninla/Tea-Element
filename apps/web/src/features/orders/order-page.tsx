@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePrivateAccess } from '@/features/payments/use-private-access';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -8,7 +8,7 @@ import { ordersApi, OrdersApiError } from '@/lib/api/orders';
 import { formatMoney } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 export function OrderPage({ number }: { number: string }) {
-  const token = useSearchParams().get('token') ?? undefined;
+  const { token, ready } = usePrivateAccess(number);
   const t = useTranslations('order');
   const cartT = useTranslations('cart');
   const client = useQueryClient();
@@ -20,7 +20,7 @@ export function OrderPage({ number }: { number: string }) {
     queryKey: key,
     queryFn: () => ordersApi.get(number, token),
     retry: false,
-    enabled: !!token || session.isSuccess,
+    enabled: ready && (!!token || session.isSuccess),
     refetchInterval: (q) => (q.state.data?.status === 'PENDING' ? 1000 : 10000),
   });
   async function cancel() {
@@ -124,6 +124,14 @@ export function OrderPage({ number }: { number: string }) {
           <p className="muted-copy">{cartT('deliveryNote')}</p>
           <h3>{t('payment')}</h3>
           <p>{t(order.paymentMethod === 'ONLINE_CARD' ? 'online' : 'cod')}</p>
+          {order.status === 'AWAITING_PAYMENT' && (
+            <Link
+              className="button button-primary"
+              href={`/order/${order.number}/pay${token ? `?token=${encodeURIComponent(token)}` : ''}`}
+            >
+              {t('continuePayment')}
+            </Link>
+          )}
           {token && (
             <>
               <h3>{t('tracking')}</h3>

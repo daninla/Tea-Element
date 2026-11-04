@@ -38,7 +38,7 @@ describe('guest checkout form', () => {
     { phone: '0501234567' },
     { firstName: ' ' },
     { email: 'bad' },
-    { paymentMethod: 'ONLINE_CARD' },
+    { paymentMethod: 'UNSUPPORTED' },
   ])('rejects invalid checkout values', (extra) => {
     expect(checkoutSchema.safeParse({ ...fields, ...extra }).success).toBe(false);
   });

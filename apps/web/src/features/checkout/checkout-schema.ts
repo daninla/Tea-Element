@@ -18,7 +18,7 @@ export const checkoutSchema = z.object({
           ctx.addIssue({ code: 'custom', path: ['address'], message: 'required' });
       }
     }),
-  paymentMethod: z.literal('CASH_ON_DELIVERY'),
+  paymentMethod: z.enum(['CASH_ON_DELIVERY', 'ONLINE_CARD']),
   comment: z.string().trim().max(1000),
   marketingConsent: z.boolean(),
   acceptTerms: z.boolean().refine((x) => x === true),

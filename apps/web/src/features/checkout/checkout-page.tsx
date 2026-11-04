@@ -11,6 +11,7 @@ import { formatMoney } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/features/cart/cart-store';
 import { useCartQuote } from '@/features/cart/use-cart-quote';
+import { rememberAccess } from '@/features/payments/private-access';
 import { checkoutSchema, type CheckoutFields } from './checkout-schema';
 import { checkoutAttempt, fingerprintOrder } from './checkout-attempt';
 export function CheckoutPage() {
@@ -76,12 +77,13 @@ export function CheckoutPage() {
       );
       sessionStorage.setItem('tea-checkout-attempt', JSON.stringify({ key, fingerprint }));
       const created = await ordersApi.create(input, key, !!session.data);
+      rememberAccess(sessionStorage, created.order.number, created.accessToken);
       // Preserve any portions added in another tab while the request was in flight.
       const current = useCart.getState().items;
       if (JSON.stringify(current) === JSON.stringify(items)) cart.clear();
       sessionStorage.removeItem('tea-checkout-attempt');
       router.replace(
-        `/order/${created.order.number}?token=${encodeURIComponent(created.accessToken)}`,
+        `/order/${created.order.number}${created.order.paymentMethod === 'ONLINE_CARD' ? '/pay' : ''}?token=${encodeURIComponent(created.accessToken)}`,
       );
     } catch (e) {
       setError(
@@ -191,8 +193,15 @@ export function CheckoutPage() {
           </fieldset>
           <fieldset disabled={locked}>
             <legend>{t('payment')}</legend>
-            <p className="payment-choice">{t('cod')}</p>
-            <p className="muted-copy">{t('onlineLater')}</p>
+            <label className="payment-choice">
+              <input type="radio" value="CASH_ON_DELIVERY" {...form.register('paymentMethod')} />
+              <span>{t('cod')}</span>
+            </label>
+            <label className="payment-choice">
+              <input type="radio" value="ONLINE_CARD" {...form.register('paymentMethod')} />
+              <span>{t('online')}</span>
+            </label>
+            <p className="muted-copy">{t('paymentDemo')}</p>
             <label className="commerce-field">
               {t('comment')}
               <textarea {...form.register('comment')} maxLength={1000} rows={3} />

@@ -1,3 +1,4 @@
+import { InventoryController } from './presentation/inventory.controller';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { readEnvironment } from '../../config/environment';
@@ -22,7 +23,7 @@ import { CatalogController } from './presentation/catalog.controller';
       },
     ]),
   ],
-  controllers: [CatalogController],
+  controllers: [CatalogController, InventoryController],
   exports: [ForwardCatalog],
   providers: [ForwardCatalog, { provide: CatalogClient, useClass: RmqCatalogClient }],
 })

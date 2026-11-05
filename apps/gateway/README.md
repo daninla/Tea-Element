@@ -78,3 +78,13 @@ status (SHIPPED/COMPLETED), expectedStatus and reason (3–500 characters). Trus
 to orders; client actor/amount fields are rejected. GET `/api/v1/admin/orders/:id/movements?page=1`
 reads the journal through catalog RPC and independently validates ADMIN there. Both routes are no-store.
 See ADR 0013 for completion/payment/stock constraints.
+
+## Inventory management (stage 6.3)
+
+ADMIN-only, no-store routes under `/api/v1/admin/inventory`:
+GET `/` (page/q/section/lowStock), GET `/:id`, GET `/purchases` or `/movements` (optional productId/page),
+POST `/purchases`, POST `/:id/adjust`. Writes require allowed Origin and UUID Idempotency-Key. Purchase
+body includes productId, quantity, purchasePriceTotal (integer kopecks), supplier, purchasedAt and note.
+Adjustment body includes delta, expectedStock, kind (ADJUSTMENT/WRITE_OFF) and reason. Units and actor
+are inferred from catalog/JWT; client overrides are rejected. All work forwards through catalog RPC.
+See ADR 0014.

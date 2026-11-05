@@ -59,7 +59,7 @@ export interface StockMovementView {
   id: string;
   productId: string;
   productName: string;
-  orderId: string;
+  orderId: string | null;
   type: string;
   unit: string;
   quantity: number;

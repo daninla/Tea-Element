@@ -12,6 +12,7 @@ import { StockWorker } from './presentation/stock-worker';
 import { StockRpcController } from './presentation/stock-rpc.controller';
 @Module({
   controllers: [StockRpcController, AdminStockRpcController],
+  exports: [PrismaService],
   providers: [
     PrismaService,
     RabbitEventBus,

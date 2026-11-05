@@ -1,3 +1,4 @@
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { StockModule } from './modules/stock/stock.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
@@ -26,6 +27,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     HealthModule,
     StockModule,
+    InventoryModule,
     CatalogModule,
   ],
 })

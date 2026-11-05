@@ -81,6 +81,7 @@ model ProductVariant {
 }
 
 model Inventory {
+  lowStockThresholdPieces Int @default(3) @map("low_stock_threshold_pieces")
   stockPieces Int @default(0) @map("stock_pieces")
   reservedPieces Int @default(0) @map("reserved_pieces")
   id                     String   @id @default(uuid()) @db.Uuid
@@ -166,8 +167,11 @@ model StockReservation {
 model StockMovement {
  id String @id @default(uuid()) @db.Uuid
  productId String @map("product_id") @db.Uuid
- orderId String @map("order_id") @db.Uuid
- eventId String @map("event_id") @db.Uuid
+ orderId String? @map("order_id") @db.Uuid
+ eventId String? @map("event_id") @db.Uuid
+ actorId String? @map("actor_id") @db.Uuid
+ referenceId String? @map("reference_id") @db.Uuid
+ note String @default("")
  type String
  unit String
  quantity Int
@@ -179,4 +183,34 @@ model StockMovement {
  @@index([productId,createdAt])
  @@index([orderId,createdAt])
  @@map("stock_movements")
+}
+
+model InventoryCommand {
+ id String @id @db.Uuid
+ key String @unique @db.Uuid
+ productId String @map("product_id") @db.Uuid
+ actorId String @map("actor_id") @db.Uuid
+ kind String
+ fingerprint String @db.Char(64)
+ result Json
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([productId,createdAt])
+ @@map("inventory_commands")
+}
+model PurchaseBatch {
+ id String @id @db.Uuid
+ commandId String @unique @map("command_id") @db.Uuid
+ productId String @map("product_id") @db.Uuid
+ actorId String @map("actor_id") @db.Uuid
+ unit String
+ quantity Int
+ purchasePriceTotal Int @map("purchase_price_total")
+ supplier String
+ purchasedAt DateTime @map("purchased_at")
+ note String
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([productId,purchasedAt])
+ @@map("purchase_batches")
 }

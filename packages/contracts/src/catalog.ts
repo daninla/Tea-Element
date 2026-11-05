@@ -78,7 +78,15 @@ export type CatalogResult<T> =
   | {
       ok: false;
       error: {
-        code: 'INVALID_INPUT' | 'PRODUCT_NOT_FOUND' | 'CATALOG_UNAVAILABLE' | 'FORBIDDEN';
+        code:
+          | 'INVALID_INPUT'
+          | 'PRODUCT_NOT_FOUND'
+          | 'CATALOG_UNAVAILABLE'
+          | 'FORBIDDEN'
+          | 'INVENTORY_NOT_FOUND'
+          | 'STOCK_CONFLICT'
+          | 'INSUFFICIENT_STOCK'
+          | 'IDEMPOTENCY_CONFLICT';
         message: string;
         statusCode: number;
       };

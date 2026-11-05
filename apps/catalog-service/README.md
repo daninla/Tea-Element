@@ -90,3 +90,14 @@ SALE movements, CONSUMED state, event marker and StockDeducted Outbox commit tog
 deduct again; late cancellation cannot release a consumed reservation. Reserve/release journal entries
 start now, without fictional backfill. ADMIN stock-movements RPC provides 20-row order-scoped pages.
 Invariant failures use retry/DLQ, retaining stock/reserve on rollback. See ADR 0013.
+
+## Purchases and corrections (stage 6.3)
+
+`modules/inventory` owns ADMIN list/detail/history and purchase/adjust commands. Inventory row locking
+serializes with reservations/shipment. Purchases infer GRAM/PIECE from category, record supplier/date/
+integer total cost and add stock. Adjustments require an expected physical balance and cannot cross
+current reservations. UUID command keys bind actor/input; replay returns a persisted result snapshot.
+Stock/batch/movement/command audit commit atomically. List/history pages have 20 rows; low-stock filtering
+uses available stock and gram/piece thresholds. Manual movements have nullable order/event references.
+No new cross-service event or cache is claimed. Alert emails, valuation and threshold editing remain
+future work. See ADR 0014.

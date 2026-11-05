@@ -57,6 +57,9 @@ const variantsToRestore = [];
 const stockToRestore = [];
 const productsToRestore = [];
 const categoriesToRestore = [];
+const inventoryFixtureIds = [];
+const inventoryFixtureEvents = [];
+const inventoryFixtureOrders = [];
 function start(name, port) {
   const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: path.join(root, 'apps', name),
@@ -267,8 +270,297 @@ try {
     data: { endsAt: new Date(Date.now() + 3600000), isActive: false },
   });
   assert.equal((await response('/products/tie-guan-yin')).minPrice, 9001);
+  // Inventory commands operate only on isolated product fixtures in this test database.
+  const requireGateway = createRequire(path.join(root, 'apps/gateway/package.json'));
+  const { JwtService } = requireGateway('@nestjs/jwt');
+  const jwt = new JwtService();
+  const actor = randomUUID();
+  const auth = (role = 'ADMIN') =>
+    'tea_access=' +
+    jwt.sign(
+      { sub: actor, email: 'inventory@example.test', role },
+      {
+        secret: env.JWT_ACCESS_SECRET,
+        algorithm: 'HS256',
+        issuer: 'tea-auth',
+        audience: 'tea-gateway',
+        expiresIn: '15m',
+      },
+    );
+  async function admin(route, { method = 'GET', body, key, cookie = auth(), expected = 200 } = {}) {
+    const response = await fetch('http://127.0.0.1:4200/api/v1' + route, {
+      method,
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        cookie,
+        ...(key ? { 'idempotency-key': key } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await response.json();
+    assert.equal(
+      response.status,
+      expected,
+      `${route}: expected ${expected}, got ${response.status} (${data.code ?? ''})`,
+    );
+    return data;
+  }
+  const fixtureTag = 'inventory_' + randomUUID().replaceAll('-', '') + '%_';
+  const equipmentCategory = await db.category.findFirstOrThrow({ where: { section: 'EQUIPMENT' } });
+  const fixtures = [];
+  for (const [categoryId, unit] of [
+    [tie.categoryId, 'GRAM'],
+    [equipmentCategory.id, 'PIECE'],
+  ]) {
+    const p = await db.product.create({
+      data: {
+        slug: 'inventory-' + randomUUID(),
+        name: fixtureTag + ' ' + unit,
+        nameOriginal: '',
+        description: 'Isolated inventory fixture',
+        origin: 'Test',
+        categoryId,
+        images: [],
+        tags: [],
+        inventory: {
+          create:
+            unit === 'GRAM'
+              ? { stockGrams: 100, reservedGrams: 20 }
+              : { stockPieces: 10, reservedPieces: 2 },
+        },
+        variants: {
+          create: { weightGrams: unit === 'GRAM' ? 25 : null, price: 100, sku: randomUUID() },
+        },
+      },
+      include: { variants: true },
+    });
+    inventoryFixtureIds.push(p.id);
+    fixtures.push(p);
+  }
+  const tea = fixtures[0],
+    piece = fixtures[1];
+  await admin('/admin/inventory', { cookie: '', expected: 401 });
+  await admin('/admin/inventory', { cookie: auth('CUSTOMER'), expected: 403 });
+  const filtered = await admin('/admin/inventory?q=' + encodeURIComponent(fixtureTag));
+  assert.equal(filtered.total, 2);
+  const low = await admin(
+    '/admin/inventory?q=' + encodeURIComponent(fixtureTag) + '&lowStock=true',
+  );
+  assert.equal(low.total, 1);
+  assert.equal(low.items[0].productId, tea.id);
+  const inventoryBeyond = await admin(
+    '/admin/inventory?q=' + encodeURIComponent(fixtureTag) + '&page=10000',
+  );
+  assert.equal(inventoryBeyond.total, 2);
+  assert.equal(inventoryBeyond.items.length, 0);
+  await admin('/admin/inventory?lowStock=yes', { expected: 400 });
+  await admin('/admin/inventory?page=0', { expected: 400 });
+  const key = randomUUID();
+  const invoice = {
+    productId: tea.id,
+    quantity: 25,
+    purchasePriceTotal: 12345,
+    supplier: 'Test supplier',
+    purchasedAt: '2020-01-01T00:00:00Z',
+    note: 'Isolated purchase receipt',
+  };
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    body: invoice,
+    key,
+    cookie: auth('CUSTOMER'),
+    expected: 403,
+  });
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    body: { ...invoice, actorId: actor },
+    key,
+    expected: 400,
+  });
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    body: { ...invoice, purchasePriceTotal: 1.5 },
+    key,
+    expected: 400,
+  });
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    body: { ...invoice, purchasedAt: new Date(Date.now() + 86400000).toISOString() },
+    key,
+    expected: 400,
+  });
+  const [purchase, replay] = await Promise.all([
+    admin('/admin/inventory/purchases', { method: 'POST', body: invoice, key }),
+    admin('/admin/inventory/purchases', { method: 'POST', body: invoice, key }),
+  ]);
+  assert.deepEqual(purchase, replay);
+  assert.equal(purchase.stock, 125);
+  assert.equal(purchase.reserved, 20);
+  assert.equal(await db.purchaseBatch.count({ where: { productId: tea.id } }), 1);
+  assert.equal(await db.stockMovement.count({ where: { productId: tea.id, type: 'PURCHASE' } }), 1);
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    body: { ...invoice, quantity: 26 },
+    key,
+    expected: 409,
+  });
+  const adjusted = await admin(`/admin/inventory/${tea.id}/adjust`, {
+    method: 'POST',
+    key: randomUUID(),
+    body: {
+      delta: -10,
+      expectedStock: 125,
+      kind: 'ADJUSTMENT',
+      reason: 'Inventory count correction',
+    },
+  });
+  assert.equal(adjusted.stock, 115);
+  assert.deepEqual(
+    await admin('/admin/inventory/purchases', { method: 'POST', body: invoice, key }),
+    purchase,
+  );
+  assert.equal((await admin('/admin/inventory/' + tea.id)).stock, 115);
+  await admin(`/admin/inventory/${tea.id}/adjust`, {
+    method: 'POST',
+    key: randomUUID(),
+    body: {
+      delta: -100,
+      expectedStock: 115,
+      kind: 'WRITE_OFF',
+      reason: 'Reserved goods cannot be removed',
+    },
+    expected: 409,
+  });
+  await admin(`/admin/inventory/${tea.id}/adjust`, {
+    method: 'POST',
+    key: randomUUID(),
+    body: { delta: -1, expectedStock: 125, kind: 'WRITE_OFF', reason: 'Stale operator view' },
+    expected: 409,
+  });
+  await admin(`/admin/inventory/${tea.id}/adjust`, {
+    method: 'POST',
+    key: randomUUID(),
+    body: { delta: 1, expectedStock: 115, kind: 'WRITE_OFF', reason: 'Invalid positive writeoff' },
+    expected: 400,
+  });
+  const { PrismaInventoryStore } = requireCatalog(
+    './dist/modules/inventory/infrastructure/prisma-inventory-store',
+  );
+  const repo = new PrismaInventoryStore(db);
+  const failedKey = randomUUID();
+  const broken = new PrismaInventoryStore(
+    db.$extends({
+      query: {
+        inventoryCommand: {
+          create() {
+            throw new Error('injected command persistence failure');
+          },
+        },
+      },
+    }),
+  );
+  const before = await repo.get(tea.id);
+  const batchCount = await db.purchaseBatch.count({ where: { productId: tea.id } });
+  const moveCount = await db.stockMovement.count({ where: { productId: tea.id } });
+  await assert.rejects(() => broken.purchase({ ...invoice, key: failedKey }, actor));
+  assert.deepEqual(await repo.get(tea.id), before);
+  assert.equal(await db.purchaseBatch.count({ where: { productId: tea.id } }), batchCount);
+  assert.equal(await db.stockMovement.count({ where: { productId: tea.id } }), moveCount);
+  assert.equal(await db.inventoryCommand.count({ where: { key: failedKey } }), 0);
+  const changes = await Promise.allSettled([
+    repo.adjust(
+      {
+        productId: tea.id,
+        delta: -60,
+        expectedStock: 115,
+        kind: 'WRITE_OFF',
+        reason: 'Competing writeoff A',
+        key: randomUUID(),
+      },
+      actor,
+    ),
+    repo.adjust(
+      {
+        productId: tea.id,
+        delta: -60,
+        expectedStock: 115,
+        kind: 'WRITE_OFF',
+        reason: 'Competing writeoff B',
+        key: randomUUID(),
+      },
+      actor,
+    ),
+  ]);
+  assert.equal(changes.filter((x) => x.status === 'fulfilled').length, 1);
+  assert.equal((await repo.get(tea.id)).stock, 55);
+  const { PrismaStockStore } = requireCatalog(
+    './dist/modules/stock/infrastructure/prisma-stock-store',
+  );
+  const event = {
+    eventId: randomUUID(),
+    name: 'OrderCreated',
+    version: 2,
+    occurredAt: new Date().toISOString(),
+    correlationId: 'inventory-race',
+    payload: {
+      orderId: randomUUID(),
+      items: [
+        {
+          productId: tea.id,
+          variantId: tea.variants[0].id,
+          stockUnit: 'GRAM',
+          stockQuantity: 25,
+          quantity: 1,
+        },
+      ],
+    },
+  };
+  inventoryFixtureEvents.push(event.eventId);
+  inventoryFixtureOrders.push(event.payload.orderId);
+  const [correction] = await Promise.allSettled([
+    repo.adjust(
+      {
+        productId: tea.id,
+        delta: -30,
+        expectedStock: 55,
+        kind: 'ADJUSTMENT',
+        reason: 'Competing with reservation',
+        key: randomUUID(),
+      },
+      actor,
+    ),
+    new PrismaStockStore(db).apply(event),
+  ]);
+  const raced = await repo.get(tea.id);
+  assert.ok(raced.stock >= raced.reserved);
+  const reservation = await db.stockReservation.findUniqueOrThrow({
+    where: { orderId: event.payload.orderId },
+  });
+  assert.equal(reservation.status, correction.status === 'fulfilled' ? 'FAILED' : 'RESERVED');
+  const receivedPiece = await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    key: randomUUID(),
+    body: { ...invoice, productId: piece.id, quantity: 2, purchasePriceTotal: 0 },
+  });
+  assert.equal(receivedPiece.unit, 'PIECE');
+  assert.equal(receivedPiece.stock, 12);
+  assert.equal(receivedPiece.reserved, 2);
+  for (let i = 0; i < 21; i++)
+    await repo.purchase({ ...invoice, quantity: 1, key: randomUUID() }, actor);
+  const pageOne = await admin(`/admin/inventory/purchases?productId=${tea.id}&page=1`),
+    pageTwo = await admin(`/admin/inventory/purchases?productId=${tea.id}&page=2`);
+  assert.equal(pageOne.total, 22);
+  assert.equal(pageOne.items.length, 20);
+  assert.equal(pageTwo.items.length, 2);
+  assert.equal(new Set([...pageOne.items, ...pageTwo.items].map((x) => x.id)).size, 22);
+  const journal = await admin(`/admin/inventory/movements?productId=${tea.id}`);
+  assert.ok(journal.items.some((x) => x.actorId === actor && x.referenceId && x.note));
+  await db.product.update({ where: { id: piece.id }, data: { isActive: false } });
+  assert.equal((await admin('/admin/inventory/' + piece.id)).active, false);
   console.log(
-    'Catalog integration passed: clean migrations, repeatable seed, guest HTTP/RMQ access, filters, discounted price sorting, pagination, hidden rows and gram availability.',
+    'Catalog integration passed: clean migrations, repeatable seed, guest HTTP/RMQ access, filters, discounted price sorting, pagination, hidden rows, gram availability, admin inventory RBAC, atomic/idempotent purchases, cost validation, reserved-stock safety, stale/competing adjustments, reservation race, piece units and paginated journal.',
   );
 } finally {
   for (const child of children) child.kill('SIGTERM');
@@ -286,6 +578,17 @@ try {
         ]);
     }),
   );
+  await db.purchaseBatch.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
+  await db.inventoryCommand.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
+  await db.stockMovement.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
+  await db.stockReservation.deleteMany({ where: { orderId: { in: inventoryFixtureOrders } } });
+  await db.processedEvent.deleteMany({ where: { eventId: { in: inventoryFixtureEvents } } });
+  for (const orderId of inventoryFixtureOrders)
+    await db.outbox.deleteMany({
+      where: { payload: { path: ['payload', 'orderId'], equals: orderId } },
+    });
+  await db.productVariant.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
+  await db.product.deleteMany({ where: { id: { in: inventoryFixtureIds } } });
   await db.promotion.deleteMany({ where: { id: { in: promotionIds } } });
   for (const { id, ...data } of variantsToRestore)
     await db.productVariant.update({ where: { id }, data });

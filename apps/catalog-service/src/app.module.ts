@@ -1,3 +1,4 @@
+import { CatalogAdminModule } from './modules/catalog-admin/catalog-admin.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { StockModule } from './modules/stock/stock.module';
 import { randomUUID } from 'node:crypto';
@@ -28,6 +29,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     StockModule,
     InventoryModule,
+    CatalogAdminModule,
     CatalogModule,
   ],
 })

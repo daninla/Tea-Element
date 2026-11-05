@@ -1,3 +1,7 @@
+import {
+  CatalogAdminController,
+  CatalogMediaController,
+} from './presentation/catalog-admin.controller';
 import { InventoryController } from './presentation/inventory.controller';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
@@ -23,7 +27,12 @@ import { CatalogController } from './presentation/catalog.controller';
       },
     ]),
   ],
-  controllers: [CatalogController, InventoryController],
+  controllers: [
+    CatalogController,
+    InventoryController,
+    CatalogAdminController,
+    CatalogMediaController,
+  ],
   exports: [ForwardCatalog],
   providers: [ForwardCatalog, { provide: CatalogClient, useClass: RmqCatalogClient }],
 })

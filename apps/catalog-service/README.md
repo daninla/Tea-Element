@@ -57,8 +57,7 @@ records a RELEASED tombstone, protecting against reversed delivery order. Confir
 reserved until cancellation or OrderShipped deduction (stage 6.2).
 
 Publishers use confirms and durable retry state; consumers retry via TTL queues then quarantine in DLQ.
-See [events](../../docs/architecture/events.md) and ADR 0005. No catalog mutation HTTP API, procurement
-journal or PromotionStarted producer exists yet. Seeds are operational fixtures and emit no events.
+See [events](../../docs/architecture/events.md) and ADR 0005. Catalog mutation and procurement APIs are described below; no PromotionStarted producer exists yet. Seeds are operational fixtures and emit no events.
 
 ## Verification
 
@@ -101,3 +100,19 @@ Stock/batch/movement/command audit commit atomically. List/history pages have 20
 uses available stock and gram/piece thresholds. Manual movements have nullable order/event references.
 No new cross-service event or cache is claimed. Alert emails, valuation and threshold editing remain
 future work. See ADR 0014.
+
+## Catalog management (stage 6.4)
+
+ADMIN gateway routes: GET/POST `/api/v1/admin/products`, GET/PATCH `/api/v1/admin/products/:id`,
+GET/POST `/api/v1/admin/categories`, PATCH `/api/v1/admin/categories/:id`,
+GET `/api/v1/admin/catalog/:id/audit?page=1`. Products use 20-row pages with `q`, `section` and `active`;
+category choices support bounded `pageSize=1..100`. POST bodies are complete input objects; PATCH uses
+`{input, expectedRevision}`. Every metadata write requires a UUID Idempotency-Key. No hard delete exists.
+Existing URLs, section/stock unit, variant ID/SKU/weight remain immutable. See ADR 0015 for concurrency,
+transactional audit and compatibility rules. Stock changes still use inventory purchase/adjustment commands.
+
+POST `/api/v1/admin/media` accepts multipart field `file`; validated JPEG/PNG/WebP is re-encoded to WebP.
+GET `/api/v1/media/:uuid.webp` is public and immutable. Store bytes persistently using CATALOG_MEDIA_DIR
+(default `apps/catalog-service/var/catalog-media`); back up it together with catalog_db. Web rewrites
+`/media/*` through gateway. Sharp performs bounded decoding, resize/orientation and metadata stripping.
+Unused assets remain stored; crash orphan cleanup and object storage/CDN are deployment follow-ups.

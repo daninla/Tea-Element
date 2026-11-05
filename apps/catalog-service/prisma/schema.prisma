@@ -10,8 +10,8 @@ datasource db {
 }
 
 enum CatalogSection {
- TEA
- EQUIPMENT
+  TEA
+  EQUIPMENT
 }
 
 enum PromotionType {
@@ -20,7 +20,8 @@ enum PromotionType {
 }
 
 model Category {
-  section CatalogSection @default(TEA)
+  revision         Int               @default(0)
+  section          CatalogSection    @default(TEA)
   id               String            @id @default(uuid()) @db.Uuid
   slug             String            @unique @db.VarChar(100)
   name             String            @db.VarChar(150)
@@ -37,6 +38,7 @@ model Category {
 }
 
 model Product {
+  revision         Int               @default(0)
   id               String            @id @default(uuid()) @db.Uuid
   slug             String            @unique @db.VarChar(160)
   name             String            @db.VarChar(200)
@@ -44,7 +46,7 @@ model Product {
   description      String
   origin           String            @db.VarChar(150)
   year             Int?
-  brewingGuide     Json?              @map("brewing_guide")
+  brewingGuide     Json?             @map("brewing_guide")
   categoryId       String            @map("category_id") @db.Uuid
   images           String[]
   tags             String[]
@@ -67,7 +69,7 @@ model Product {
 model ProductVariant {
   id          String   @id @default(uuid()) @db.Uuid
   productId   String   @map("product_id") @db.Uuid
-  weightGrams Int?      @map("weight_grams")
+  weightGrams Int?     @map("weight_grams")
   price       Int
   sku         String   @unique @db.VarChar(100)
   isActive    Boolean  @default(true) @map("is_active")
@@ -81,17 +83,17 @@ model ProductVariant {
 }
 
 model Inventory {
-  lowStockThresholdPieces Int @default(3) @map("low_stock_threshold_pieces")
-  stockPieces Int @default(0) @map("stock_pieces")
-  reservedPieces Int @default(0) @map("reserved_pieces")
-  id                     String   @id @default(uuid()) @db.Uuid
-  productId              String   @unique @map("product_id") @db.Uuid
-  stockGrams             Int      @default(0) @map("stock_grams")
-  reservedGrams          Int      @default(0) @map("reserved_grams")
-  lowStockThresholdGrams Int      @default(100) @map("low_stock_threshold_grams")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
-  product                Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  lowStockThresholdPieces Int      @default(3) @map("low_stock_threshold_pieces")
+  stockPieces             Int      @default(0) @map("stock_pieces")
+  reservedPieces          Int      @default(0) @map("reserved_pieces")
+  id                      String   @id @default(uuid()) @db.Uuid
+  productId               String   @unique @map("product_id") @db.Uuid
+  stockGrams              Int      @default(0) @map("stock_grams")
+  reservedGrams           Int      @default(0) @map("reserved_grams")
+  lowStockThresholdGrams  Int      @default(100) @map("low_stock_threshold_grams")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  product                 Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("inventory")
 }
@@ -155,62 +157,96 @@ model ProcessedEvent {
 }
 
 model StockReservation {
- id String @id @default(uuid()) @db.Uuid
- orderId String @unique @map("order_id") @db.Uuid
- status String
- items Json
- createdAt DateTime @default(now()) @map("created_at")
- updatedAt DateTime @updatedAt @map("updated_at")
- @@map("stock_reservations")
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @unique @map("order_id") @db.Uuid
+  status    String
+  items     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("stock_reservations")
 }
 
 model StockMovement {
- id String @id @default(uuid()) @db.Uuid
- productId String @map("product_id") @db.Uuid
- orderId String? @map("order_id") @db.Uuid
- eventId String? @map("event_id") @db.Uuid
- actorId String? @map("actor_id") @db.Uuid
- referenceId String? @map("reference_id") @db.Uuid
- note String @default("")
- type String
- unit String
- quantity Int
- stockDelta Int @map("stock_delta")
- reservedDelta Int @map("reserved_delta")
- createdAt DateTime @default(now()) @map("created_at")
- updatedAt DateTime @updatedAt @map("updated_at")
- @@unique([eventId,productId,type])
- @@index([productId,createdAt])
- @@index([orderId,createdAt])
- @@map("stock_movements")
+  id            String   @id @default(uuid()) @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  orderId       String?  @map("order_id") @db.Uuid
+  eventId       String?  @map("event_id") @db.Uuid
+  actorId       String?  @map("actor_id") @db.Uuid
+  referenceId   String?  @map("reference_id") @db.Uuid
+  note          String   @default("")
+  type          String
+  unit          String
+  quantity      Int
+  stockDelta    Int      @map("stock_delta")
+  reservedDelta Int      @map("reserved_delta")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventId, productId, type])
+  @@index([productId, createdAt])
+  @@index([orderId, createdAt])
+  @@map("stock_movements")
 }
 
 model InventoryCommand {
- id String @id @db.Uuid
- key String @unique @db.Uuid
- productId String @map("product_id") @db.Uuid
- actorId String @map("actor_id") @db.Uuid
- kind String
- fingerprint String @db.Char(64)
- result Json
- createdAt DateTime @default(now()) @map("created_at")
- updatedAt DateTime @updatedAt @map("updated_at")
- @@index([productId,createdAt])
- @@map("inventory_commands")
+  id          String   @id @db.Uuid
+  key         String   @unique @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  kind        String
+  fingerprint String   @db.Char(64)
+  result      Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([productId, createdAt])
+  @@map("inventory_commands")
 }
+
 model PurchaseBatch {
- id String @id @db.Uuid
- commandId String @unique @map("command_id") @db.Uuid
- productId String @map("product_id") @db.Uuid
- actorId String @map("actor_id") @db.Uuid
- unit String
- quantity Int
- purchasePriceTotal Int @map("purchase_price_total")
- supplier String
- purchasedAt DateTime @map("purchased_at")
- note String
- createdAt DateTime @default(now()) @map("created_at")
- updatedAt DateTime @updatedAt @map("updated_at")
- @@index([productId,purchasedAt])
- @@map("purchase_batches")
+  id                 String   @id @db.Uuid
+  commandId          String   @unique @map("command_id") @db.Uuid
+  productId          String   @map("product_id") @db.Uuid
+  actorId            String   @map("actor_id") @db.Uuid
+  unit               String
+  quantity           Int
+  purchasePriceTotal Int      @map("purchase_price_total")
+  supplier           String
+  purchasedAt        DateTime @map("purchased_at")
+  note               String
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([productId, purchasedAt])
+  @@map("purchase_batches")
+}
+
+model CatalogCommand {
+  id          String   @id @db.Uuid
+  key         String   @unique @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  entityId    String   @map("entity_id") @db.Uuid
+  kind        String
+  fingerprint String   @db.Char(64)
+  before      Json?
+  result      Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([entityId, createdAt])
+  @@map("catalog_commands")
+}
+
+model MediaAsset {
+  id        String   @id @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  sha256    String   @db.Char(64)
+  size      Int
+  width     Int
+  height    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("media_assets")
 }

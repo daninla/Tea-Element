@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath, URLSearchParams } from 'node:url';
 import path from 'node:path';
+import { rm } from 'node:fs/promises';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const catalogDirectory = path.join(root, 'apps/catalog-service');
 const requireCatalog = createRequire(path.join(catalogDirectory, 'package.json'));
@@ -12,7 +13,9 @@ const { PrismaClient } = requireCatalog('./generated/prisma');
 const amqp = requireCatalog('amqplib');
 const queue = `catalog-test-${randomUUID()}.rpc`;
 const databaseUrl = 'postgresql://catalog:tea_dev_catalog@localhost:5433/catalog_stage2_test';
+const mediaDirectory = path.join('/tmp', 'tea-catalog-media-test-' + randomUUID());
 const env = {
+  CATALOG_MEDIA_DIR: mediaDirectory,
   ...process.env,
   NODE_ENV: 'test',
   LOG_LEVEL: 'silent',
@@ -60,6 +63,9 @@ const categoriesToRestore = [];
 const inventoryFixtureIds = [];
 const inventoryFixtureEvents = [];
 const inventoryFixtureOrders = [];
+const catalogFixtureIds = [];
+const catalogCategoryIds = [];
+const mediaFixtureIds = [];
 function start(name, port) {
   const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: path.join(root, 'apps', name),
@@ -559,6 +565,312 @@ try {
   assert.ok(journal.items.some((x) => x.actorId === actor && x.referenceId && x.note));
   await db.product.update({ where: { id: piece.id }, data: { isActive: false } });
   assert.equal((await admin('/admin/inventory/' + piece.id)).active, false);
+  // Catalog mutations pass through the real gateway, RPC and isolated database.
+  await admin('/admin/products', { cookie: auth('CUSTOMER'), expected: 403 });
+  await admin('/admin/categories', { cookie: '', expected: 401 });
+  await admin('/admin/products?page=0', { expected: 400 });
+  const tag = 'editor-' + randomUUID();
+  const catInput = {
+    slug: tag,
+    name: 'Editor category',
+    description: 'Integration category',
+    section: 'TEA',
+    sortOrder: 100,
+    isActive: true,
+  };
+  const categoryKey = randomUUID();
+  const cat = await admin('/admin/categories', {
+    method: 'POST',
+    body: catInput,
+    key: categoryKey,
+  });
+  catalogCategoryIds.push(cat.id);
+  assert.deepEqual(
+    await admin('/admin/categories', { method: 'POST', body: catInput, key: categoryKey }),
+    cat,
+  );
+  await admin('/admin/categories', {
+    method: 'POST',
+    body: { ...catInput, name: 'Different' },
+    key: categoryKey,
+    expected: 409,
+  });
+  const productInput = {
+    slug: tag,
+    name: 'Editor integration tea',
+    nameOriginal: '',
+    description: 'Integration tea only',
+    origin: 'Test',
+    year: null,
+    brewingGuide: null,
+    categoryId: cat.id,
+    images: [],
+    tags: ['integration'],
+    isActive: true,
+    variants: [{ sku: tag + '-25', weightGrams: 25, price: 12345, isActive: true }],
+  };
+  const createKey = randomUUID();
+  let edited = await admin('/admin/products', {
+    method: 'POST',
+    body: productInput,
+    key: createKey,
+  });
+  catalogFixtureIds.push(edited.id);
+  assert.deepEqual(
+    await admin('/admin/products', { method: 'POST', body: productInput, key: createKey }),
+    edited,
+  );
+  assert.equal(
+    (await db.inventory.findUniqueOrThrow({ where: { productId: edited.id } })).stockGrams,
+    0,
+  );
+  assert.equal((await response('/products/' + tag)).minPrice, 12345);
+  assert.equal((await response('/products/' + tag)).inStock, false);
+  const cleanInput = (x) => {
+    const { id, revision, category, ...input } = x;
+    assert.ok(id && Number.isInteger(revision) && category);
+    return input;
+  };
+  const updateInput = {
+    ...cleanInput(edited),
+    variants: edited.variants.map((v) => ({ ...v, price: 23456 })),
+  };
+  const update = { input: updateInput, expectedRevision: edited.revision },
+    updateKey = randomUUID();
+  edited = await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    body: update,
+    key: updateKey,
+  });
+  assert.equal(edited.revision, 1);
+  assert.equal((await response('/products/' + tag)).minPrice, 23456);
+  assert.deepEqual(
+    await admin('/admin/products/' + edited.id, { method: 'PATCH', body: update, key: updateKey }),
+    edited,
+  );
+  await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    body: update,
+    key: randomUUID(),
+    expected: 409,
+  });
+  await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    body: {
+      input: {
+        ...cleanInput(edited),
+        variants: edited.variants.map((v) => ({ ...v, weightGrams: 50 })),
+      },
+      expectedRevision: edited.revision,
+    },
+    key: randomUUID(),
+    expected: 409,
+  });
+  await admin('/admin/products', {
+    method: 'POST',
+    body: {
+      ...productInput,
+      slug: tag + '-bad',
+      variants: [{ ...productInput.variants[0], sku: tag + '-bad', price: 0 }],
+    },
+    key: randomUUID(),
+    expected: 400,
+  });
+  await admin('/admin/products', {
+    method: 'POST',
+    body: { ...productInput, actorId: actor },
+    key: randomUUID(),
+    expected: 400,
+  });
+  const { PrismaCatalogAdminStore } = requireCatalog(
+    './dist/modules/catalog-admin/infrastructure/prisma-catalog-admin-store',
+  );
+  const editor = new PrismaCatalogAdminStore(db);
+  const brokenEditor = new PrismaCatalogAdminStore(
+    db.$extends({
+      query: {
+        catalogCommand: {
+          create() {
+            throw new Error('injected catalog audit failure');
+          },
+        },
+      },
+    }),
+  );
+  const beforeEdit = await editor.read({ kind: 'PRODUCT', id: edited.id });
+  await assert.rejects(() =>
+    brokenEditor.write(
+      {
+        kind: 'UPDATE_PRODUCT',
+        id: edited.id,
+        expectedRevision: edited.revision,
+        input: { ...cleanInput(edited), name: 'Should rollback' },
+        key: randomUUID(),
+      },
+      actor,
+    ),
+  );
+  assert.deepEqual(await editor.read({ kind: 'PRODUCT', id: edited.id }), beforeEdit);
+  const races = await Promise.allSettled(
+    [1, 2].map((n) =>
+      editor.write(
+        {
+          kind: 'UPDATE_PRODUCT',
+          id: edited.id,
+          expectedRevision: edited.revision,
+          input: { ...cleanInput(edited), name: 'Concurrent editor ' + n },
+          key: randomUUID(),
+        },
+        actor,
+      ),
+    ),
+  );
+  assert.equal(races.filter((x) => x.status === 'fulfilled').length, 1);
+  assert.equal(
+    races.filter((x) => x.status === 'rejected' && x.reason.code === 'STALE_CATALOG').length,
+    1,
+  );
+  edited = await admin('/admin/products/' + edited.id);
+  const audit = await admin('/admin/catalog/' + edited.id + '/audit');
+  assert.equal(audit.total, 3);
+  assert.ok(audit.items.every((x) => x.actorId === actor && !('result' in x) && !('key' in x)));
+  await admin('/admin/inventory/purchases', {
+    method: 'POST',
+    key: randomUUID(),
+    body: { ...invoice, productId: edited.id, quantity: 50, purchasePriceTotal: 1000 },
+  });
+  assert.equal((await response('/products/' + tag)).inStock, true);
+  // A new portion preserves the old ID, SKU and reservation weight.
+  edited = await editor.write(
+    {
+      kind: 'UPDATE_PRODUCT',
+      id: edited.id,
+      expectedRevision: edited.revision,
+      input: {
+        ...cleanInput(edited),
+        variants: [
+          ...edited.variants,
+          { sku: tag + '-50', weightGrams: 50, price: 35000, isActive: true },
+        ],
+      },
+      key: randomUUID(),
+    },
+    actor,
+  );
+  assert.equal(edited.variants.length, 2);
+  const pieceCat = await admin('/admin/categories', {
+    method: 'POST',
+    key: randomUUID(),
+    body: { ...catInput, slug: tag + '-pieces', name: 'Editor pieces', section: 'EQUIPMENT' },
+  });
+  catalogCategoryIds.push(pieceCat.id);
+  await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: {
+      expectedRevision: edited.revision,
+      input: { ...cleanInput(edited), categoryId: pieceCat.id },
+    },
+    expected: 409,
+  });
+  const newPiece = await admin('/admin/products', {
+    method: 'POST',
+    key: randomUUID(),
+    body: {
+      ...productInput,
+      slug: tag + '-cup',
+      categoryId: pieceCat.id,
+      variants: [{ sku: tag + '-cup', weightGrams: null, price: 45678, isActive: true }],
+    },
+  });
+  catalogFixtureIds.push(newPiece.id);
+  assert.equal((await response('/products/' + tag + '-cup')).variants[0].weightGrams, null);
+  // Decode actual bytes, strip metadata, publish opaque WebP and reject active content.
+  const sharp = requireCatalog('sharp');
+  const png = await sharp({ create: { width: 12, height: 8, channels: 3, background: '#336633' } })
+    .png()
+    .toBuffer();
+  async function uploadImage(bytes, type = 'image/png', cookie = auth(), expected = 200) {
+    const form = new globalThis.FormData();
+    form.set('file', new globalThis.Blob([bytes], { type }), 'image.png');
+    const r = await fetch('http://127.0.0.1:4200/api/v1/admin/media', {
+      method: 'POST',
+      headers: { cookie, origin: 'http://localhost:3000' },
+      body: form,
+    });
+    const data = await r.json();
+    assert.equal(r.status, expected, JSON.stringify(data));
+    return data;
+  }
+  const asset = await uploadImage(png);
+  mediaFixtureIds.push(asset.id);
+  assert.equal(asset.width, 12);
+  assert.equal(asset.height, 8);
+  const publicMedia = await fetch('http://127.0.0.1:4200/api/v1' + asset.path);
+  assert.equal(publicMedia.status, 200);
+  assert.equal(publicMedia.headers.get('content-type'), 'image/webp');
+  assert.match(publicMedia.headers.get('cache-control'), /immutable/);
+  const bytes = Buffer.from(await publicMedia.arrayBuffer());
+  assert.equal((await sharp(bytes).metadata()).format, 'webp');
+  await uploadImage(
+    Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'),
+    'image/png',
+    auth(),
+    400,
+  );
+  await uploadImage(png, 'image/png', auth('CUSTOMER'), 403);
+  await uploadImage(Buffer.alloc(5242881), 'image/png', auth(), 413);
+  await response('/media/' + randomUUID() + '.webp', 404);
+  edited = await editor.write(
+    {
+      kind: 'UPDATE_PRODUCT',
+      id: edited.id,
+      expectedRevision: edited.revision,
+      input: { ...cleanInput(edited), images: [asset.path] },
+      key: randomUUID(),
+    },
+    actor,
+  );
+  assert.deepEqual((await response('/products/' + tag)).images, [asset.path]);
+  await assert.rejects(
+    () =>
+      editor.write(
+        {
+          kind: 'UPDATE_PRODUCT',
+          id: edited.id,
+          expectedRevision: edited.revision,
+          input: { ...cleanInput(edited), images: ['/media/' + randomUUID() + '.webp'] },
+          key: randomUUID(),
+        },
+        actor,
+      ),
+    (x) => x.code === 'INVALID_INPUT',
+  );
+  await admin('/admin/categories/' + cat.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { expectedRevision: cat.revision, input: { ...catInput, isActive: false } },
+  });
+  await response('/products/' + tag, 404);
+  await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { expectedRevision: edited.revision, input: cleanInput(edited) },
+    expected: 400,
+  });
+  edited = await admin('/admin/products/' + edited.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { expectedRevision: edited.revision, input: { ...cleanInput(edited), isActive: false } },
+  });
+  assert.equal(edited.isActive, false);
+  assert.ok(await db.inventory.findUnique({ where: { productId: edited.id } }));
+  const categoryAudit = await admin('/admin/catalog/' + cat.id + '/audit');
+  assert.equal(categoryAudit.total, 2);
+  assert.equal((await admin('/admin/products?q=' + tag)).total, 2);
+  console.log(
+    'Catalog editor integration passed: ADMIN access, exact replay/conflicts, revisions/races, immutable portions and units, audit rollback, current public prices/stock, category hiding, piece products, actual image conversion/public bytes, SVG rejection, upload bounds and audit.',
+  );
   console.log(
     'Catalog integration passed: clean migrations, repeatable seed, guest HTTP/RMQ access, filters, discounted price sorting, pagination, hidden rows, gram availability, admin inventory RBAC, atomic/idempotent purchases, cost validation, reserved-stock safety, stale/competing adjustments, reservation race, piece units and paginated journal.',
   );
@@ -578,6 +890,17 @@ try {
         ]);
     }),
   );
+  await db.catalogCommand.deleteMany({
+    where: { entityId: { in: [...catalogFixtureIds, ...catalogCategoryIds] } },
+  });
+  await db.purchaseBatch.deleteMany({ where: { productId: { in: catalogFixtureIds } } });
+  await db.inventoryCommand.deleteMany({ where: { productId: { in: catalogFixtureIds } } });
+  await db.stockMovement.deleteMany({ where: { productId: { in: catalogFixtureIds } } });
+  await db.productVariant.deleteMany({ where: { productId: { in: catalogFixtureIds } } });
+  await db.product.deleteMany({ where: { id: { in: catalogFixtureIds } } });
+  await db.category.deleteMany({ where: { id: { in: catalogCategoryIds } } });
+  await db.mediaAsset.deleteMany({ where: { id: { in: mediaFixtureIds } } });
+  await rm(mediaDirectory, { recursive: true, force: true });
   await db.purchaseBatch.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
   await db.inventoryCommand.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });
   await db.stockMovement.deleteMany({ where: { productId: { in: inventoryFixtureIds } } });

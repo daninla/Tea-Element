@@ -4,6 +4,7 @@ import { z } from 'zod';
 config({ path: resolve(__dirname, '../../.env') });
 
 const schema = z.object({
+  CATALOG_MEDIA_DIR: z.string().min(1).default(resolve(__dirname, '../../var/catalog-media')),
   EVENTS_NAMESPACE: z
     .string()
     .regex(/^[a-z0-9.-]+$/)

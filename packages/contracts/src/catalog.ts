@@ -86,7 +86,11 @@ export type CatalogResult<T> =
           | 'INVENTORY_NOT_FOUND'
           | 'STOCK_CONFLICT'
           | 'INSUFFICIENT_STOCK'
-          | 'IDEMPOTENCY_CONFLICT';
+          | 'IDEMPOTENCY_CONFLICT'
+          | 'CATALOG_CONFLICT'
+          | 'STALE_CATALOG'
+          | 'IMMUTABLE_FIELD'
+          | 'MEDIA_NOT_FOUND';
         message: string;
         statusCode: number;
       };

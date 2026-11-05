@@ -30,3 +30,5 @@ export * from './payments';
 export * from './administration';
 
 export * from './inventory';
+
+export * from './catalog-admin';

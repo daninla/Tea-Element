@@ -12,3 +12,5 @@ coverage/
 .codex/
 .aws/
 generated/
+
+**/var/catalog-media/

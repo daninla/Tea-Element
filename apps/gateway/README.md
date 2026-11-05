@@ -88,3 +88,11 @@ body includes productId, quantity, purchasePriceTotal (integer kopecks), supplie
 Adjustment body includes delta, expectedStock, kind (ADJUSTMENT/WRITE_OFF) and reason. Units and actor
 are inferred from catalog/JWT; client overrides are rejected. All work forwards through catalog RPC.
 See ADR 0014.
+
+## Catalog administration (stage 6.4)
+
+ADMIN product/category list/create/update and audit routes forward commands to catalog-service, which
+validates complete strict input schemas and independently checks trusted context. No database lives here.
+POST `/api/v1/admin/media` uses a single-file, 5 MiB multipart limit after authorization; catalog validates
+actual bytes. Public GET `/api/v1/media/:uuid.webp` returns opaque processed images with immutable headers.
+Global JSON parser limits and payment routes are unchanged. See catalog-service README and ADR 0015.

@@ -90,6 +90,7 @@ export function AccountPage() {
       <h1>{t('welcome', { name: user.firstName })}</h1>
       <p>{user.email}</p>
       <div className="account-links">
+        {user.role === 'ADMIN' && <Link href="/admin/orders">{t('adminPanel')}</Link>}
         <Link href="/order-lookup">{t('lookupLink')}</Link>
         <Button
           variant="outline"

@@ -3,8 +3,6 @@ import localFont from 'next/font/local';
 import { NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 import { Providers } from '@/components/providers';
-import { SiteHeader } from '@/features/navigation/site-header';
-import { SiteFooter } from '@/features/navigation/site-footer';
 import './globals.css';
 const inter = localFont({
   src: '../assets/fonts/inter.ttf',
@@ -46,9 +44,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <a className="skip-link" href="#main-content">
               {common('skip')}
             </a>
-            <SiteHeader />
-            <main id="main-content">{children}</main>
-            <SiteFooter />
+            {children}
           </Providers>
         </NextIntlClientProvider>
       </body>

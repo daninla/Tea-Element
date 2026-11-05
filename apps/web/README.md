@@ -87,3 +87,12 @@ in URL fragments until explicit submission. The browser uses HttpOnly cookies an
 including Web Locks across tabs. Private order history is owner-scoped, paginated and periodically refreshed.
 Repeat-order actions request fresh server prices/stock. Profile delivery prefills untouched checkout fields.
 Middleware only provides a redirect; gateway authentication is the security boundary. See ADR 0011.
+
+## Admin order workspace (stage 6.1)
+
+`(store)` groups existing public/account routes under their unchanged URLs and storefront layout.
+`/admin/orders` and `/admin/orders/[id]` use a separate sidebar/topbar. ADMIN middleware verifies through
+the gateway; it fails closed on 403/503 and returns expired sessions to login for serialized refresh.
+The client shell separately gates rendering by current role. Filters are URL state; calendar dates are
+inclusive local browser days and order times display in Europe/Kyiv. The workspace currently supports
+reads. Shipping, mutation audit and inventory journal are next; see ADR 0012.

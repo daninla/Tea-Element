@@ -1,5 +1,7 @@
 import { z } from 'zod';
 export function safeAccountNext(value: string | null) {
+  if (value && /^\/admin(?:\/orders(?:\/[0-9a-f-]{36})?)?(?:\?[A-Za-z0-9%=&+_.-]*)?$/.test(value))
+    return value;
   return value === '/checkout' || value === '/cart' ? value : '/account';
 }
 export const authFields = z.object({

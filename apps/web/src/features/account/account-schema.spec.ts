@@ -16,6 +16,8 @@ it('rejects mismatched passwords and requires explicit terms acceptance', () => 
 });
 it('allows only supported local return destinations', () => {
   expect(safeAccountNext('/checkout')).toBe('/checkout');
+  expect(safeAccountNext('/admin/orders?status=PAID')).toBe('/admin/orders?status=PAID');
+  expect(safeAccountNext('/admin/../../evil')).toBe('/account');
   for (const unsafe of [
     'https://example.com',
     '//example.com',

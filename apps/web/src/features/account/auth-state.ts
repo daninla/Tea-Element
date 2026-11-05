@@ -13,6 +13,7 @@ export async function clearPrivateSession(client: QueryClient) {
         key &&
         (key.startsWith('tea-order-access:') ||
           key.startsWith('tea-payment-command:') ||
+          key.startsWith('tea-inventory-command:') ||
           key === 'tea-checkout-attempt')
       )
         sessionStorage.removeItem(key);

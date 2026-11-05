@@ -104,3 +104,12 @@ retain a command key for uncertain retries. Pending warehouse deduction is polle
 COD completion explicitly confirms collection. Actor audit and paginated stock movements appear in the
 card. Customer tracking displays confirmed COD collection correctly. Carrier dispatch/real collection
 are not automated. See ADR 0013.
+
+## Inventory workspace (stage 6.3)
+
+`/admin/inventory` lists physical/reserved/available quantities with URL filters. Product cards provide
+purchase and adjustment/write-off forms, explicit confirmation and paginated movement/batch history.
+Hryvnia input converts exactly to integer kopecks. The server chooses stock units and enforces reserve
+bounds and optimistic balance checks. Pending command key/fingerprint metadata survives same-tab reloads;
+changed uncertain operations require explicit history review and clearing prior inputs. Logout clears
+metadata. Browser acceptance covers 375/1280px without horizontal document overflow. See ADR 0014.

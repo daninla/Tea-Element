@@ -2070,3 +2070,55 @@ img {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+.inventory-balances {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-block: 24px;
+}
+.inventory-balances dt {
+  font-size: 13px;
+}
+.inventory-balances dd {
+  margin: 6px 0 0;
+}
+.inventory-balances strong {
+  font-size: 24px;
+}
+.inventory-operation {
+  align-self: start;
+  min-width: 0;
+}
+.inventory-operation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.inventory-operation .account-form {
+  margin-top: 20px;
+}
+.inventory-operation fieldset {
+  min-width: 0;
+}
+.inventory-uncertain {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+.inventory-history {
+  overflow-wrap: anywhere;
+}
+.inventory-history li {
+  border-bottom: 1px solid var(--border);
+}
+.inventory-history p {
+  white-space: pre-wrap;
+}
+.inventory-history-kind {
+  max-width: 360px;
+}
+@media (max-width: 450px) {
+  .inventory-balances {
+    grid-template-columns: 1fr;
+  }
+}

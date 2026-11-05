@@ -35,6 +35,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             {t('orders')}
           </Link>
+          <Link
+            href="/admin/inventory"
+            aria-current={pathname.startsWith('/admin/inventory') ? 'page' : undefined}
+          >
+            {t('inventory')}
+          </Link>
           <Link href="/account">{t('account')}</Link>
           <Link href="/">{t('store')}</Link>
         </nav>

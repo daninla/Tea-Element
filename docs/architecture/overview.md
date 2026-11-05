@@ -34,6 +34,8 @@ Stage 6.2 adds audited/idempotent fulfillment commands, event-driven physical de
 acknowledgement, and a per-order movement journal. Completion waits for persisted deduction; see ADR 0013.
 Stage 6.3 adds catalog-local transactional purchases/adjustments, shared-row stock/reserve protection,
 stable command replay snapshots and product-scoped inventory history; see ADR 0014.
+Stage 6.4 adds versioned product/category editing, immutable portion identities, transactional command
+audit and catalog-owned processed image files exposed through gateway; see ADR 0015.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

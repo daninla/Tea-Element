@@ -179,8 +179,29 @@ and history pagination. Browser checks at 375/1280px cover a demo purchase, prot
 write-off and supplier/cost history with no document overflow. Physical stock was restored after the demo
 receipt/write-off pair; the real-operation setup and final documentation remain unfinished.
 
-Remaining stage 6 scope includes product/category/promotion editing, dashboard/customers, paid returns
+Remaining stage 6 scope includes promotion editing, dashboard/customers, paid returns
 and refunds, configurable low-stock alerts and their email delivery. Stage 6 is not complete.
+
+## Stage 6.4 — catalog editing and product photographs
+
+Implemented: ADMIN product/category lists and forms, search/section/visibility filters, bounded pagination,
+product descriptions, base prices, new tea portions, brewing guides, tags, image ordering and deactivation.
+Category choices support further pages. Existing variant IDs/SKU/weights, stock units and URLs are immutable;
+new products start with empty inventory. Revision checks prevent lost edits. Idempotent command snapshots
+and before/result audit commit atomically. Public catalog/quotes read current prices and availability.
+
+Actual JPEG/PNG/WebP uploads are bounded, decoded and normalized by Sharp, with opaque WebP media URLs.
+Catalog owns persisted files/metadata; web serves media through gateway, with no shared filesystem needed.
+Persistent volume plus database/file backups are required for deployment. Unused uploads and crash orphans
+are retained; automatic cleanup/CDN is not implemented. See ADR 0015.
+
+Real integration verifies trusted ADMIN access, concurrent edits, replay conflicts, audit rollback, portion
+compatibility, public prices/stock/category hiding, piece products, image bytes/SVG rejection/upload limits.
+Browser acceptance at 375/1280px covers category/product creation, changed prices and added portions on
+the storefront, image selection/upload, hidden records and filter reset after returning from a product.
+A regression test keeps unsaved admin forms mounted during background session refresh (including file
+chooser return). Browser demonstration product/category remain explicitly labeled and deactivated.
+Stage 6 still needs promotions, dashboard/customers, paid returns/refunds and low-stock notification setup.
 
 ## Remaining stages
 
@@ -194,7 +215,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (300 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (315 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

@@ -111,3 +111,18 @@ Consuming writes the verified-identity projection, links eligible unowned orders
 in one transaction. Only createdAt <= occurredAt orders qualify. Repeated or older events cannot expand
 the cutoff backward or overwrite another owner. Reconciliation handles delayed order commits.
 Verification state, challenge consumption and producer Outbox commit atomically. See ADR 0011.
+
+## Fulfillment (stage 6.2)
+
+| Event / version    | Producer | Consumer queue                               | Payload                                                                                                                 | Commit trigger                                                                            |
+| ------------------ | -------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| OrderShipped / 1   | orders   | catalog.order_shipped                        | orderId                                                                                                                 | ADMIN shipment/status/history/audit/Outbox transaction                                    |
+| StockDeducted / 1  | catalog  | orders.stock_deducted                        | orderId                                                                                                                 | Physical stock + reserve deduction, CONSUMED reservation, SALE journal, marker and Outbox |
+| OrderCompleted / 1 | orders   | marketing.order_completed (consumer stage 7) | orderId, userId (nullable), email, firstName, lastName, marketingConsent, total (kopecks), items[{productId, quantity}] | ADMIN completion/history/audit/Outbox transaction                                         |
+
+Routes: orders.order_shipped, catalog.stock_deducted, orders.order_completed. Consumers retain normal
+retry/DLQ topology. Deduction is idempotent by event and reservation state; completion is blocked until
+orders persists the acknowledgement. Catalog failure leaves the reservation intact for retry/review.
+Consumed reservations ignore late cancellation/creation. Journal history starts with this migration;
+legacy reservations still deduct correctly. Completion contact snapshots are private broker data;
+future marketing must enforce the immutable consent before campaign use. See ADR 0013.

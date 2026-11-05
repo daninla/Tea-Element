@@ -150,6 +150,21 @@ return filters and bounded table scrolling without horizontal document overflow.
 Next: shipping/completion and inventory journal, audited mutations, paid cancellation/refunds,
 product/category/promotion management, customers and dashboard. Stage 6 is not complete.
 
+## Stage 6.2 — audited fulfillment and inventory movements
+
+Implemented: ADMIN shipment/completion commands with reason, expected status, durable idempotency and
+actor audit. Shipment consumes gram/piece reservations through OrderShipped; catalog records physical
+stock/reserve deduction and SALE journal atomically, then acknowledges with StockDeducted. Completion
+is blocked until acknowledgement. COD completion explicitly confirms collection; online fulfillment
+requires server-confirmed payment. OrderCompleted is queued for the future consent-aware marketing
+consumer. Per-order movement journal is available in the admin card through catalog RPC. See ADR 0013.
+Browser acceptance at 375px/1280px covers required confirmation, mixed shipment, acknowledged
+deduction, journal refresh, completion and actor audit without horizontal document overflow.
+
+Physical returns, paid cancellation/refunds, purchase batches/manual adjustments and remaining catalog,
+customer/dashboard management remain next. Stage 6 is not complete. All storefront data/dispatch and
+collection actions remain demonstrations; no carrier API or real money operation is performed.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
@@ -162,7 +177,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (279 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (288 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

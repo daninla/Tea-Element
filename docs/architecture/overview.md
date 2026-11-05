@@ -30,6 +30,8 @@ orders projection and reconciliation, with no shared databases; see ADR 0011.
 Stage 6.1 adds ADMIN-only order list/detail RPC and a separate browser workspace. Storefront URLs
 are preserved through a Next.js route group. Status mutations and physical stock deduction remain
 next; see ADR 0012.
+Stage 6.2 adds audited/idempotent fulfillment commands, event-driven physical deduction with warehouse
+acknowledgement, and a per-order movement journal. Completion waits for persisted deduction; see ADR 0013.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

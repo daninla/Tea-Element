@@ -165,6 +165,23 @@ Physical returns, paid cancellation/refunds, purchase batches/manual adjustments
 customer/dashboard management remain next. Stage 6 is not complete. All storefront data/dispatch and
 collection actions remain demonstrations; no carrier API or real money operation is performed.
 
+## Stage 6.3 — purchase batches and stock adjustments
+
+Implemented: ADMIN inventory list/search/section/low-stock filters, per-product physical/reserved/available
+balances, purchase batches and manual adjustments/write-offs. Stock, cost/supplier/date records, movement
+and actor/command audit commit atomically. UUID keys provide stable replay results; stale physical balance
+and reserved-stock violations return conflicts. Product-scoped batch/movement history has bounded pages.
+Browser attempt metadata preserves safe uncertain retries and requires history review before a changed
+operation. See ADR 0014.
+
+Real integration covers rollback, competing commands, reservation races, gram/piece units, literal search
+and history pagination. Browser checks at 375/1280px cover a demo purchase, protected reservation, valid
+write-off and supplier/cost history with no document overflow. Physical stock was restored after the demo
+receipt/write-off pair; the real-operation setup and final documentation remain unfinished.
+
+Remaining stage 6 scope includes product/category/promotion editing, dashboard/customers, paid returns
+and refunds, configurable low-stock alerts and their email delivery. Stage 6 is not complete.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
@@ -177,7 +194,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (288 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (300 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

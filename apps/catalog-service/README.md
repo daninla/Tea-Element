@@ -54,7 +54,7 @@ share gram inventory, including different weights in the same order. Failure res
 StockReservationFailed; success increments reserved grams and emits StockReserved. Repeated creation
 for an existing order never adds another reservation. Cancellation decrements a prior reservation and
 records a RELEASED tombstone, protecting against reversed delivery order. Confirmed COD stock remains
-reserved; physical deduction on fulfillment is a later admin workflow.
+reserved until cancellation or OrderShipped deduction (stage 6.2).
 
 Publishers use confirms and durable retry state; consumers retry via TTL queues then quarantine in DLQ.
 See [events](../../docs/architecture/events.md) and ADR 0005. No catalog mutation HTTP API, procurement
@@ -82,3 +82,11 @@ Equipment variants have null `weightGrams`, a null product brewing guide and a p
 uses gram counters. A piece is never encoded as one gram. OrderCreated v2 carries explicit units; its
 consumer verifies each line against catalog data and reserves all mixed units or nothing. v1 messages
 and legacy gram reservations remain compatible. Readonly table grants cover the added columns.
+
+## Shipment deduction and journal (stage 6.2)
+
+OrderShipped consumes only RESERVED gram/piece lines, including legacy grams. Stock and reserve counters,
+SALE movements, CONSUMED state, event marker and StockDeducted Outbox commit together. Replays cannot
+deduct again; late cancellation cannot release a consumed reservation. Reserve/release journal entries
+start now, without fictional backfill. ADMIN stock-movements RPC provides 20-row order-scoped pages.
+Invariant failures use retry/DLQ, retaining stock/reserve on rollback. See ADR 0013.

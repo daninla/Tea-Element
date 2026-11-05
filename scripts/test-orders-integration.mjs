@@ -632,6 +632,309 @@ try {
   const accountsOnly = await http('/admin/orders?customerType=ACCOUNT', { cookie: adminCookie });
   assert.ok(accountsOnly.items.every((x) => x.userId !== null));
   await orders.order.deleteMany({ where: { id: { in: fixtures.map((x) => x.id) } } });
+  // Fulfillment: optimistic/idempotent admin commands and an acknowledged inventory deduction.
+  const fulfillment = await http('/orders/guest', {
+    method: 'POST',
+    body: mixedInput,
+    key: randomUUID(),
+    status: 201,
+  });
+  await statusOf(fulfillment, 'CONFIRMED');
+  const { PrismaAdminOrdersStore } = reqOrders(
+    './dist/modules/administration/infrastructure/prisma-admin-orders-store',
+  );
+  const adminStore = new PrismaAdminOrdersStore(orders);
+  const actor = randomUUID();
+  const shipCommand = {
+    id: fulfillment.order.id,
+    status: 'SHIPPED',
+    expectedStatus: 'CONFIRMED',
+    reason: 'Demonstration shipment',
+    key: randomUUID(),
+  };
+  const brokenAdmin = new PrismaAdminOrdersStore(
+    orders.$extends({
+      query: {
+        outbox: {
+          create() {
+            throw new Error('injected outbox failure');
+          },
+        },
+      },
+    }),
+  );
+  await assert.rejects(() => brokenAdmin.transition(shipCommand, actor, randomUUID()));
+  assert.equal(
+    (await orders.order.findUniqueOrThrow({ where: { id: fulfillment.order.id } })).status,
+    'CONFIRMED',
+  );
+  assert.equal(
+    await orders.adminOrderCommand.count({ where: { orderId: fulfillment.order.id } }),
+    0,
+  );
+  const beforeTea = await catalog.inventory.findUniqueOrThrow({ where: { productId: product.id } });
+  const beforePiece = await catalog.inventory.findUniqueOrThrow({
+    where: { productId: gaiwan.id },
+  });
+  const catalogProcess = children.find((x) => x.teaService === 'catalog-service');
+  catalogProcess.kill('SIGSTOP');
+  const changePath = `/admin/orders/${fulfillment.order.id}/status`;
+  const shipBody = { status: 'SHIPPED', expectedStatus: 'CONFIRMED', reason: shipCommand.reason };
+  try {
+    await http(changePath, { method: 'PATCH', body: shipBody, key: shipCommand.key, status: 401 });
+    await http(changePath, {
+      method: 'PATCH',
+      body: shipBody,
+      key: shipCommand.key,
+      cookie: await cookie(other),
+      status: 403,
+    });
+    await http(changePath, {
+      method: 'PATCH',
+      body: { ...shipBody, actorId: other },
+      key: shipCommand.key,
+      cookie: adminCookie,
+      status: 400,
+    });
+    const [a, b] = await Promise.all([
+      http(changePath, {
+        method: 'PATCH',
+        body: shipBody,
+        key: shipCommand.key,
+        cookie: adminCookie,
+      }),
+      http(changePath, {
+        method: 'PATCH',
+        body: shipBody,
+        key: shipCommand.key,
+        cookie: adminCookie,
+      }),
+    ]);
+    assert.equal(a.status, 'SHIPPED');
+    assert.equal(b.status, 'SHIPPED');
+    assert.equal(a.actions.length, 1);
+    await http(changePath, {
+      method: 'PATCH',
+      body: { status: 'COMPLETED', expectedStatus: 'SHIPPED', reason: 'Too early' },
+      key: randomUUID(),
+      cookie: adminCookie,
+      status: 409,
+    });
+    await http(changePath, {
+      method: 'PATCH',
+      body: { ...shipBody, reason: 'Changed command' },
+      key: shipCommand.key,
+      cookie: adminCookie,
+      status: 409,
+    });
+    const pendingShipment = (
+      await orders.outbox.findFirstOrThrow({
+        where: {
+          eventName: 'OrderShipped',
+          payload: { path: ['payload', 'orderId'], equals: fulfillment.order.id },
+        },
+      })
+    ).payload;
+    const failingStock = new PrismaStockStore(
+      catalog.$extends({
+        query: {
+          outbox: {
+            create() {
+              throw new Error('injected stock acknowledgement failure');
+            },
+          },
+        },
+      }),
+    );
+    await assert.rejects(() => failingStock.apply(pendingShipment));
+    assert.equal(
+      (await catalog.inventory.findUniqueOrThrow({ where: { productId: product.id } })).stockGrams,
+      beforeTea.stockGrams,
+    );
+    assert.equal(
+      (
+        await catalog.stockReservation.findUniqueOrThrow({
+          where: { orderId: fulfillment.order.id },
+        })
+      ).status,
+      'RESERVED',
+    );
+    assert.equal(
+      await catalog.stockMovement.count({ where: { orderId: fulfillment.order.id, type: 'SALE' } }),
+      0,
+    );
+    assert.equal(
+      await catalog.processedEvent.count({ where: { eventId: pendingShipment.eventId } }),
+      0,
+    );
+  } finally {
+    catalogProcess.kill('SIGCONT');
+  }
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: fulfillment.order.id } }))
+        .stockDeductedAt,
+    'stock deduction acknowledgement',
+  );
+  const afterTea = await catalog.inventory.findUniqueOrThrow({ where: { productId: product.id } });
+  const afterPiece = await catalog.inventory.findUniqueOrThrow({ where: { productId: gaiwan.id } });
+  assert.equal(afterTea.stockGrams, beforeTea.stockGrams - 50);
+  assert.equal(afterTea.reservedGrams, beforeTea.reservedGrams - 50);
+  assert.equal(afterPiece.stockPieces, beforePiece.stockPieces - 1);
+  assert.equal(afterPiece.reservedPieces, beforePiece.reservedPieces - 1);
+  const shipment = (
+    await orders.outbox.findFirstOrThrow({
+      where: {
+        eventName: 'OrderShipped',
+        payload: { path: ['payload', 'orderId'], equals: fulfillment.order.id },
+      },
+    })
+  ).payload;
+  await publish(shipment, 'orders.order_shipped');
+  await publish({ ...shipment, eventId: randomUUID() }, 'orders.order_shipped');
+  await publish(
+    event('OrderCancelled', fulfillment.order.id, { reason: 'CUSTOMER' }),
+    'orders.order_cancelled',
+  );
+  await waitFor(
+    async () =>
+      (await catalog.processedEvent.count({ where: { eventId: shipment.eventId } })) === 1,
+    'duplicate shipment',
+  );
+  const completeKey = randomUUID();
+  const completeBody = {
+    status: 'COMPLETED',
+    expectedStatus: 'SHIPPED',
+    reason: 'Demonstration delivered and COD collected',
+  };
+  const [completed] = await Promise.all([
+    http(changePath, {
+      method: 'PATCH',
+      body: completeBody,
+      key: completeKey,
+      cookie: adminCookie,
+    }),
+    http(changePath, {
+      method: 'PATCH',
+      body: completeBody,
+      key: completeKey,
+      cookie: adminCookie,
+    }),
+  ]);
+  assert.equal(completed.status, 'COMPLETED');
+  assert.equal(completed.paymentStatus, 'PAID');
+  assert.equal(completed.actions.length, 2);
+  assert.equal(completed.history.length, 4);
+  const completion = await orders.outbox.count({
+    where: {
+      eventName: 'OrderCompleted',
+      payload: { path: ['payload', 'orderId'], equals: fulfillment.order.id },
+    },
+  });
+  assert.equal(completion, 1);
+  await http(`/orders/${fulfillment.order.number}/cancel?token=${fulfillment.accessToken}`, {
+    method: 'POST',
+    body: {},
+    status: 409,
+  });
+  const movements = await http(`/admin/orders/${fulfillment.order.id}/movements`, {
+    cookie: adminCookie,
+  });
+  assert.equal(movements.total, 4);
+  assert.equal(movements.items.filter((x) => x.type === 'SALE').length, 2);
+  assert.ok(
+    movements.items.some(
+      (x) => x.unit === 'PIECE' && x.stockDelta === -1 && x.reservedDelta === -1,
+    ),
+  );
+  await http(`/admin/orders/${fulfillment.order.id}/movements`, {
+    cookie: await cookie(other),
+    status: 403,
+  });
+  assert.equal(
+    (await catalog.stockReservation.findUniqueOrThrow({ where: { orderId: fulfillment.order.id } }))
+      .status,
+    'CONSUMED',
+  );
+  assert.equal(
+    (await catalog.inventory.findUniqueOrThrow({ where: { productId: product.id } })).stockGrams,
+    afterTea.stockGrams,
+  );
+  // An unavailable acknowledgement cannot be bypassed by a completion command.
+  await assert.rejects(() =>
+    adminStore.transition({ ...shipCommand, key: randomUUID() }, actor, randomUUID()),
+  );
+  // Cancellation and shipment share the same order lock: exactly one can win.
+  const race = await localStore.create(
+    body,
+    { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+    quote,
+  );
+  await statusOf(race, 'CONFIRMED');
+  const outcomes = await Promise.allSettled([
+    adminStore.transition(
+      {
+        id: race.order.id,
+        status: 'SHIPPED',
+        expectedStatus: 'CONFIRMED',
+        reason: 'Race demonstration',
+        key: randomUUID(),
+      },
+      actor,
+      randomUUID(),
+    ),
+    localStore.cancel({ number: race.order.number, token: race.accessToken }, randomUUID()),
+  ]);
+  assert.equal(outcomes.filter((x) => x.status === 'fulfilled').length, 1);
+  const raceRow = await orders.order.findUniqueOrThrow({ where: { id: race.order.id } });
+  if (raceRow.status === 'SHIPPED')
+    await waitFor(
+      async () =>
+        (await orders.order.findUniqueOrThrow({ where: { id: race.order.id } })).stockDeductedAt,
+      'race deduction',
+    );
+  else {
+    assert.equal(raceRow.status, 'CANCELLED');
+    await waitFor(
+      async () =>
+        (await catalog.stockReservation.findUniqueOrThrow({ where: { orderId: race.order.id } }))
+          .status === 'RELEASED',
+      'race release',
+    );
+  }
+  // Historical reservations stored grams rather than explicit units; shipment still consumes them once.
+  const oldShape = await localStore.create(
+    body,
+    { idempotencyKey: randomUUID(), correlationId: randomUUID() },
+    quote,
+  );
+  await statusOf(oldShape, 'CONFIRMED');
+  await catalog.stockReservation.update({
+    where: { orderId: oldShape.order.id },
+    data: { items: [{ productId: product.id, grams: 25 }] },
+  });
+  await adminStore.transition(
+    {
+      id: oldShape.order.id,
+      status: 'SHIPPED',
+      expectedStatus: 'CONFIRMED',
+      reason: 'Legacy reservation shipment',
+      key: randomUUID(),
+    },
+    actor,
+    randomUUID(),
+  );
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: oldShape.order.id } })).stockDeductedAt,
+    'legacy deduction',
+  );
+  assert.equal(
+    await catalog.stockMovement.count({
+      where: { orderId: oldShape.order.id, type: 'SALE', unit: 'GRAM', quantity: 25 },
+    }),
+    1,
+  );
   // Permanent malformed event is retried then quarantined instead of blocking a queue.
   await publish({ bad: true }, 'orders.order_created.v2');
   await waitFor(async () => {
@@ -639,7 +942,7 @@ try {
     return q.messageCount > 0;
   }, 'dead letter');
   console.log(
-    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility, verified guest linking, private history, proof cutoff/reconciliation, neutral lookup, ADMIN list/detail role checks, secret exclusion, literal filters, stable pagination and DLQ.',
+    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility, verified guest linking, private history, proof cutoff/reconciliation, neutral lookup, ADMIN list/detail role checks, secret exclusion, literal filters, stable pagination, audited/idempotent shipment and COD completion, atomic rollback, mixed stock deduction, acknowledgement, movement journal and DLQ.',
   );
 } finally {
   for (const child of children)

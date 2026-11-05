@@ -1,3 +1,4 @@
+import { TransitionAdminOrder } from './application/transition-admin-order';
 import { Module } from '@nestjs/common';
 import { OrdersModule } from '../orders/orders.module';
 import { AdminOrdersStore } from './domain/admin-orders-store';
@@ -10,6 +11,7 @@ import { AdminOrdersRpcController } from './presentation/admin-orders-rpc.contro
   controllers: [AdminOrdersRpcController],
   providers: [
     ReadAdminOrders,
+    TransitionAdminOrder,
     ReadAdminOrder,
     { provide: AdminOrdersStore, useClass: PrismaAdminOrdersStore },
   ],

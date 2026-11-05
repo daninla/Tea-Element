@@ -5,6 +5,7 @@ import { ReadAdminOrder } from '../application/read-admin-order';
 const list = jest.fn(),
   detail = jest.fn();
 const controller = new AdminOrdersRpcController(
+  { execute: jest.fn() } as never,
   { execute: list } as unknown as ReadAdminOrders,
   { execute: detail } as unknown as ReadAdminOrder,
 );

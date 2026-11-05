@@ -1,4 +1,17 @@
-import { Controller, Get, Inject, Param, Query, Req, Res } from '@nestjs/common';
+import { ForwardCatalog } from '../../catalog/application/forward-catalog';
+import { ADMIN_STOCK_PATTERN, type StockMovementPage } from '@tea/contracts';
+import {
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Query,
+  Req,
+  Res,
+  Patch,
+  Body,
+  Headers,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { Type } from 'class-transformer';
 import {
@@ -10,6 +23,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  MinLength,
   Min,
 } from 'class-validator';
 import {
@@ -32,13 +46,24 @@ class AdminOrderFiltersDto {
   @IsOptional() @IsISO8601({ strict: true }) from?: string;
   @IsOptional() @IsISO8601({ strict: true }) to?: string;
 }
+class AdminOrderTransitionDto {
+  @IsIn(['SHIPPED', 'COMPLETED']) status!: 'SHIPPED' | 'COMPLETED';
+  @IsIn(ORDER_STATUSES) expectedStatus!: OrderStatus;
+  @IsString() @MinLength(3) @MaxLength(500) reason!: string;
+}
+class MovementPageDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000) page?: number;
+}
 class AdminOrderIdDto {
   @IsUUID() id!: string;
 }
 @Controller('api/v1/admin/orders')
 @Roles(Role.ADMIN)
 export class AdminOrdersController {
-  constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  constructor(
+    @Inject(ForwardOrders) private readonly orders: ForwardOrders,
+    @Inject(ForwardCatalog) private readonly catalog: ForwardCatalog,
+  ) {}
   @Get() list(
     @Query() filters: AdminOrderFiltersDto,
     @Req() request: AuthenticatedRequest,
@@ -62,6 +87,39 @@ export class AdminOrdersController {
     response.setHeader('Cache-Control', 'no-store');
     return this.orders.execute<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.detail, {
       input: params,
+      context: {
+        userId: request.user!.sub,
+        role: request.user!.role,
+        correlationId: String(request.id),
+      },
+    });
+  }
+  @Patch(':id/status') change(
+    @Param() params: AdminOrderIdDto,
+    @Body() input: AdminOrderTransitionDto,
+    @Headers('idempotency-key') key: string,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    response.setHeader('Cache-Control', 'no-store');
+    return this.orders.execute<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.transition, {
+      input: { ...input, id: params.id, key },
+      context: {
+        userId: request.user!.sub,
+        role: request.user!.role,
+        correlationId: String(request.id),
+      },
+    });
+  }
+  @Get(':id/movements') movements(
+    @Param() params: AdminOrderIdDto,
+    @Query() query: MovementPageDto,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    response.setHeader('Cache-Control', 'no-store');
+    return this.catalog.execute<StockMovementPage>(ADMIN_STOCK_PATTERN, {
+      input: { orderId: params.id, page: query.page ?? 1 },
       context: {
         userId: request.user!.sub,
         role: request.user!.role,

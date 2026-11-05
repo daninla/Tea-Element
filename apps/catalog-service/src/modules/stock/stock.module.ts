@@ -1,3 +1,5 @@
+import { ReadStockMovements } from './application/read-stock-movements';
+import { AdminStockRpcController } from './presentation/admin-stock-rpc.controller';
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../../shared/prisma.service';
 import { OutboxPublisher } from '../../shared/outbox/outbox-publisher';
@@ -9,13 +11,14 @@ import { HandleStockEvent } from './application/handle-stock-event';
 import { StockWorker } from './presentation/stock-worker';
 import { StockRpcController } from './presentation/stock-rpc.controller';
 @Module({
-  controllers: [StockRpcController],
+  controllers: [StockRpcController, AdminStockRpcController],
   providers: [
     PrismaService,
     RabbitEventBus,
     OutboxPublisher,
     { provide: StockStore, useClass: PrismaStockStore },
     QuoteCart,
+    ReadStockMovements,
     HandleStockEvent,
     StockWorker,
   ],

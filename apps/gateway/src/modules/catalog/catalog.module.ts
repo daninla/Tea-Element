@@ -23,6 +23,7 @@ import { CatalogController } from './presentation/catalog.controller';
     ]),
   ],
   controllers: [CatalogController],
+  exports: [ForwardCatalog],
   providers: [ForwardCatalog, { provide: CatalogClient, useClass: RmqCatalogClient }],
 })
 export class CatalogModule {}

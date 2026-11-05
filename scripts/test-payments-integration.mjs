@@ -262,10 +262,10 @@ try {
   const jwt = new JwtService();
   const owner = randomUUID(),
     other = randomUUID();
-  const cookieFor = (id) =>
+  const cookieFor = (id, role = 'CUSTOMER') =>
     'tea_access=' +
     jwt.sign(
-      { sub: id, email: 'owner@example.test', role: 'CUSTOMER' },
+      { sub: id, email: 'owner@example.test', role },
       { secret, algorithm: 'HS256', issuer: 'tea-auth', audience: 'tea-gateway', expiresIn: '15m' },
     );
   const owned = await create(variantId, cookieFor(owner));
@@ -498,6 +498,48 @@ try {
   assert.equal([claimA, claimB].filter(Boolean).length, 1);
   await store.refundResult(rollback.id, 'REVIEW_REQUIRED', randomUUID());
   assert.equal(await store.claimRefund(), null);
+  children.find((c) => c.service === 'payments-service').kill('SIGCONT');
+  // Only server-confirmed online payment permits shipment; completion waits for inventory.
+  const onlineFulfillment = await create(variantId);
+  const adminCookie = cookieFor(randomUUID(), 'ADMIN');
+  const path = `/admin/orders/${onlineFulfillment.order.id}/status`;
+  await http(path, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: {
+      status: 'SHIPPED',
+      expectedStatus: 'AWAITING_PAYMENT',
+      reason: 'Unpaid shipment refused',
+    },
+    status: 409,
+  });
+  await webhook(onlineFulfillment.payment);
+  await status(onlineFulfillment.order, 'PAID');
+  await http(path, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: { status: 'SHIPPED', expectedStatus: 'PAID', reason: 'Paid demonstration shipment' },
+  });
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: onlineFulfillment.order.id } }))
+        .stockDeductedAt,
+    'online inventory acknowledgement',
+  );
+  const fulfilled = await http(path, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: {
+      status: 'COMPLETED',
+      expectedStatus: 'SHIPPED',
+      reason: 'Demonstration order received',
+    },
+  });
+  assert.equal(fulfilled.status, 'COMPLETED');
+  assert.equal(fulfilled.paymentStatus, 'PAID');
   console.log(
     'Payments integration passed: fresh migrations, repeatable catalog seed, guest/owner access boundary, signed/raw webhook audit, concurrent duplicates, atomic Outbox rollback, paid state, expiry and stock compensation, late-success refund, refund reordering, lost callback reconciliation, durable tombstones, idempotent retry/COD commands, legacy attempt recovery, unchanged deadlines, abandoned-attempt refund races and claimed refund quarantine.',
   );

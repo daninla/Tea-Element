@@ -8,6 +8,7 @@ import type {
   OrderView,
   PaymentOutcome,
   StockReserved,
+  StockDeducted,
   StockReservationFailed,
 } from '@tea/contracts';
 export class OrderError extends Error {
@@ -51,7 +52,9 @@ export abstract class OrderStore {
     merge: boolean,
     mergeKey?: string,
   ): Promise<CartItemInput[]>;
-  abstract handle(event: StockReserved | StockReservationFailed | PaymentOutcome): Promise<void>;
+  abstract handle(
+    event: StockReserved | StockReservationFailed | StockDeducted | PaymentOutcome,
+  ): Promise<void>;
   abstract linkVerified(event: UserEmailVerified): Promise<void>;
   abstract reconcileVerified(): Promise<void>;
   abstract list(userId: string, page: number): Promise<OrderPageView>;

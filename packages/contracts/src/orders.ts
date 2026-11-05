@@ -118,6 +118,21 @@ export type OrderCancelled = DomainEvent<
   'OrderCancelled',
   { orderId: string; reason: 'CUSTOMER' | 'RESERVATION_TIMEOUT' }
 >;
+export type OrderShipped = DomainEvent<'OrderShipped', { orderId: string }>;
+export type StockDeducted = DomainEvent<'StockDeducted', { orderId: string }>;
+export type OrderCompleted = DomainEvent<
+  'OrderCompleted',
+  {
+    orderId: string;
+    userId: string | null;
+    email: string;
+    firstName: string;
+    lastName: string;
+    marketingConsent: boolean;
+    total: number;
+    items: { productId: string; quantity: number }[];
+  }
+>;
 export type StockReserved = DomainEvent<'StockReserved', { orderId: string }>;
 export type StockReservationFailed = DomainEvent<'StockReservationFailed', { orderId: string }>;
 export type OrderPaid = DomainEvent<'OrderPaid', { orderId: string }>;
@@ -130,6 +145,9 @@ export type CheckoutEvent =
   | StockReservationFailed
   | OrderConfirmed
   | OrderPaid
+  | OrderShipped
+  | StockDeducted
+  | OrderCompleted
   | UserEmailVerified
   | PaymentRequested
   | PaymentAttemptAbandoned
@@ -142,6 +160,9 @@ export const CHECKOUT_ROUTES = {
   StockReservationFailed: 'catalog.stock_reservation_failed',
   OrderConfirmed: 'orders.order_confirmed',
   OrderPaid: 'orders.order_paid',
+  OrderShipped: 'orders.order_shipped',
+  StockDeducted: 'catalog.stock_deducted',
+  OrderCompleted: 'orders.order_completed',
   UserEmailVerified: 'auth.user_email_verified',
   PaymentRequested: 'orders.payment_requested',
   PaymentAttemptAbandoned: 'orders.payment_attempt_abandoned',
@@ -155,6 +176,9 @@ export const CHECKOUT_SUBSCRIPTIONS = [
   ['catalog.order_created', 'OrderCreated'],
   ['catalog.order_created_v2', 'OrderCreatedV2'],
   ['catalog.order_cancelled', 'OrderCancelled'],
+  ['catalog.order_shipped', 'OrderShipped'],
+  ['orders.stock_deducted', 'StockDeducted'],
+  ['marketing.order_completed', 'OrderCompleted'],
   ['payments.payment_requested', 'PaymentRequested'],
   ['payments.payment_attempt_abandoned', 'PaymentAttemptAbandoned'],
   ['payments.order_cancelled', 'OrderCancelled'],

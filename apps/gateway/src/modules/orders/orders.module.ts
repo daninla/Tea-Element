@@ -1,3 +1,4 @@
+import { CatalogModule } from '../catalog/catalog.module';
 import { AdminOrdersController } from './presentation/admin-orders.controller';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
@@ -8,6 +9,7 @@ import { ForwardOrders } from './application/forward-orders';
 import { OrdersController, CartController } from './presentation/orders.controller';
 @Module({
   imports: [
+    CatalogModule,
     ClientsModule.registerAsync([
       {
         name: 'ORDERS_TRANSPORT',

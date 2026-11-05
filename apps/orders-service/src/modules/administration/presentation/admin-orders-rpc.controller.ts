@@ -1,3 +1,5 @@
+import { TransitionAdminOrder } from '../application/transition-admin-order';
+import { ORDER_STATUSES } from '@tea/contracts';
 import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { z } from 'zod';
@@ -9,7 +11,7 @@ import { adminContext, adminOrderFilters } from './admin-orders-schema';
 async function handle<T>(
   raw: unknown,
   input: z.ZodType<T>,
-  run: (value: T) => Promise<unknown>,
+  run: (value: T, actorId: string, correlationId: string) => Promise<unknown>,
 ): Promise<OrdersResult<unknown>> {
   const envelope = z.object({ input: z.unknown(), context: adminContext }).strict().safeParse(raw);
   if (!envelope.success)
@@ -24,7 +26,14 @@ async function handle<T>(
       error: { code: 'INVALID_INPUT', message: 'Invalid input', statusCode: 400 },
     };
   try {
-    return { ok: true, value: await run(parsed.data) };
+    return {
+      ok: true,
+      value: await run(
+        parsed.data,
+        envelope.data.context.userId,
+        envelope.data.context.correlationId,
+      ),
+    };
   } catch (e) {
     return {
       ok: false,
@@ -42,6 +51,7 @@ async function handle<T>(
 @Controller()
 export class AdminOrdersRpcController {
   constructor(
+    @Inject(TransitionAdminOrder) private readonly transition: TransitionAdminOrder,
     @Inject(ReadAdminOrders) private readonly list: ReadAdminOrders,
     @Inject(ReadAdminOrder) private readonly detail: ReadAdminOrder,
   ) {}
@@ -51,6 +61,21 @@ export class AdminOrdersRpcController {
   @MessagePattern(ADMIN_ORDERS_PATTERNS.detail) get(@Payload() raw: unknown) {
     return handle(raw, z.object({ id: z.string().uuid() }).strict(), (x) =>
       this.detail.execute(x.id),
+    );
+  }
+  @MessagePattern(ADMIN_ORDERS_PATTERNS.transition) change(@Payload() raw: unknown) {
+    return handle(
+      raw,
+      z
+        .object({
+          id: z.string().uuid(),
+          status: z.enum(['SHIPPED', 'COMPLETED']),
+          expectedStatus: z.enum(ORDER_STATUSES),
+          reason: z.string().trim().min(3).max(500),
+          key: z.string().uuid(),
+        })
+        .strict(),
+      (x, actor, c) => this.transition.execute(x, actor, c),
     );
   }
 }

@@ -34,6 +34,7 @@ model Order {
  paymentMethod String @default("CASH_ON_DELIVERY") @map("payment_method")
  paymentAttemptId String? @map("payment_attempt_id") @db.Uuid
  paymentExpiresAt DateTime? @map("payment_expires_at")
+ stockDeductedAt DateTime? @map("stock_deducted_at")
  paymentStatus String @default("UNPAID") @map("payment_status")
  comment String @default("")
  marketingConsentAt DateTime? @map("marketing_consent_at")
@@ -138,4 +139,20 @@ model VerifiedIdentity {
  updatedAt DateTime @updatedAt @map("updated_at")
  @@index([lastLinkedAt])
  @@map("verified_identities")
+}
+
+model AdminOrderCommand {
+ id String @id @default(uuid()) @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ key String @db.Uuid
+ actorId String @map("actor_id") @db.Uuid
+ fromStatus OrderStatus @map("from_status")
+ status OrderStatus
+ reason String
+ fingerprint String @db.Char(64)
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@unique([orderId,key])
+ @@index([orderId,createdAt])
+ @@map("admin_order_commands")
 }

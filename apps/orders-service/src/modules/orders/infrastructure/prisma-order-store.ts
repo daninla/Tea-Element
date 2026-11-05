@@ -13,6 +13,7 @@ import type {
   CheckoutEvent,
   PaymentOutcome,
   StockReserved,
+  StockDeducted,
   StockReservationFailed,
 } from '@tea/contracts';
 import { Prisma, type Order, type OrderStatusHistory } from '../../../../generated/prisma';
@@ -305,13 +306,24 @@ export class PrismaOrderStore extends OrderStore {
   private async transition(tx: Prisma.TransactionClient, id: string, status: OrderStatus) {
     await tx.order.update({ where: { id }, data: { status, history: { create: { status } } } });
   }
-  async handle(event: StockReserved | StockReservationFailed | PaymentOutcome) {
+  async handle(event: StockReserved | StockReservationFailed | StockDeducted | PaymentOutcome) {
     await this.db.$transaction(async (tx) => {
       const id = event.payload.orderId;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id},0))`;
       if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
       const row = await tx.order.findUnique({ where: { id } });
       if (!row) throw new Error('Unknown order');
+      if (event.name === 'StockDeducted') {
+        if (!['SHIPPED', 'COMPLETED'].includes(row.status))
+          throw new Error('Unexpected stock deduction');
+        if (!row.stockDeductedAt)
+          await tx.order.update({
+            where: { id },
+            data: { stockDeductedAt: new Date(event.occurredAt) },
+          });
+        await tx.processedEvent.create({ data: { eventId: event.eventId } });
+        return;
+      }
       if ('amount' in event.payload) {
         if (row.total !== event.payload.amount || event.payload.currency !== 'UAH')
           throw new OrderError('PAYMENT_MISMATCH', 'Payment does not match order', 400);

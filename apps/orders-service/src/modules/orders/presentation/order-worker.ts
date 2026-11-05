@@ -11,7 +11,7 @@ const stockSchema = z
     version: z.literal(1),
     occurredAt: z.string().datetime(),
     correlationId: z.string().min(1).max(100),
-    name: z.enum(['StockReserved', 'StockReservationFailed']),
+    name: z.enum(['StockReserved', 'StockReservationFailed', 'StockDeducted']),
     payload: z.object({ orderId: z.string().uuid() }).strict(),
   })
   .strict();
@@ -67,6 +67,7 @@ export class OrderWorker implements OnModuleInit, OnModuleDestroy {
   }
   private async run() {
     for (const queue of [
+      'orders.stock_deducted',
       'orders.stock_reserved',
       'orders.stock_reservation_failed',
       'orders.payment_succeeded',

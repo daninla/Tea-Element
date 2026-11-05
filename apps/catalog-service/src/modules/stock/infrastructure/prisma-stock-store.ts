@@ -1,3 +1,4 @@
+import { reservationLines, type ReservationLine } from '../domain/reservation-lines';
 import { variantStock, availableStock } from '../../catalog/domain/inventory-unit';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -7,6 +8,7 @@ import type {
   OrderCreated,
   OrderCreatedV2,
   OrderCancelled,
+  OrderShipped,
   CheckoutEvent,
 } from '@tea/contracts';
 import { Prisma } from '../../../../generated/prisma';
@@ -17,6 +19,41 @@ import { StockStore } from '../domain/stock-store';
 export class PrismaStockStore extends StockStore {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {
     super();
+  }
+  async movements(orderId: string, page: number) {
+    return this.db.$transaction(
+      async (tx) => {
+        const total = await tx.stockMovement.count({ where: { orderId } });
+        const rows = await tx.stockMovement.findMany({
+          where: { orderId },
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+          take: 20,
+          skip: (page - 1) * 20,
+        });
+        const products = await tx.product.findMany({
+          where: { id: { in: rows.map((x) => x.productId) } },
+          select: { id: true, name: true },
+        });
+        return {
+          items: rows.map((x) => ({
+            id: x.id,
+            productId: x.productId,
+            productName: products.find((p) => p.id === x.productId)?.name ?? x.productId,
+            orderId: x.orderId,
+            type: x.type,
+            unit: x.unit,
+            quantity: x.quantity,
+            stockDelta: x.stockDelta,
+            reservedDelta: x.reservedDelta,
+            createdAt: x.createdAt.toISOString(),
+          })),
+          page,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / 20)),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
   async quote(items: CartItemInput[]): Promise<CartQuote> {
     const now = new Date();
@@ -87,28 +124,72 @@ export class PrismaStockStore extends StockStore {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
-  async apply(event: OrderCreated | OrderCreatedV2 | OrderCancelled) {
+  async apply(event: OrderCreated | OrderCreatedV2 | OrderCancelled | OrderShipped) {
     await this.db.$transaction(
       async (tx) => {
         const orderId = event.payload.orderId;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${orderId},0))`;
         if (await tx.processedEvent.findUnique({ where: { eventId: event.eventId } })) return;
         const existing = await tx.stockReservation.findUnique({ where: { orderId } });
-        if (event.name === 'OrderCancelled') {
+        if (event.name === 'OrderShipped') {
+          if (existing?.status !== 'CONSUMED') {
+            if (!existing || existing.status !== 'RESERVED')
+              throw new Error('Shipment without active reservation');
+            for (const item of reservationLines(existing.items)) {
+              const changed = await tx.inventory.updateMany({
+                where: {
+                  productId: item.productId,
+                  ...(item.unit === 'PIECE'
+                    ? { stockPieces: { gte: item.amount }, reservedPieces: { gte: item.amount } }
+                    : { stockGrams: { gte: item.amount }, reservedGrams: { gte: item.amount } }),
+                },
+                data:
+                  item.unit === 'PIECE'
+                    ? {
+                        stockPieces: { decrement: item.amount },
+                        reservedPieces: { decrement: item.amount },
+                      }
+                    : {
+                        stockGrams: { decrement: item.amount },
+                        reservedGrams: { decrement: item.amount },
+                      },
+              });
+              if (changed.count !== 1) throw new Error('Inventory reservation invariant failed');
+              await this.movement(tx, event, item, 'SALE', -item.amount, -item.amount);
+            }
+            await tx.stockReservation.update({ where: { orderId }, data: { status: 'CONSUMED' } });
+            const result: CheckoutEvent = {
+              eventId: randomUUID(),
+              name: 'StockDeducted',
+              version: 1,
+              occurredAt: new Date().toISOString(),
+              correlationId: event.correlationId,
+              payload: { orderId },
+            };
+            await tx.outbox.create({
+              data: {
+                id: result.eventId,
+                eventName: result.name,
+                payload: result as unknown as Prisma.InputJsonValue,
+                correlationId: result.correlationId,
+              },
+            });
+          }
+        } else if (event.name === 'OrderCancelled') {
+          if (existing?.status === 'CONSUMED') {
+            await tx.processedEvent.create({ data: { eventId: event.eventId } });
+            return;
+          }
           if (existing?.status === 'RESERVED') {
-            for (const item of existing.items as unknown as {
-              productId: string;
-              grams?: number;
-              unit?: 'GRAM' | 'PIECE';
-              amount?: number;
-            }[]) {
+            for (const item of reservationLines(existing.items)) {
               await tx.inventory.update({
                 where: { productId: item.productId },
                 data:
                   item.unit === 'PIECE'
-                    ? { reservedPieces: { decrement: item.amount ?? 0 } }
-                    : { reservedGrams: { decrement: item.amount ?? item.grams ?? 0 } },
+                    ? { reservedPieces: { decrement: item.amount } }
+                    : { reservedGrams: { decrement: item.amount } },
               });
+              await this.movement(tx, event, item, 'RELEASE', 0, -item.amount);
             }
           }
           await tx.stockReservation.upsert({
@@ -175,7 +256,7 @@ export class PrismaStockStore extends StockStore {
               valid = false;
           }
           if (valid)
-            for (const item of reserved)
+            for (const item of reserved) {
               await tx.inventory.update({
                 where: { productId: item.productId },
                 data:
@@ -183,6 +264,8 @@ export class PrismaStockStore extends StockStore {
                     ? { reservedPieces: { increment: item.amount } }
                     : { reservedGrams: { increment: item.amount } },
               });
+              await this.movement(tx, event, item, 'RESERVE', 0, item.amount);
+            }
           await tx.stockReservation.create({
             data: { orderId, status: valid ? 'RESERVED' : 'FAILED', items: reserved },
           });
@@ -207,5 +290,26 @@ export class PrismaStockStore extends StockStore {
       },
       { timeout: 10000 },
     );
+  }
+  private async movement(
+    tx: Prisma.TransactionClient,
+    event: { eventId: string; payload: { orderId: string } },
+    item: ReservationLine,
+    type: string,
+    stockDelta: number,
+    reservedDelta: number,
+  ) {
+    await tx.stockMovement.create({
+      data: {
+        eventId: event.eventId,
+        orderId: event.payload.orderId,
+        productId: item.productId,
+        unit: item.unit,
+        quantity: item.amount,
+        type,
+        stockDelta,
+        reservedDelta,
+      },
+    });
   }
 }

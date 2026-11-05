@@ -72,7 +72,17 @@ const v2Schema = z
       .strict(),
   })
   .strict();
-const schema = z.union([legacySchema, v2Schema]);
+const shippedSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    version: z.literal(1),
+    occurredAt: z.string().datetime(),
+    correlationId: z.string().min(1).max(100),
+    name: z.literal('OrderShipped'),
+    payload: z.object({ orderId: z.string().uuid() }).strict(),
+  })
+  .strict();
+const schema = z.union([legacySchema, v2Schema, shippedSchema]);
 @Injectable()
 export class StockWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -98,6 +108,7 @@ export class StockWorker implements OnModuleInit, OnModuleDestroy {
       'catalog.order_created',
       'catalog.order_created_v2',
       'catalog.order_cancelled',
+      'catalog.order_shipped',
     ])
       await this.bus.subscribe(queue, async (raw) => {
         await this.handler.execute(schema.parse(raw));

@@ -43,7 +43,7 @@ An advisory lock serializes per-order transitions. Duplicate IDs and repeated cr
 not reserve twice. Cancellation creates a RELEASED tombstone even if it arrives before creation.
 Pending reservations expire in five minutes and publish OrderCancelled. Online reservations instead
 enter AWAITING_PAYMENT with a 30-minute payment deadline, PaymentRequested and a unique payment attempt. Late stock success cannot revive them.
-Confirmed COD orders keep reserved grams until cancellation; shipment/deduction is stage 6.
+Confirmed COD orders keep reserved grams until cancellation or shipment; stage 6.2 deducts through OrderShipped.
 
 Confirm publishers use SKIP LOCKED and exponential backoff. Durable queues reconnect, retry failures
 through one-second TTL queues up to five times, then dead-letter. DLQ replay requires operational review;
@@ -108,4 +108,12 @@ POST /orders/lookup always acknowledges neutrally and rate-limits requeued priva
 required. List pages have 20 rows with deterministic createdAt/id order and repeatable-read count; filters
 cover literal number/contacts, status, payment, account/guest and UTC dates. Detail includes immutable
 contacts/delivery/items/history and comment. No bearer/hash/nonce is returned. No database change is
-required. Status mutations and stock deduction remain the next stage; see ADR 0012.
+required. Status mutations and stock deduction are described below in stage 6.2; see ADR 0012 for reads.
+
+## Fulfillment (stage 6.2)
+
+ADMIN transition RPC accepts SHIPPED/COMPLETED, expectedStatus, UUID key and reason. Audit/status/history/
+Outbox commit under the existing order lock. COD confirmed or paid online orders can ship; completion
+waits for StockDeducted and confirms COD collection. Replays are idempotent, stale/conflicting commands
+return 409. Admin detail includes actor audit and stockDeductedAt. Paid cancellation/physical returns
+remain future work. OrderCompleted snapshots queue for stage 7. See ADR 0013.

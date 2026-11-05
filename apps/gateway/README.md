@@ -69,4 +69,12 @@ Reset clears browser session cookies after the auth transaction succeeds. See AD
 GET `/api/v1/admin/orders` and GET `/api/v1/admin/orders/:id` require an ADMIN access JWT. List query:
 page (1–10000), q (up to 100 characters), status, paymentMethod, customerType (GUEST/ACCOUNT), from/to
 (ISO UTC, inclusive start/exclusive end). Extra keys are rejected. Both routes are no-store and forward
-only trusted identity/role context over orders RPC. No status update route is implemented yet.
+only trusted identity/role context over orders RPC. Status updates are described below in stage 6.2.
+
+## Fulfillment commands (stage 6.2)
+
+PATCH `/api/v1/admin/orders/:id/status` requires ADMIN, allowed Origin and UUID Idempotency-Key. Body:
+status (SHIPPED/COMPLETED), expectedStatus and reason (3–500 characters). Trusted JWT actor is forwarded
+to orders; client actor/amount fields are rejected. GET `/api/v1/admin/orders/:id/movements?page=1`
+reads the journal through catalog RPC and independently validates ADMIN there. Both routes are no-store.
+See ADR 0013 for completion/payment/stock constraints.

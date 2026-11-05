@@ -71,14 +71,14 @@ export interface ProductPage {
 }
 export interface CatalogRequest<T> {
   input: T;
-  context: { correlationId: string };
+  context: { correlationId: string; userId?: string; role?: import('./auth').Role };
 }
 export type CatalogResult<T> =
   | { ok: true; value: T }
   | {
       ok: false;
       error: {
-        code: 'INVALID_INPUT' | 'PRODUCT_NOT_FOUND' | 'CATALOG_UNAVAILABLE';
+        code: 'INVALID_INPUT' | 'PRODUCT_NOT_FOUND' | 'CATALOG_UNAVAILABLE' | 'FORBIDDEN';
         message: string;
         statusCode: number;
       };

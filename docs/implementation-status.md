@@ -204,3 +204,12 @@ Integration verifies fresh migrations, repeatable seeds preserving piece reserva
 filter parity, mixed checkout, last-piece competition without partial tea reservation, cancellation and
 legacy v1 Outbox/reservation processing. Browser checks cover 375px/1280px, equipment filters, global
 search, correct units, mixed confirmation and cancellation. All product data/photos remain illustrative.
+
+## Final documentation requested by the owner
+
+Before real-operation handoff, and on the owner's request after implementation is complete, prepare
+the Russian architecture/code-reading/interview guide described in
+[final documentation requirements](final-documentation-requirements.md). It must include actual
+system-design patterns, per-service ER diagrams, technology tradeoffs, real caching behavior and
+a beginner-friendly explanation of the payment lifecycle and money flow. Do not treat planned
+patterns or unverified production capabilities as implemented.

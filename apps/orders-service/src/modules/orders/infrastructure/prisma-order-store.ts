@@ -30,7 +30,7 @@ type Loaded = Order & { history: OrderStatusHistory[] };
 function json(value: unknown) {
   return value as Prisma.InputJsonValue;
 }
-function view(row: Loaded): OrderView {
+export function view(row: Loaded): OrderView {
   return {
     id: row.id,
     number: row.number,

@@ -63,3 +63,10 @@ Public, throttled: POST `/api/v1/auth/email/confirm`, `/api/v1/auth/password/req
 Browser Origin protection still applies. Lookup and recovery requests return neutral acknowledgements.
 Registration from an order accepts only number, private token, password and optional marketing consent.
 Reset clears browser session cookies after the auth transaction succeeds. See ADR 0011.
+
+## Administrator orders (stage 6.1)
+
+GET `/api/v1/admin/orders` and GET `/api/v1/admin/orders/:id` require an ADMIN access JWT. List query:
+page (1–10000), q (up to 100 characters), status, paymentMethod, customerType (GUEST/ACCOUNT), from/to
+(ISO UTC, inclusive start/exclusive end). Extra keys are rejected. Both routes are no-store and forward
+only trusted identity/role context over orders RPC. No status update route is implemented yet.

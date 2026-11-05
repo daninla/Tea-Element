@@ -101,3 +101,11 @@ projection and periodic reconciliation cover delayed commits without cross-servi
 Processed events and ownership updates commit together. Later guest orders require a fresh proof.
 GET /orders accepts a trusted owner ID and bounded page number; private tokens never appear in history.
 POST /orders/lookup always acknowledges neutrally and rate-limits requeued private receipts. See ADR 0011.
+
+## Administrator reads (stage 6.1)
+
+`modules/administration` implements admin.orders.list/detail RPC. A strict trusted ADMIN context is
+required. List pages have 20 rows with deterministic createdAt/id order and repeatable-read count; filters
+cover literal number/contacts, status, payment, account/guest and UTC dates. Detail includes immutable
+contacts/delivery/items/history and comment. No bearer/hash/nonce is returned. No database change is
+required. Status mutations and stock deduction remain the next stage; see ADR 0012.

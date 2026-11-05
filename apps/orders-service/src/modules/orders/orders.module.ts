@@ -39,6 +39,7 @@ import { OrderWorker } from './presentation/order-worker';
     ]),
   ],
   controllers: [OrdersRpcController],
+  exports: [PrismaService],
   providers: [
     PrismaService,
     RabbitEventBus,

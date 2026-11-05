@@ -1,3 +1,4 @@
+import { AdminOrdersController } from './presentation/admin-orders.controller';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { readEnvironment } from '../../config/environment';
@@ -22,7 +23,7 @@ import { OrdersController, CartController } from './presentation/orders.controll
       },
     ]),
   ],
-  controllers: [OrdersController, CartController],
+  controllers: [OrdersController, CartController, AdminOrdersController],
   providers: [ForwardOrders, { provide: OrdersClient, useClass: RmqOrdersClient }],
 })
 export class OrdersModule {}

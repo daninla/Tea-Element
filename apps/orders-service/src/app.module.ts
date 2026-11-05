@@ -1,3 +1,4 @@
+import { AdministrationModule } from './modules/administration/administration.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     HealthModule,
     OrdersModule,
+    AdministrationModule,
   ],
 })
 export class AppModule {}

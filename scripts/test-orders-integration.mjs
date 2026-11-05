@@ -219,8 +219,8 @@ try {
   const owner = randomUUID();
   const other = randomUUID();
   const jwt = new JwtService();
-  async function cookie(id) {
-    return `tea_access=${await jwt.signAsync({ sub: id, email: 'customer@example.test', role: 'CUSTOMER' }, { secret, algorithm: 'HS256', issuer: 'tea-auth', audience: 'tea-gateway', expiresIn: '15m' })}`;
+  async function cookie(id, role = 'CUSTOMER') {
+    return `tea_access=${await jwt.signAsync({ sub: id, email: 'customer@example.test', role }, { secret, algorithm: 'HS256', issuer: 'tea-auth', audience: 'tea-gateway', expiresIn: '15m' })}`;
   }
   await http(`/orders/${created.order.number}`, { cookie: await cookie(owner), status: 404 });
   const owned = await http('/orders', {
@@ -577,6 +577,61 @@ try {
   assert.ok(
     (await orders.order.findUniqueOrThrow({ where: { id: created.order.id } })).lookupRequestedAt,
   );
+  // Admin reads use a separate RBAC boundary; guest/order bearer access remains unchanged.
+  const adminCookie = await cookie(randomUUID(), 'ADMIN');
+  await http('/admin/orders', { status: 401 });
+  await http('/admin/orders', { cookie: await cookie(other), status: 403 });
+  await http(`/admin/orders/${created.order.id}`, { cookie: await cookie(other), status: 403 });
+  const adminDetail = await http(`/admin/orders/${created.order.id}`, { cookie: adminCookie });
+  assert.equal(adminDetail.email, body.email);
+  for (const field of [
+    'accessToken',
+    'accessTokenHash',
+    'tokenNonce',
+    'idempotencyHash',
+    'requestHash',
+  ])
+    assert.equal(adminDetail[field], undefined);
+  await http('/admin/orders/not-a-uuid', { cookie: adminCookie, status: 400 });
+  await http(`/admin/orders/${randomUUID()}`, { cookie: adminCookie, status: 404 });
+  const allAdmin = await http('/admin/orders', { cookie: adminCookie });
+  assert.equal(allAdmin.total, await orders.order.count());
+  assert.ok(allAdmin.items.length <= 20);
+  await http('/admin/orders?page=10001', { cookie: adminCookie, status: 400 });
+  await http('/admin/orders?userId=' + other, { cookie: adminCookie, status: 400 });
+  await http('/admin/orders?from=2026-11-05T00:00:00Z&to=2026-11-04T00:00:00Z', {
+    cookie: adminCookie,
+    status: 400,
+  });
+  const percent = await http('/admin/orders?q=%25', { cookie: adminCookie });
+  assert.equal(percent.total, 0);
+  // Explicit read fixtures in the disposable DB exercise deterministic pagination and literal search.
+  const prefix = 'admin_' + tag;
+  const fixtures = Array.from({ length: 23 }, () => ({
+    ...stored,
+    id: randomUUID(),
+    number: 'TE-' + randomUUID().replaceAll('-', '').toUpperCase(),
+    userId: null,
+    status: 'CANCELLED',
+    email: prefix + '%_@example.test',
+    idempotencyHash: randomBytes(32).toString('hex'),
+    createdAt: new Date('2020-01-02T12:00:00Z'),
+    receiptSentAt: new Date(),
+  }));
+  await orders.order.createMany({ data: fixtures });
+  const query =
+    'q=' +
+    encodeURIComponent(prefix + '%_') +
+    '&customerType=GUEST&status=CANCELLED&paymentMethod=CASH_ON_DELIVERY&from=2020-01-02T00:00:00Z&to=2020-01-03T00:00:00Z';
+  const firstPage = await http('/admin/orders?' + query, { cookie: adminCookie });
+  const secondPage = await http('/admin/orders?' + query + '&page=2', { cookie: adminCookie });
+  assert.equal(firstPage.total, 23);
+  assert.equal(firstPage.items.length, 20);
+  assert.equal(secondPage.items.length, 3);
+  assert.equal(new Set([...firstPage.items, ...secondPage.items].map((x) => x.id)).size, 23);
+  const accountsOnly = await http('/admin/orders?customerType=ACCOUNT', { cookie: adminCookie });
+  assert.ok(accountsOnly.items.every((x) => x.userId !== null));
+  await orders.order.deleteMany({ where: { id: { in: fixtures.map((x) => x.id) } } });
   // Permanent malformed event is retried then quarantined instead of blocking a queue.
   await publish({ bad: true }, 'orders.order_created.v2');
   await waitFor(async () => {
@@ -584,7 +639,7 @@ try {
     return q.messageCount > 0;
   }, 'dead letter');
   console.log(
-    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility, verified guest linking, private history, proof cutoff/reconciliation, neutral lookup and DLQ.',
+    'Orders integration passed: clean migrations, repeatable seed, fresh prices, validation, concurrent idempotency, private guest/owner access, server carts, confirmed reservation, duplicate/reordered events, rollback, no oversell, rejection, cancellation, timeout, SMTP receipt, mixed gram/piece carts, atomic last-piece competition, legacy v1 compatibility, verified guest linking, private history, proof cutoff/reconciliation, neutral lookup, ADMIN list/detail role checks, secret exclusion, literal filters, stable pagination and DLQ.',
   );
 } finally {
   for (const child of children)

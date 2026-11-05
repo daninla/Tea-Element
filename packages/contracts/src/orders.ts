@@ -86,7 +86,7 @@ export interface CreatedOrder {
 }
 export interface OrdersRequest<T = unknown> {
   input: T;
-  context: { correlationId: string; userId?: string };
+  context: { correlationId: string; userId?: string; role?: import('./auth').Role };
 }
 export type OrdersResult<T> =
   | { ok: true; value: T }

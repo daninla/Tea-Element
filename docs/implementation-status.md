@@ -131,12 +131,24 @@ Registration from a private guest order takes its trusted contact snapshot. Neut
 access only to the stored matching address. Guest orders link only after proof, through transactional
 UserEmailVerified Outbox and an idempotent orders consumer with reconciliation and a proof-time cutoff.
 Later guest purchases require another confirmation. See ADR 0011.
-Desktop account acceptance passed; the 375px visual check remains pending because the browser
-viewport override did not take effect.
+Desktop account acceptance passed. The initial browser viewport override failed; the account layout
+was successfully rechecked at 375px during stage 6.1 without horizontal document overflow.
 
 All messages use local Mailpit and test contacts. Existing access JWTs can survive logout/password reset
 for their remaining lifetime (up to 15 minutes); refresh sessions are revoked. Real merchant LiqPay and
 production email acceptance remain external work.
+
+## Stage 6.1 — administrator order reads
+
+Implemented: separate admin layout, ADMIN middleware/gateway/RPC checks, paginated order list,
+search by number/contact, status/payment/guest-or-account/date filters, immutable detail snapshots and
+status history. URL filters survive navigation. No guest bearer or persistence hash is returned.
+The read workspace is available at /admin/orders; it does not yet mutate order status. See ADR 0012.
+Browser acceptance at 375px and 1280px covers customer denial, admin login, search, detail, preserved
+return filters and bounded table scrolling without horizontal document overflow.
+
+Next: shipping/completion and inventory journal, audited mutations, paid cancellation/refunds,
+product/category/promotion management, customers and dashboard. Stage 6 is not complete.
 
 ## Remaining stages
 
@@ -150,7 +162,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (268 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (279 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

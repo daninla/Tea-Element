@@ -47,5 +47,6 @@ explicit confirmation and concurrent refresh. Real PostgreSQL/RabbitMQ/HTTP suit
 proof replay, password recovery, session revocation, neutral lookup, ownership, idempotent event delivery,
 proof-time cutoff and reconciliation. Browser acceptance covers local registration, Mailpit verification,
 profile and saved delivery, and login/logout at desktop width. The browser viewport API did not apply
-the requested 375px override; mobile visual acceptance must be repeated. Production mail, administration,
+the requested 375px override initially. The account layout was rechecked at 375px on 2026-11-05
+during stage 6.1 without horizontal document overflow. Production mail, administration,
 fulfillment and marketing are later acceptance work.

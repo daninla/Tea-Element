@@ -27,6 +27,9 @@ commands. Attempt abandonment compensates late funds without cancelling newer at
 Stage 5 adds customer account UI, one-use email proofs, password recovery, profile/default delivery
 and private order history. UserEmailVerified links historical guest orders through an idempotent
 orders projection and reconciliation, with no shared databases; see ADR 0011.
+Stage 6.1 adds ADMIN-only order list/detail RPC and a separate browser workspace. Storefront URLs
+are preserved through a Next.js route group. Status mutations and physical stock deduction remain
+next; see ADR 0012.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

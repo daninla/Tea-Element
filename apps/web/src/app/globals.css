@@ -2122,3 +2122,46 @@ img {
     grid-template-columns: 1fr;
   }
 }
+
+.catalog-editor {
+  margin-block: 1.5rem;
+  max-width: 58rem;
+}
+.catalog-editor fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.catalog-editor .commerce-field {
+  margin-block: 1rem;
+}
+.catalog-editor textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+.catalog-editor .catalog-variant {
+  padding: 1rem;
+  margin-block: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+.catalog-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.catalog-image-item {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.catalog-image-item img {
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+.catalog-editor input,
+.catalog-editor textarea,
+.catalog-editor select {
+  max-width: 100%;
+}

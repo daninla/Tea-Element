@@ -113,3 +113,14 @@ Hryvnia input converts exactly to integer kopecks. The server chooses stock unit
 bounds and optimistic balance checks. Pending command key/fingerprint metadata survives same-tab reloads;
 changed uncertain operations require explicit history review and clearing prior inputs. Logout clears
 metadata. Browser acceptance covers 375/1280px without horizontal document overflow. See ADR 0014.
+
+## Catalog workspace (stage 6.4)
+
+`/admin/products` provides search/section/visibility filters and pagination; `/new` and `/:id` edit complete
+product metadata, prices/portions, category, brewing guide, tags and image order. `/admin/categories` creates
+and edits category visibility/order. Existing URLs, stock units, SKU and portion weights are protected.
+Products start with zero stock and link to the inventory workspace. Category choices load additional pages
+explicitly. Photos can come from bundled illustrations or real multipart uploads; `/media/*` is rewritten
+to gateway using INTERNAL_API_URL. All public product data remains illustrative demonstration content.
+Unknown save outcomes preserve only retry metadata; review catalog/history before clearing an uncertain
+operation. Forms are not automatically saved drafts. See ADR 0015 for persistence requirements.

@@ -25,3 +25,13 @@ it('never refreshes rejected credentials or retries an unauthorized response ind
   await expect(request('/cart')).rejects.toBeInstanceOf(OrdersApiError);
   expect(fetcher).toHaveBeenCalledTimes(3);
 });
+
+it('sends multipart bytes without a JSON content type and preserves the retry key', async () => {
+  const form = new FormData();
+  form.set('file', new Blob(['image']), 'photo.png');
+  const fetcher = jest.spyOn(global, 'fetch').mockResolvedValue(response(200, { id: 'asset' }));
+  await expect(request('/admin/media', 'POST', form, 'key')).resolves.toEqual({ id: 'asset' });
+  const options = fetcher.mock.calls[0]![1]!;
+  expect(options.body).toBe(form);
+  expect(options.headers).toEqual({ 'Idempotency-Key': 'key' });
+});

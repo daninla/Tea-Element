@@ -32,8 +32,11 @@ function rawRequest(path: string, method = 'GET', body?: unknown, key?: string) 
     method,
     credentials: 'include',
     cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    headers: {
+      ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(key ? { 'Idempotency-Key': key } : {}),
+    },
+    ...(body ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(15000),
   });
 }

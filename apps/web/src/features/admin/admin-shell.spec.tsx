@@ -43,3 +43,45 @@ it('never renders administrative children for a customer even if client navigati
     container.remove();
   }
 });
+
+it('keeps unsaved fields mounted while an administrator session refreshes in the background', async () => {
+  const user = { id: 'admin', role: 'ADMIN', firstName: 'Admin' } as Awaited<
+    ReturnType<typeof ordersApi.me>
+  >;
+  let resolve!: (value: typeof user) => void;
+  jest.mocked(ordersApi.me).mockImplementation(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['customer-session'], user);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <AdminShell>
+            <input aria-label="unsaved" defaultValue="draft" />
+          </AdminShell>
+        </QueryClientProvider>,
+      ),
+    );
+    const field = container.querySelector('input');
+    expect(field).not.toBeNull();
+    expect(client.isFetching()).toBe(1);
+    await act(async () => {
+      resolve(user);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(container.querySelector('input')).toBe(field);
+    expect(field?.value).toBe('draft');
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+    container.remove();
+  }
+});

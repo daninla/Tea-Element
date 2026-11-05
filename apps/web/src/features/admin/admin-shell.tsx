@@ -8,7 +8,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations('admin');
   const pathname = usePathname();
   const session = useQuery({ queryKey: ['customer-session'], queryFn: ordersApi.me, retry: false });
-  if (session.isPending || session.isFetching)
+  if (session.isPending)
     return (
       <main id="main-content" className="container commerce-page">
         <p role="status">{t('loading')}</p>
@@ -41,6 +41,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             {t('inventory')}
           </Link>
+          {(['products', 'categories'] as const).map((x) => (
+            <Link
+              key={x}
+              href={'/admin/' + x}
+              aria-current={pathname.startsWith('/admin/' + x) ? 'page' : undefined}
+            >
+              {t(x)}
+            </Link>
+          ))}
           <Link href="/account">{t('account')}</Link>
           <Link href="/">{t('store')}</Link>
         </nav>

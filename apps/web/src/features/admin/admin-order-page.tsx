@@ -1,4 +1,6 @@
 'use client';
+import { AdminStockMovements } from './admin-stock-movements';
+import { AdminOrderActions } from './admin-order-actions';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -22,6 +24,8 @@ export function AdminOrderPage({
     queryFn: () => adminApi.order(id),
     enabled: session.data?.role === 'ADMIN',
     retry: false,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'SHIPPED' && !query.state.data.stockDeductedAt ? 2000 : false,
   });
   const date = (value: string) =>
     new Intl.DateTimeFormat('uk-UA', {
@@ -58,6 +62,13 @@ export function AdminOrderPage({
       <Button variant="outline" disabled={order.isFetching} onClick={() => void order.refetch()}>
         {t('refresh')}
       </Button>
+      <AdminOrderActions order={x} />
+      <AdminStockMovements
+        key={x.id}
+        id={x.id}
+        stockDeductedAt={x.stockDeductedAt}
+        pending={x.status === 'SHIPPED' && !x.stockDeductedAt}
+      />
       <div className="admin-detail-grid">
         <section className="notice">
           <h2>{t('customer')}</h2>
@@ -120,6 +131,27 @@ export function AdminOrderPage({
             <strong>{formatMoney(x.total)}</strong>
           </dd>
         </dl>
+      </section>
+      <section>
+        <h2>{t('audit')}</h2>
+        {x.actions.length ? (
+          <ol className="admin-history">
+            {x.actions.map((action, index) => (
+              <li key={index}>
+                <strong>
+                  {statusT(action.fromStatus)} → {statusT(action.status)}
+                </strong>
+                <p>{action.reason}</p>
+                <p>
+                  {t('actor')}: {action.actorId}
+                </p>
+                <time dateTime={action.at}>{date(action.at)}</time>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>{t('noActions')}</p>
+        )}
       </section>
       <section>
         <h2>{t('history')}</h2>

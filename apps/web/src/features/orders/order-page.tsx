@@ -124,7 +124,15 @@ export function OrderPage({ number }: { number: string }) {
           )}
           <p className="muted-copy">{cartT('deliveryNote')}</p>
           <h3>{t('payment')}</h3>
-          <p>{t(order.paymentMethod === 'ONLINE_CARD' ? 'online' : 'cod')}</p>
+          <p>
+            {t(
+              order.paymentMethod === 'ONLINE_CARD'
+                ? 'online'
+                : order.paymentStatus === 'PAID'
+                  ? 'codPaid'
+                  : 'cod',
+            )}
+          </p>
           {order.status === 'AWAITING_PAYMENT' && (
             <Link
               className="button button-primary"

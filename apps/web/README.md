@@ -38,7 +38,7 @@ photos are illustrative; see [asset provenance](public/images/README.md) and
 All orders are demonstrations without payment or fulfillment, with an explicit notice. The checkout
 works without an account. Existing authenticated sessions are detected, guest items merge idempotently
 into the server cart, and subsequent changes synchronize. Edits during synchronization are reconciled.
-Customer accounts are implemented in stage 5; admin screens remain stage 6. Metadata and Product JSON-LD are included;
+Customer accounts are implemented in stage 5; the administrator order workspace is stage 6.1/6.2. Metadata and Product JSON-LD are included;
 robots remain noindex until deployment and real store content are ready.
 
 ## Verification
@@ -95,4 +95,12 @@ Middleware only provides a redirect; gateway authentication is the security boun
 the gateway; it fails closed on 403/503 and returns expired sessions to login for serialized refresh.
 The client shell separately gates rendering by current role. Filters are URL state; calendar dates are
 inclusive local browser days and order times display in Europe/Kyiv. The workspace currently supports
-reads. Shipping, mutation audit and inventory journal are next; see ADR 0012.
+reads plus the stage 6.2 fulfillment actions below; see ADR 0012 for the initial read workspace.
+
+## Fulfillment UI (stage 6.2)
+
+Admin cards expose eligible shipment/completion actions, require reason plus explicit confirmation and
+retain a command key for uncertain retries. Pending warehouse deduction is polled and blocks completion.
+COD completion explicitly confirms collection. Actor audit and paginated stock movements appear in the
+card. Customer tracking displays confirmed COD collection correctly. Carrier dispatch/real collection
+are not automated. See ADR 0013.

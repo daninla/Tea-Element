@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export function safeAccountNext(value: string | null) {
+  if (value === '/admin/payments/events') return value;
   if (
     value &&
     /^\/admin\/customers(?:\/(?:accounts\/[0-9a-f-]{36}|guest))?(?:\?[A-Za-z0-9%=&+_.@-]*)?$/.test(
@@ -9,7 +10,7 @@ export function safeAccountNext(value: string | null) {
     return value;
   if (
     value &&
-    /^\/admin(?:\/(?:orders|inventory|products|categories|promotions)(?:\/(?:[0-9a-f-]{36}|new))?)?(?:\?[A-Za-z0-9%=&+_.-]*)?$/.test(
+    /^\/admin(?:\/(?:orders|inventory|products|categories|promotions|payments)(?:\/(?:[0-9a-f-]{36}|new))?)?(?:\?[A-Za-z0-9%=&+_.-]*)?$/.test(
       value,
     )
   )

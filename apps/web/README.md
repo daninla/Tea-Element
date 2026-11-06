@@ -124,3 +124,11 @@ explicitly. Photos can come from bundled illustrations or real multipart uploads
 to gateway using INTERNAL_API_URL. All public product data remains illustrative demonstration content.
 Unknown save outcomes preserve only retry metadata; review catalog/history before clearing an uncertain
 operation. Forms are not automatically saved drafts. See ADR 0015 for persistence requirements.
+
+## Promotions
+
+`/admin/promotions` provides paginated search, enabled filters and complete creation/editing forms.
+Fixed amounts are entered in hryvnias and converted exactly to kopecks; percentage discounts are integers.
+Period inputs display the device timezone and are sent as UTC. Product/category target searches have
+bounded navigable pages and preserve named selections. Save/reload/review follows catalog retry and
+revision rules. Existing public prices/cart quotes recalculate using the best single active discount.

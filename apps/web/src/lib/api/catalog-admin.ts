@@ -1,5 +1,8 @@
 import type {
   AdminProduct,
+  AdminPromotion,
+  AdminPromotionPage,
+  PromotionInput,
   AdminCategory,
   AdminProductInput,
   CategoryInput,
@@ -10,6 +13,15 @@ import type {
 } from '@tea/contracts';
 import { request } from './orders';
 export const catalogAdminApi = {
+  promotions: (query: string) => request<AdminPromotionPage>('/admin/promotions?' + query),
+  promotion: (id: string) => request<AdminPromotion>('/admin/promotions/' + id),
+  savePromotion: (input: PromotionInput, key: string, current?: AdminPromotion) =>
+    request<AdminPromotion>(
+      '/admin/promotions' + (current ? '/' + current.id : ''),
+      current ? 'PATCH' : 'POST',
+      current ? { input, expectedRevision: current.revision } : input,
+      key,
+    ),
   products: (query: string) => request<AdminProductPage>('/admin/products?' + query),
   product: (id: string) => request<AdminProduct>('/admin/products/' + id),
   categories: (query: string) => request<AdminCategoryPage>('/admin/categories?' + query),

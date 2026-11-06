@@ -255,10 +255,31 @@ Browser checks at 375/1280px verify account/guest lists, no-order account and pu
 filtered return from order detail, preserved search/reset, contained horizontal scrolling and no console
 errors. See ADR 0018.
 
+## Stage 6.8 — payment journal and reconciliation requests
+
+Implemented: ADMIN payment list/search/status/provider/date/refund filters, payment cards, refund-job
+state, paginated safe provider-event metadata including invalid/unattributed callbacks, and an audited
+manual reconciliation request. Payment data is read from payments_db only; raw callback/checkout secrets
+are not exposed. Requests require expected status, reason, confirmation and a stable command key.
+
+A persisted wake-up queue prevents automatic scheduling from losing a new manual request. Maintenance
+acknowledges only request IDs captured before its provider check. Attempt timestamps do not imply provider
+success; existing observation/Outbox/expiry/refund-quarantine policies remain authoritative. See ADR 0019.
+No manual paid-order cancellation/refund retry, partial-refund or physical-return UI is implemented here.
+Remaining stage 6 scope is coordinated paid cancellations/returns and configurable low-stock alerts.
+Marketing, production deployment/provider/email acceptance, hardening and final documentation remain open.
+
+Verification: the real payment integration suite covers literal/date/refund filters before pagination,
+strict ADMIN authorization, metadata-only events, replay/conflicts, captured-command acknowledgement,
+an overlapping reconciliation request and audit rollback. Browser QA covers search → card → filtered
+return → reset (all three demo attempts return), required confirmation, an accepted FAKE reconciliation
+with its eventual attempt timestamp, and the global invalid-signature empty state. At 375px the document
+fits the viewport and wide audit tables scroll inside their containers. No real money was moved.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
-- **6:** Administration and fulfillment/inventory journal.
+- **6:** Finish coordinated paid-order cancellations/returns and configurable low-stock alerts.
 - **7:** Event-based marketing and email campaigns.
 - **8:** SEO, accessibility, resilience, performance and complete acceptance tests.
 
@@ -267,7 +288,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (338 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (345 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

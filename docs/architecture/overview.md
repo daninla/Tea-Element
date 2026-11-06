@@ -42,6 +42,8 @@ Stage 6.6 adds an orders-owned bounded operational dashboard, independent stock/
 shared compact administrative tables; see ADR 0017.
 Stage 6.7 adds auth-owned customer account reads and orders-owned guest groups/purchase history with
 separate identity scopes, bounded pages and a shared administrative UI; see ADR 0018.
+Stage 6.8 adds payments-owned administrative ledger/event/refund reads and audited durable requests for
+provider-status reconciliation using the existing worker/provider/state machine; see ADR 0019.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

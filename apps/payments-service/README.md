@@ -92,3 +92,14 @@ POST /api/v1/payments/simulate is a private, Origin-protected Fake-only developm
 or trusted ownership is required; only SUCCEEDED/FAILED outcome is accepted. It reuses payability checks,
 provider signing and raw webhook audit. No signing key reaches the browser. LiqPay and production refuse
 simulation. Fake provider memory remains process-local; ledger/audit/jobs persist.
+
+## Payment administration (stage 6.8)
+
+ADMIN GET `/api/v1/admin/payments` accepts page/q/status/provider/from/to/refundOnly; GET `/:id` returns
+safe ledger/refund state, GET `/events` returns bounded callback metadata, and GET `/:id/commands` returns
+actor/reason/attempt audit. No raw payload, hosted fields or signatures leave this boundary.
+POST `/:id/reconcile` accepts expectedStatus/reason plus Idempotency-Key and returns 202 with a historical
+QUEUED receipt. Scheduling and audit commit atomically. The worker captures visible command IDs and
+acknowledges only those after attempting status retrieval; newer requests remain due despite overlapping
+automatic defer. Provider failure remains a failed attempt, not payment success. See ADR 0019.
+Manual paid cancellation/refund/return controls and merchant live acceptance remain unfinished.

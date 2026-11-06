@@ -149,3 +149,11 @@ snapshot products in shared strict tables. Account metadata loads from auth befo
 emails do not merge ownership. Explicit notes distinguish unverified guest groups and account consent
 from verified identity or campaign permission. Errors/empty states are separate; validated return paths
 preserve filters. There are no account edits, guest-link shortcuts or send-message controls.
+
+## Payment journal (stage 6.8)
+
+`/admin/payments` provides URL filters/pagination and safe payment cards; `/events` includes unattributed
+invalid callbacks. Cards show existing refund state and reconciliation audit, and accept a confirmed,
+reasoned request for a background status check. An accepted receipt/attempt time never means payment or
+refund success. Unknown requests preserve safe retry metadata until explicit audit review. Raw webhook
+and hosted checkout data are excluded. Manual paid cancellation and operator refunds are a later workflow.

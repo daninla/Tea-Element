@@ -110,3 +110,9 @@ the UI reads recent orders and stock through existing independent protected rout
 ADMIN customer-account list/detail routes live in the auth module; guest groups and bounded purchase
 history routes live in the orders module. All use trusted server-supplied actor/role context and no-store
 responses. No sibling database join, identity merge, messaging or account mutation is introduced.
+
+## Payment administration
+
+`/api/v1/admin/payments` exposes ADMIN-only safe ledger/event/refund reads and audited reconciliation
+requests. The request route returns 202, rejects client amounts/actors, and forwards trusted identity to
+payments-service. Reads set no-store. Only payments-service owns provider calls and payment storage.

@@ -2,8 +2,7 @@ import type {
   CatalogAdminRead,
   CatalogAdminWrite,
   CatalogReadResult,
-  AdminProduct,
-  AdminCategory,
+  CatalogWriteResult,
   MediaAssetView,
 } from '@tea/contracts';
 export class CatalogAdminError extends Error {
@@ -24,7 +23,7 @@ export class CatalogAdminError extends Error {
 }
 export abstract class CatalogAdminStore {
   abstract read(input: CatalogAdminRead): Promise<CatalogReadResult>;
-  abstract write(input: CatalogAdminWrite, actorId: string): Promise<AdminProduct | AdminCategory>;
+  abstract write(input: CatalogAdminWrite, actorId: string): Promise<CatalogWriteResult>;
 }
 export abstract class CatalogMediaStore {
   abstract upload(base64: string, actorId: string): Promise<MediaAssetView>;

@@ -868,6 +868,171 @@ try {
   const categoryAudit = await admin('/admin/catalog/' + cat.id + '/audit');
   assert.equal(categoryAudit.total, 2);
   assert.equal((await admin('/admin/products?q=' + tag)).total, 2);
+  // Promotions use the same transactional audit and command replay boundary.
+  const saleInput = {
+    name: 'Sale ' + tag + '%_',
+    type: 'PERCENT',
+    value: 17,
+    startsAt: '2020-01-01T00:00:00.000Z',
+    endsAt: '2099-01-01T00:00:00.000Z',
+    isActive: true,
+    targets: [{ kind: 'PRODUCT', id: newPiece.id }],
+  };
+  await admin('/admin/promotions', { cookie: auth('CUSTOMER'), expected: 403 });
+  await admin('/admin/promotions', {
+    method: 'POST',
+    body: saleInput,
+    key: randomUUID(),
+    cookie: auth('CUSTOMER'),
+    expected: 403,
+  });
+  const saleKey = randomUUID();
+  let sale = await admin('/admin/promotions', { method: 'POST', body: saleInput, key: saleKey });
+  promotionIds.push(sale.id);
+  const originalSale = globalThis.structuredClone(sale);
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 37913);
+  const freshQuote = await new PrismaStockStore(db).quote([
+    { variantId: newPiece.variants[0].id, quantity: 2 },
+  ]);
+  assert.equal(freshQuote.items[0].unitPrice, 37913);
+  assert.equal(freshQuote.total, 75826);
+  assert.deepEqual(
+    await admin('/admin/promotions', { method: 'POST', body: saleInput, key: saleKey }),
+    sale,
+  );
+  await admin('/admin/promotions', {
+    method: 'POST',
+    body: { ...saleInput, value: 18 },
+    key: saleKey,
+    expected: 409,
+  });
+  for (const input of [
+    { ...saleInput, value: 101 },
+    { ...saleInput, value: 1.5 },
+    { ...saleInput, endsAt: saleInput.startsAt },
+    { ...saleInput, targets: [] },
+    { ...saleInput, targets: [{ kind: 'PRODUCT', id: randomUUID() }] },
+    { ...saleInput, targets: [...saleInput.targets, ...saleInput.targets] },
+  ])
+    await admin('/admin/promotions', {
+      method: 'POST',
+      body: input,
+      key: randomUUID(),
+      expected: 400,
+    });
+  const saleFields = (x) => ({
+    name: x.name,
+    type: x.type,
+    value: x.value,
+    startsAt: x.startsAt,
+    endsAt: x.endsAt,
+    isActive: x.isActive,
+    targets: x.targets.map(({ kind, id }) => ({ kind, id })),
+  });
+  const saleUpdate = {
+    expectedRevision: sale.revision,
+    input: { ...saleFields(sale), type: 'FIXED', value: 10000 },
+  };
+  sale = await admin('/admin/promotions/' + sale.id, {
+    method: 'PATCH',
+    body: saleUpdate,
+    key: randomUUID(),
+  });
+  assert.equal(sale.revision, 1);
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 35678);
+  await admin('/admin/promotions/' + sale.id, {
+    method: 'PATCH',
+    body: saleUpdate,
+    key: randomUUID(),
+    expected: 409,
+  });
+  let categorySale = await admin('/admin/promotions', {
+    method: 'POST',
+    key: randomUUID(),
+    body: {
+      ...saleInput,
+      name: 'Category ' + tag,
+      type: 'PERCENT',
+      value: 20,
+      targets: [{ kind: 'CATEGORY', id: pieceCat.id }],
+    },
+  });
+  promotionIds.push(categorySale.id);
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 35678); // Never stack category and product discounts.
+  sale = await admin('/admin/promotions/' + sale.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { expectedRevision: sale.revision, input: { ...saleFields(sale), isActive: false } },
+  });
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 36543);
+  categorySale = await admin('/admin/promotions/' + categorySale.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: {
+      expectedRevision: categorySale.revision,
+      input: { ...saleFields(categorySale), startsAt: '2098-01-01T00:00:00.000Z' },
+    },
+  });
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 45678);
+  categorySale = await admin('/admin/promotions/' + categorySale.id, {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: {
+      expectedRevision: categorySale.revision,
+      input: {
+        ...saleFields(categorySale),
+        startsAt: '2020-01-01T00:00:00.000Z',
+        endsAt: '2021-01-01T00:00:00.000Z',
+      },
+    },
+  });
+  assert.equal((await response('/products/' + tag + '-cup')).minPrice, 45678);
+  const beforeSale = await editor.read({ kind: 'PROMOTION', id: sale.id });
+  await assert.rejects(() =>
+    brokenEditor.write(
+      {
+        kind: 'UPDATE_PROMOTION',
+        id: sale.id,
+        expectedRevision: sale.revision,
+        input: { ...saleFields(sale), targets: [{ kind: 'CATEGORY', id: pieceCat.id }] },
+        key: randomUUID(),
+      },
+      actor,
+    ),
+  );
+  assert.deepEqual(await editor.read({ kind: 'PROMOTION', id: sale.id }), beforeSale);
+  const promotionRaces = await Promise.allSettled(
+    [1, 2].map((n) =>
+      editor.write(
+        {
+          kind: 'UPDATE_PROMOTION',
+          id: sale.id,
+          expectedRevision: sale.revision,
+          input: { ...saleFields(sale), name: sale.name + ' ' + n },
+          key: randomUUID(),
+        },
+        actor,
+      ),
+    ),
+  );
+  assert.equal(promotionRaces.filter((x) => x.status === 'fulfilled').length, 1);
+  assert.equal(
+    promotionRaces.filter((x) => x.status === 'rejected' && x.reason.code === 'STALE_CATALOG')
+      .length,
+    1,
+  );
+  assert.deepEqual(
+    await admin('/admin/promotions', { method: 'POST', body: saleInput, key: saleKey }),
+    originalSale,
+  );
+  assert.equal((await admin('/admin/promotions?q=' + encodeURIComponent(tag + '%_'))).total, 1);
+  const saleAudit = await admin('/admin/catalog/' + sale.id + '/audit');
+  assert.equal(saleAudit.total, 4);
+  assert.equal((await admin('/admin/promotions?page=999')).items.length, 0);
+  assert.equal((await admin('/admin/promotions/' + sale.id)).id, sale.id);
+  console.log(
+    'Promotion integration passed: RBAC, percent/fixed fresh catalog and quotes, best non-stacked discount, time windows, deactivation, strict targets, stable replay, revision races, audit rollback, literal search and pagination.',
+  );
   console.log(
     'Catalog editor integration passed: ADMIN access, exact replay/conflicts, revisions/races, immutable portions and units, audit rollback, current public prices/stock, category hiding, piece products, actual image conversion/public bytes, SVG rejection, upload bounds and audit.',
   );
@@ -891,7 +1056,7 @@ try {
     }),
   );
   await db.catalogCommand.deleteMany({
-    where: { entityId: { in: [...catalogFixtureIds, ...catalogCategoryIds] } },
+    where: { entityId: { in: [...catalogFixtureIds, ...catalogCategoryIds, ...promotionIds] } },
   });
   await db.purchaseBatch.deleteMany({ where: { productId: { in: catalogFixtureIds } } });
   await db.inventoryCommand.deleteMany({ where: { productId: { in: catalogFixtureIds } } });

@@ -62,8 +62,18 @@ export type CatalogAdminRead =
       q?: string;
       section?: 'TEA' | 'EQUIPMENT';
     }
+  | { kind: 'PROMOTIONS'; page: number; q?: string; active?: boolean }
+  | { kind: 'PROMOTION'; id: string }
   | { kind: 'AUDIT'; id: string; page: number };
 export type CatalogAdminWrite =
+  | { kind: 'CREATE_PROMOTION'; input: PromotionInput; key: string }
+  | {
+      kind: 'UPDATE_PROMOTION';
+      id: string;
+      expectedRevision: number;
+      input: PromotionInput;
+      key: string;
+    }
   | { kind: 'CREATE_PRODUCT'; input: AdminProductInput; key: string }
   | {
       kind: 'UPDATE_PRODUCT';
@@ -99,10 +109,41 @@ export interface CatalogAuditPage {
   totalPages: number;
 }
 export type CatalogReadResult =
-  AdminProduct | AdminProductPage | AdminCategoryPage | CatalogAuditPage;
+  | AdminProduct
+  | AdminProductPage
+  | AdminCategoryPage
+  | CatalogAuditPage
+  | AdminPromotion
+  | AdminPromotionPage;
 export interface MediaAssetView {
   id: string;
   path: string;
   width: number;
   height: number;
 }
+
+export interface PromotionTargetInput {
+  kind: 'PRODUCT' | 'CATEGORY';
+  id: string;
+}
+export interface PromotionInput {
+  name: string;
+  type: 'PERCENT' | 'FIXED';
+  value: number;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  targets: PromotionTargetInput[];
+}
+export interface AdminPromotion extends Omit<PromotionInput, 'targets'> {
+  id: string;
+  revision: number;
+  targets: (PromotionTargetInput & { name: string })[];
+}
+export interface AdminPromotionPage {
+  items: AdminPromotion[];
+  page: number;
+  total: number;
+  totalPages: number;
+}
+export type CatalogWriteResult = AdminProduct | AdminCategory | AdminPromotion;

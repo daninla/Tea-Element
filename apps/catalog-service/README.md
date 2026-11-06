@@ -116,3 +116,12 @@ GET `/api/v1/media/:uuid.webp` is public and immutable. Store bytes persistently
 (default `apps/catalog-service/var/catalog-media`); back up it together with catalog_db. Web rewrites
 `/media/*` through gateway. Sharp performs bounded decoding, resize/orientation and metadata stripping.
 Unused assets remain stored; crash orphan cleanup and object storage/CDN are deployment follow-ups.
+
+## Promotion administration (stage 6.5)
+
+ADMIN GET/POST `/api/v1/admin/promotions`, GET/PATCH `/api/v1/admin/promotions/:id` use catalog-admin RPC.
+List supports page/q/active; writes use the same key/revision/audit contract as products. Targets are
+1–50 unique `{kind: PRODUCT|CATEGORY, id}` values, validated in catalog_db. Fixed amounts are kopecks;
+percent is integer 1–100. Periods are ISO UTC [start,end). Existing public pricing/quote queries apply the
+best single active discount without stacking. Disabling never deletes audit. See ADR 0016. PromotionStarted
+and marketing publication are deferred to stage 7, not emitted as part of this local administration feature.

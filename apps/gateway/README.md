@@ -96,3 +96,7 @@ validates complete strict input schemas and independently checks trusted context
 POST `/api/v1/admin/media` uses a single-file, 5 MiB multipart limit after authorization; catalog validates
 actual bytes. Public GET `/api/v1/media/:uuid.webp` returns opaque processed images with immutable headers.
 Global JSON parser limits and payment routes are unchanged. See catalog-service README and ADR 0015.
+
+ADMIN GET/POST `/api/v1/admin/promotions` and GET/PATCH `/api/v1/admin/promotions/:id` forward to the
+catalog-admin boundary. Catalog independently validates actor, complete input, period, target ownership,
+revision and idempotency. No gateway price calculation or database access is introduced.

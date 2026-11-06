@@ -99,6 +99,7 @@ model Inventory {
 }
 
 model Promotion {
+  revision Int @default(0)
   id        String            @id @default(uuid()) @db.Uuid
   name      String
   type      PromotionType

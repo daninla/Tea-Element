@@ -22,6 +22,8 @@ import {
   CATALOG_ADMIN_PATTERNS,
   Role,
   type AdminCategory,
+  type AdminPromotion,
+  type AdminPromotionPage,
   type AdminProduct,
   type AdminProductPage,
   type AdminCategoryPage,
@@ -69,6 +71,54 @@ function context(r: AuthenticatedRequest) {
 @Roles(Role.ADMIN)
 export class CatalogAdminController {
   constructor(@Inject(ForwardCatalog) private readonly catalog: ForwardCatalog) {}
+  @Get('promotions') promotions(
+    @Query() x: ListDto,
+    @Req() r: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.catalog.execute<AdminPromotionPage>(CATALOG_ADMIN_PATTERNS.read, {
+      input: { kind: 'PROMOTIONS', page: x.page ?? 1, q: x.q, active: x.active },
+      context: context(r),
+    });
+  }
+  @Get('promotions/:id') promotion(
+    @Param() x: IdDto,
+    @Req() r: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.catalog.execute<AdminPromotion>(CATALOG_ADMIN_PATTERNS.read, {
+      input: { kind: 'PROMOTION', id: x.id },
+      context: context(r),
+    });
+  }
+  @Post('promotions') @HttpCode(200) createPromotion(
+    @Body() input: unknown,
+    @Headers('idempotency-key') key: string,
+    @Req() r: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.catalog.execute<AdminPromotion>(CATALOG_ADMIN_PATTERNS.write, {
+      input: { kind: 'CREATE_PROMOTION', input, key },
+      context: context(r),
+    });
+  }
+  @Patch('promotions/:id') updatePromotion(
+    @Param() x: IdDto,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string,
+    @Req() r: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    const { input, expectedRevision } = updateBody(body);
+    return this.catalog.execute<AdminPromotion>(CATALOG_ADMIN_PATTERNS.write, {
+      input: { kind: 'UPDATE_PROMOTION', id: x.id, input, expectedRevision, key },
+      context: context(r),
+    });
+  }
   @Get('products') products(
     @Query() x: ListDto,
     @Req() r: AuthenticatedRequest,

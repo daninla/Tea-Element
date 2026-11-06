@@ -51,6 +51,20 @@ export const productInput = z
       .max(20),
   })
   .strict();
+export const promotionInput = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    type: z.enum(['PERCENT', 'FIXED']),
+    value: z.number().int().min(1).max(2147483647),
+    startsAt: z.string().datetime(),
+    endsAt: z.string().datetime(),
+    isActive: z.boolean(),
+    targets: z
+      .array(z.object({ kind: z.enum(['PRODUCT', 'CATEGORY']), id: z.string().uuid() }).strict())
+      .min(1)
+      .max(50),
+  })
+  .strict();
 export const adminRead = z.discriminatedUnion('kind', [
   z
     .object({
@@ -71,12 +85,31 @@ export const adminRead = z.discriminatedUnion('kind', [
       section: unit.optional(),
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal('PROMOTIONS'),
+      page,
+      q: z.string().trim().max(100).optional(),
+      active: z.boolean().optional(),
+    })
+    .strict(),
+  z.object({ kind: z.literal('PROMOTION'), id: z.string().uuid() }).strict(),
   z.object({ kind: z.literal('AUDIT'), id: z.string().uuid(), page }).strict(),
 ]);
 const key = z.string().uuid(),
   id = z.string().uuid(),
   expectedRevision = z.number().int().min(0).max(2147483646);
 export const adminWrite = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('CREATE_PROMOTION'), input: promotionInput, key }).strict(),
+  z
+    .object({
+      kind: z.literal('UPDATE_PROMOTION'),
+      id,
+      expectedRevision,
+      input: promotionInput,
+      key,
+    })
+    .strict(),
   z.object({ kind: z.literal('CREATE_PRODUCT'), input: productInput, key }).strict(),
   z
     .object({ kind: z.literal('UPDATE_PRODUCT'), id, expectedRevision, input: productInput, key })

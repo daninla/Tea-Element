@@ -1,3 +1,7 @@
+import { AdminDashboardStore } from './domain/admin-dashboard-store';
+import { ReadAdminDashboard } from './application/read-admin-dashboard';
+import { PrismaAdminDashboardStore } from './infrastructure/prisma-admin-dashboard-store';
+import { AdminDashboardRpcController } from './presentation/admin-dashboard-rpc.controller';
 import { TransitionAdminOrder } from './application/transition-admin-order';
 import { Module } from '@nestjs/common';
 import { OrdersModule } from '../orders/orders.module';
@@ -8,9 +12,11 @@ import { PrismaAdminOrdersStore } from './infrastructure/prisma-admin-orders-sto
 import { AdminOrdersRpcController } from './presentation/admin-orders-rpc.controller';
 @Module({
   imports: [OrdersModule],
-  controllers: [AdminOrdersRpcController],
+  controllers: [AdminOrdersRpcController, AdminDashboardRpcController],
   providers: [
     ReadAdminOrders,
+    ReadAdminDashboard,
+    { provide: AdminDashboardStore, useClass: PrismaAdminDashboardStore },
     TransitionAdminOrder,
     ReadAdminOrder,
     { provide: AdminOrdersStore, useClass: PrismaAdminOrdersStore },

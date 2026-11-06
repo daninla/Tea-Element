@@ -1,3 +1,4 @@
+import { AdminDashboardController } from './presentation/admin-dashboard.controller';
 import { CatalogModule } from '../catalog/catalog.module';
 import { AdminOrdersController } from './presentation/admin-orders.controller';
 import { Module } from '@nestjs/common';
@@ -25,7 +26,7 @@ import { OrdersController, CartController } from './presentation/orders.controll
       },
     ]),
   ],
-  controllers: [OrdersController, CartController, AdminOrdersController],
+  controllers: [OrdersController, CartController, AdminOrdersController, AdminDashboardController],
   providers: [ForwardOrders, { provide: OrdersClient, useClass: RmqOrdersClient }],
 })
 export class OrdersModule {}

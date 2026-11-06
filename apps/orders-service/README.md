@@ -117,3 +117,11 @@ Outbox commit under the existing order lock. COD confirmed or paid online orders
 waits for StockDeducted and confirms COD collection. Replays are idempotent, stale/conflicting commands
 return 409. Admin detail includes actor audit and stockDeductedAt. Paid cancellation/physical returns
 remain future work. OrderCompleted snapshots queue for stage 7. See ADR 0013.
+
+## Operational dashboard (stage 6.6)
+
+ADMIN RPC `admin.orders.dashboard` accepts `{days:1|7|30}` with trusted context. It reports Kyiv calendar
+creation counts and current unlinked accounts, plus currently fulfilled/paid revenue recognized by first
+COMPLETED history time. Online and COD are separate; top snapshot product quantities retain gram/piece
+units. Repeatable Read, safe integer conversion and server asOf bound the report. No payment ledger or
+sibling database is read. See ADR 0017 for precise metric and settlement limits.

@@ -632,6 +632,179 @@ try {
   const accountsOnly = await http('/admin/orders?customerType=ACCOUNT', { cookie: adminCookie });
   assert.ok(accountsOnly.items.every((x) => x.userId !== null));
   await orders.order.deleteMany({ where: { id: { in: fixtures.map((x) => x.id) } } });
+  await http('/admin/dashboard', { status: 401 });
+  await http('/admin/dashboard', { cookie: await cookie(other), status: 403 });
+  await http('/admin/dashboard?days=2', { cookie: adminCookie, status: 400 });
+  await http('/admin/dashboard?days=7&userId=' + other, { cookie: adminCookie, status: 400 });
+  const liveReport = await http('/admin/dashboard?days=7', { cookie: adminCookie });
+  assert.equal(liveReport.series.length, 7);
+  assert.equal(liveReport.days, 7);
+  assert.ok(liveReport.asOf && liveReport.from);
+  for (const field of ['email', 'phone', 'accessToken', 'accessTokenHash', 'orders'])
+    assert.equal(liveReport[field], undefined);
+  const { PrismaAdminDashboardStore } = reqOrders(
+    './dist/modules/administration/infrastructure/prisma-admin-dashboard-store',
+  );
+  const dashboard = new PrismaAdminDashboardStore(orders),
+    asOf = new Date('2024-10-27T12:00:00Z');
+  const reportIds = [];
+  try {
+    const specs = [
+      {
+        status: 'COMPLETED',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'PAID',
+        total: 10100,
+        userId: accountUser,
+        createdAt: '2024-10-26T21:00:00Z',
+        at: '2024-10-27T00:00:00Z',
+        weight: 25,
+        price: 5050,
+      },
+      {
+        status: 'COMPLETED',
+        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentStatus: 'PAID',
+        total: 20200,
+        userId: null,
+        createdAt: '2024-10-26T20:59:59Z',
+        at: '2024-10-27T10:00:00Z',
+        weight: null,
+        price: 10100,
+      },
+      {
+        status: 'CANCELLED',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'UNPAID',
+        total: 30300,
+        userId: null,
+        createdAt: '2024-10-27T11:00:00Z',
+        at: null,
+        weight: 25,
+        price: 15150,
+      },
+      {
+        status: 'PAID',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'PAID',
+        total: 30300,
+        userId: null,
+        createdAt: '2024-10-27T11:30:00Z',
+        at: null,
+        weight: 25,
+        price: 15150,
+      },
+      {
+        status: 'COMPLETED',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'REFUNDED',
+        total: 30300,
+        userId: null,
+        createdAt: '2024-10-28T11:00:00Z',
+        at: '2024-10-27T11:00:00Z',
+        weight: 25,
+        price: 15150,
+      },
+      {
+        status: 'COMPLETED',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'PAID',
+        total: 99990,
+        userId: null,
+        createdAt: '2024-09-20T11:00:00Z',
+        at: '2024-10-26T19:00:00Z',
+        weight: 25,
+        price: 49995,
+      },
+      {
+        status: 'COMPLETED',
+        paymentMethod: 'ONLINE_CARD',
+        paymentStatus: 'PAID',
+        total: 30300,
+        userId: null,
+        createdAt: '2024-10-28T11:00:00Z',
+        at: '2024-10-27T13:00:00Z',
+        weight: 25,
+        price: 15150,
+      },
+    ];
+    const teaReportId = randomUUID(),
+      pieceReportId = randomUUID();
+    for (const x of specs) {
+      const id = randomUUID();
+      reportIds.push(id);
+      await orders.order.create({
+        data: {
+          ...stored,
+          id,
+          number: 'TE-' + randomUUID().replaceAll('-', '').toUpperCase(),
+          status: x.status,
+          paymentMethod: x.paymentMethod,
+          paymentStatus: x.paymentStatus,
+          userId: x.userId,
+          subtotal: x.total,
+          discount: 0,
+          total: x.total,
+          createdAt: new Date(x.createdAt),
+          receiptSentAt: new Date(),
+          idempotencyHash: randomBytes(32).toString('hex'),
+          items: [
+            {
+              productId: x.weight === null ? pieceReportId : teaReportId,
+              variantId: randomUUID(),
+              name: x.weight === null ? 'Report piece' : 'Report tea',
+              slug: 'report',
+              weightGrams: x.weight,
+              quantity: 2,
+              unitPrice: x.price,
+              originalPrice: x.price,
+            },
+          ],
+          ...(x.at
+            ? { history: { create: { status: 'COMPLETED', createdAt: new Date(x.at) } } }
+            : {}),
+        },
+      });
+    }
+    await orders.orderStatusHistory.create({
+      data: {
+        orderId: reportIds[5],
+        status: 'COMPLETED',
+        createdAt: new Date('2024-10-27T05:00:00Z'),
+      },
+    });
+    const report = await dashboard.read(1, asOf);
+    assert.equal(report.from, '2024-10-26T21:00:00.000Z');
+    assert.equal(report.createdOrders, 3);
+    assert.equal(report.unlinkedOrders, 2);
+    assert.equal(report.completedOrders, 2);
+    assert.equal(report.onlineRevenue, 10100);
+    assert.equal(report.codRevenue, 20200);
+    assert.equal(report.averageOrder, 15150);
+    assert.equal(report.series.length, 1);
+    assert.equal(report.series[0].day, '2024-10-27');
+    assert.deepEqual(
+      report.topProducts.map((x) => [x.productId, x.unit, x.quantity, x.revenue]),
+      [
+        [pieceReportId, 'PIECE', 2, 20200],
+        [teaReportId, 'GRAM', 50, 10100],
+      ],
+    );
+    const spring = await dashboard.read(1, new Date('2024-03-31T12:00:00Z'));
+    assert.equal(spring.from, '2024-03-30T22:00:00.000Z');
+    assert.equal(spring.completedOrders, 0);
+    assert.equal(spring.averageOrder, 0);
+    assert.deepEqual(spring.topProducts, []);
+    const month = await dashboard.read(30, asOf);
+    assert.equal(month.series.length, 30);
+    assert.equal(month.completedOrders, 3);
+    assert.equal(month.onlineRevenue, 110090);
+  } finally {
+    await orders.order.deleteMany({ where: { id: { in: reportIds } } });
+  }
+  console.log(
+    'Dashboard integration passed: ADMIN/strict input, current and historic period bounds, Kyiv DST changes, completion-time recognition, COD/online split, refunded/unfinished/future exclusions, duplicate history, guest linking semantics, gram/piece top sellers and empty days.',
+  );
   // Fulfillment: optimistic/idempotent admin commands and an acknowledged inventory deduction.
   const fulfillment = await http('/orders/guest', {
     method: 'POST',

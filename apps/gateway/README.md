@@ -100,3 +100,7 @@ Global JSON parser limits and payment routes are unchanged. See catalog-service 
 ADMIN GET/POST `/api/v1/admin/promotions` and GET/PATCH `/api/v1/admin/promotions/:id` forward to the
 catalog-admin boundary. Catalog independently validates actor, complete input, period, target ownership,
 revision and idempotency. No gateway price calculation or database access is introduced.
+
+GET `/api/v1/admin/dashboard?days=1|7|30` requires ADMIN and forwards to the orders-owned dashboard RPC.
+It returns no-store aggregates, not private bearer/contact fields. No cross-database aggregation is used;
+the UI reads recent orders and stock through existing independent protected routes.

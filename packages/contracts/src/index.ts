@@ -32,3 +32,5 @@ export * from './administration';
 export * from './inventory';
 
 export * from './catalog-admin';
+
+export * from './dashboard';

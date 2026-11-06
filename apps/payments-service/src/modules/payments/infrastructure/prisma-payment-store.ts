@@ -175,20 +175,36 @@ export class PrismaPaymentStore extends PaymentStore {
     });
   }
   async due() {
+    const through = new Date();
+    const ids = await this.db.$queryRaw<
+      { id: string }[]
+    >`SELECT p.id FROM payments p WHERE p.status IN ('CREATED','PENDING','SUCCEEDED','FAILED','EXPIRED') AND (p.next_reconcile_at<=${through} OR EXISTS(SELECT 1 FROM payment_admin_commands a WHERE a.payment_id=p.id AND a.attempted_at IS NULL)) ORDER BY EXISTS(SELECT 1 FROM payment_admin_commands a WHERE a.payment_id=p.id AND a.attempted_at IS NULL) DESC,p.next_reconcile_at,p.id LIMIT 20`;
     const rows = await this.db.payment.findMany({
-      where: {
-        status: { in: ['CREATED', 'PENDING', 'SUCCEEDED', 'FAILED', 'EXPIRED'] },
-        nextReconcileAt: { lte: new Date() },
-      },
-      orderBy: { nextReconcileAt: 'asc' },
-      take: 20,
+      where: { id: { in: ids.map((x) => x.id) } },
+      orderBy: [{ nextReconcileAt: 'asc' }, { id: 'asc' }],
     });
-    return rows.map(view);
+    const commands = await this.db.paymentAdminCommand.findMany({
+      where: { paymentId: { in: rows.map((x) => x.id) }, attemptedAt: null },
+      select: { id: true, paymentId: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 1000,
+    });
+    return rows.map((row) => ({
+      ...view(row),
+      reconcileCommandIds: commands.filter((c) => c.paymentId === row.id).map((c) => c.id),
+    }));
   }
-  async defer(id: string) {
-    await this.db.payment.update({
-      where: { id },
-      data: { nextReconcileAt: new Date(Date.now() + 30000) },
+  async defer(id: string, commandIds?: string[]) {
+    await this.db.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { id },
+        data: { nextReconcileAt: new Date(Date.now() + 30000) },
+      });
+      if (commandIds?.length)
+        await tx.paymentAdminCommand.updateMany({
+          where: { paymentId: id, attemptedAt: null, id: { in: commandIds } },
+          data: { attemptedAt: new Date() },
+        });
     });
   }
   async expire() {

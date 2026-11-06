@@ -6,6 +6,7 @@ import type {
 } from '@tea/contracts';
 import type { PaymentObservation, ProviderWebhook, PaymentIdentity } from './payment-provider';
 export interface StoredPayment extends PaymentView {
+  reconcileCommandIds?: string[];
   provider: string;
   cancelRequested: boolean;
 }
@@ -18,7 +19,7 @@ export abstract class PaymentStore {
   abstract auditOutcome(id: string, outcome: string, paymentId?: string): Promise<void>;
   abstract observe(observation: PaymentObservation, correlationId: string): Promise<void>;
   abstract due(): Promise<StoredPayment[]>;
-  abstract defer(id: string): Promise<void>;
+  abstract defer(id: string, commandIds?: string[]): Promise<void>;
   abstract expire(): Promise<void>;
   abstract claimRefund(): Promise<StoredPayment | null>;
   abstract refundResult(

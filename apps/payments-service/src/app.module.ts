@@ -1,3 +1,4 @@
+import { AdministrationModule } from './modules/administration/administration.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
@@ -25,6 +26,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     }),
     HealthModule,
     PaymentsModule,
+    AdministrationModule,
   ],
 })
 export class AppModule {}

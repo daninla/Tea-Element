@@ -36,3 +36,5 @@ export * from './catalog-admin';
 export * from './dashboard';
 
 export * from './customers';
+
+export * from './payment-administration';

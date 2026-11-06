@@ -540,6 +540,261 @@ try {
   });
   assert.equal(fulfilled.status, 'COMPLETED');
   assert.equal(fulfilled.paymentStatus, 'PAID');
+  const paymentActor = randomUUID(),
+    paymentAdminCookie = cookieFor(paymentActor, 'ADMIN');
+  await http('/admin/payments', { status: 401 });
+  await http('/admin/payments', { cookie: cookieFor(owner), status: 403 });
+  await http('/admin/payments/events', { cookie: cookieFor(owner), status: 403 });
+  await http('/admin/payments?page=0', { cookie: paymentAdminCookie, status: 400 });
+  await http('/admin/payments?status=invalid', { cookie: paymentAdminCookie, status: 400 });
+  await http('/admin/payments?from=2026-11-06T00:00:00Z&to=2026-11-05T00:00:00Z', {
+    cookie: paymentAdminCookie,
+    status: 400,
+  });
+  const adminTag = 'ADMIN-' + tag + '%_',
+    adminRows = Array.from({ length: 24 }, (_, i) => ({
+      id: randomUUID(),
+      orderId: randomUUID(),
+      orderNumber: adminTag + i,
+      amount: 10000 + i,
+      currency: 'UAH',
+      provider: i === 22 ? 'LIQPAY' : 'FAKE',
+      status: i === 23 ? 'REFUNDED' : 'SUCCEEDED',
+      paidAt: new Date('2020-01-01T12:00:00Z'),
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
+      nextReconcileAt: new Date('2099-01-01T00:00:00Z'),
+      createdAt: new Date('2020-01-01T12:00:00Z'),
+    }));
+  await db.payment.createMany({ data: adminRows });
+  const target = adminRows[0],
+    refundRow = await db.refund.create({
+      data: { paymentId: target.id, amount: target.amount, status: 'REVIEW_REQUIRED' },
+    });
+  const auditRows = Array.from({ length: 21 }, (_, i) => ({
+    id: randomUUID(),
+    paymentId: target.id,
+    rawPayload: {
+      data: 'private-data-marker',
+      signature: 'private-signature-marker',
+      card: 'private-card-marker',
+    },
+    signatureValid: i % 2 === 1,
+    outcome: i % 2 === 1 ? 'APPLIED' : 'INVALID_SIGNATURE',
+    createdAt: new Date('2020-01-01T12:00:00Z'),
+  }));
+  await db.paymentEvent.createMany({ data: auditRows });
+  const unassigned = await db.paymentEvent.create({
+    data: {
+      rawPayload: { signature: 'private-signature-marker' },
+      signatureValid: false,
+      outcome: 'INVALID_SIGNATURE',
+    },
+  });
+  const listPath = '/admin/payments?q=' + encodeURIComponent(adminTag),
+    pageA = await http(listPath, { cookie: paymentAdminCookie }),
+    pageB = await http(listPath + '&page=2', { cookie: paymentAdminCookie });
+  assert.equal(pageA.total, 24);
+  assert.equal(pageA.items.length, 20);
+  assert.equal(pageB.items.length, 4);
+  assert.equal(new Set([...pageA.items, ...pageB.items].map((x) => x.id)).size, 24);
+  assert.equal(
+    (await http('/admin/payments?q=' + target.id, { cookie: paymentAdminCookie })).total,
+    1,
+  );
+  assert.equal(
+    (await http(listPath + '&provider=LIQPAY', { cookie: paymentAdminCookie })).total,
+    1,
+  );
+  assert.equal(
+    (await http(listPath + '&status=REFUNDED', { cookie: paymentAdminCookie })).total,
+    1,
+  );
+  assert.equal(
+    (await http(listPath + '&refundOnly=true', { cookie: paymentAdminCookie })).total,
+    1,
+  );
+  assert.equal(
+    (await http(listPath + '&to=2020-01-01T12:00:00Z', { cookie: paymentAdminCookie })).total,
+    0,
+  );
+  assert.equal((await http(listPath + '&page=999', { cookie: paymentAdminCookie })).total, 24);
+  const detail = await http('/admin/payments/' + target.id, { cookie: paymentAdminCookie });
+  assert.equal(detail.refund.id, refundRow.id);
+  assert.equal(detail.refund.status, 'REVIEW_REQUIRED');
+  assert.equal(detail.payment.refundStatus, 'REVIEW_REQUIRED');
+  await http('/admin/payments/' + randomUUID(), { cookie: paymentAdminCookie, status: 404 });
+  const e1 = await http('/admin/payments/events?paymentId=' + target.id, {
+      cookie: paymentAdminCookie,
+    }),
+    e2 = await http('/admin/payments/events?paymentId=' + target.id + '&page=2', {
+      cookie: paymentAdminCookie,
+    });
+  assert.equal(e1.total, 21);
+  assert.equal(e1.items.length, 20);
+  assert.equal(e2.items.length, 1);
+  assert.equal(
+    (
+      await http('/admin/payments/events?paymentId=' + target.id + '&signatureValid=false', {
+        cookie: paymentAdminCookie,
+      })
+    ).total,
+    11,
+  );
+  const globalEvents = await http('/admin/payments/events?signatureValid=false', {
+    cookie: paymentAdminCookie,
+  });
+  assert.ok(globalEvents.items.some((x) => x.id === unassigned.id && x.paymentId === null));
+  for (const x of [pageA, detail, e1, globalEvents])
+    for (const marker of [
+      'private-data-marker',
+      'private-signature-marker',
+      'private-card-marker',
+      'rawPayload',
+    ])
+      assert.equal(JSON.stringify(x).includes(marker), false);
+  const reconcilePath = '/admin/payments/' + target.id + '/reconcile',
+    reconcileInput = { expectedStatus: 'SUCCEEDED', reason: 'Review provider outcome' },
+    commandKey = randomUUID();
+  await http(reconcilePath, {
+    method: 'POST',
+    body: reconcileInput,
+    key: randomUUID(),
+    cookie: cookieFor(owner),
+    status: 403,
+  });
+  await http(reconcilePath, {
+    method: 'POST',
+    body: { ...reconcileInput, amount: 1 },
+    key: randomUUID(),
+    cookie: paymentAdminCookie,
+    status: 400,
+  });
+  await http(reconcilePath, {
+    method: 'POST',
+    body: { ...reconcileInput, expectedStatus: 'PENDING' },
+    key: randomUUID(),
+    cookie: paymentAdminCookie,
+    status: 409,
+  });
+  const receipt = await http(reconcilePath, {
+    method: 'POST',
+    body: reconcileInput,
+    key: commandKey,
+    cookie: paymentAdminCookie,
+    status: 202,
+  });
+  assert.equal(receipt.status, 'QUEUED');
+  assert.deepEqual(
+    await http(reconcilePath, {
+      method: 'POST',
+      body: reconcileInput,
+      key: commandKey,
+      cookie: paymentAdminCookie,
+      status: 202,
+    }),
+    receipt,
+  );
+  await http(reconcilePath, {
+    method: 'POST',
+    body: { ...reconcileInput, reason: 'Different intent' },
+    key: commandKey,
+    cookie: paymentAdminCookie,
+    status: 409,
+  });
+  await http('/admin/payments/' + adminRows[22].id + '/reconcile', {
+    method: 'POST',
+    body: reconcileInput,
+    key: randomUUID(),
+    cookie: paymentAdminCookie,
+    status: 409,
+  });
+  await http('/admin/payments/' + adminRows[23].id + '/reconcile', {
+    method: 'POST',
+    body: { ...reconcileInput, expectedStatus: 'REFUNDED' },
+    key: randomUUID(),
+    cookie: paymentAdminCookie,
+    status: 409,
+  });
+  const adminCommands = await http('/admin/payments/' + target.id + '/commands', {
+    cookie: paymentAdminCookie,
+  });
+  assert.equal(adminCommands.total, 1);
+  assert.equal(adminCommands.items[0].actorId, paymentActor);
+  assert.equal(adminCommands.items[0].reason, reconcileInput.reason);
+  assert.equal(adminCommands.items[0].key, undefined);
+  const paymentChild = children.find((c) => c.service === 'payments-service');
+  paymentChild.kill('SIGSTOP');
+  try {
+    const raceTarget = {
+      ...target,
+      id: randomUUID(),
+      orderId: randomUUID(),
+      orderNumber: adminTag + 'race',
+    };
+    await db.payment.create({ data: raceTarget });
+    const { PrismaAdminPaymentsStore } = reqP(
+      './dist/modules/administration/infrastructure/prisma-admin-payments-store',
+    );
+    const adminStore = new PrismaAdminPaymentsStore(db),
+      manualStore = new PrismaPaymentStore(db);
+    const first = await adminStore.reconcile(
+      { paymentId: raceTarget.id, ...reconcileInput, key: randomUUID() },
+      paymentActor,
+    );
+    const captured = (await manualStore.due()).find((x) => x.id === raceTarget.id);
+    assert.ok(captured.reconcileCommandIds.includes(first.id));
+    const later = await adminStore.reconcile(
+      { paymentId: raceTarget.id, ...reconcileInput, key: randomUUID() },
+      paymentActor,
+    );
+    await manualStore.defer(raceTarget.id, captured.reconcileCommandIds);
+    assert.ok(
+      (await db.paymentAdminCommand.findUniqueOrThrow({ where: { id: first.id } })).attemptedAt,
+    );
+    assert.equal(
+      (await db.paymentAdminCommand.findUniqueOrThrow({ where: { id: later.id } })).attemptedAt,
+      null,
+    );
+    assert.ok(
+      (await db.payment.findUniqueOrThrow({ where: { id: raceTarget.id } })).nextReconcileAt >
+        new Date(),
+    );
+    const next = (await manualStore.due()).find((x) => x.id === raceTarget.id);
+    assert.ok(next.reconcileCommandIds.includes(later.id));
+    await manualStore.defer(raceTarget.id, next.reconcileCommandIds);
+    const beforeSchedule = (await db.payment.findUniqueOrThrow({ where: { id: raceTarget.id } }))
+      .nextReconcileAt;
+    const failureKey = randomUUID(),
+      brokenAdmin = new PrismaAdminPaymentsStore(
+        db.$extends({
+          query: {
+            paymentAdminCommand: {
+              create() {
+                throw new Error('Injected admin audit failure');
+              },
+            },
+          },
+        }),
+      );
+    await assert.rejects(() =>
+      brokenAdmin.reconcile(
+        { paymentId: raceTarget.id, ...reconcileInput, key: failureKey },
+        paymentActor,
+      ),
+    );
+    assert.equal(
+      (
+        await db.payment.findUniqueOrThrow({ where: { id: raceTarget.id } })
+      ).nextReconcileAt.getTime(),
+      beforeSchedule.getTime(),
+    );
+    assert.equal(await db.paymentAdminCommand.count({ where: { key: failureKey } }), 0);
+  } finally {
+    paymentChild.kill('SIGCONT');
+  }
+  console.log(
+    'Payment administration integration passed: strict ADMIN access, literal/date/status/provider/refund filters, stable pagination, metadata-only webhook audit, unattributed invalid callbacks, queued/idempotent reconciliation, inactive/terminal conflicts, captured-command acknowledgement, schedule-race recovery and atomic audit rollback.',
+  );
   console.log(
     'Payments integration passed: fresh migrations, repeatable catalog seed, guest/owner access boundary, signed/raw webhook audit, concurrent duplicates, atomic Outbox rollback, paid state, expiry and stock compensation, late-success refund, refund reordering, lost callback reconciliation, durable tombstones, idempotent retry/COD commands, legacy attempt recovery, unchanged deadlines, abandoned-attempt refund races and claimed refund quarantine.',
   );

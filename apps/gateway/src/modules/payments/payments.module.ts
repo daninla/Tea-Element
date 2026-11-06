@@ -1,3 +1,4 @@
+import { AdminPaymentsController } from './presentation/admin-payments.controller';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { readEnvironment } from '../../config/environment';
@@ -22,7 +23,7 @@ import { PaymentsController } from './presentation/payments.controller';
       },
     ]),
   ],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, AdminPaymentsController],
   providers: [ForwardPayments, { provide: PaymentsClient, useClass: RmqPaymentsClient }],
 })
 export class PaymentsModule {}

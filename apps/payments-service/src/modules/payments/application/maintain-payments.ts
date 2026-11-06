@@ -18,7 +18,9 @@ export class MaintainPayments {
       } catch {
         /* Provider failures never fabricate a success or cancellation. Deadline policy is independent. */
       }
-      await this.store.defer(payment.id);
+      if (payment.reconcileCommandIds)
+        await this.store.defer(payment.id, payment.reconcileCommandIds);
+      else await this.store.defer(payment.id);
     }
     await this.store.expire();
     const refund = await this.store.claimRefund();

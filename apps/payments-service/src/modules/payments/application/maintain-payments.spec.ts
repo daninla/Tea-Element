@@ -52,3 +52,20 @@ describe('MaintainPayments', () => {
     expect(provider.refund).toHaveBeenCalledTimes(1);
   });
 });
+it('acknowledges only captured reconciliation requests even when provider status is unavailable', async () => {
+  const commandIds = ['captured'];
+  const store = {
+    due: jest
+      .fn()
+      .mockResolvedValue([{ id: 'p', provider: 'FAKE', reconcileCommandIds: commandIds }]),
+    defer: jest.fn(),
+    expire: jest.fn(),
+    claimRefund: jest.fn().mockResolvedValue(null),
+  };
+  const provider = { getStatus: jest.fn().mockRejectedValue(new Error('offline')) };
+  await new MaintainPayments(
+    store as unknown as PaymentStore,
+    provider as unknown as PaymentProvider,
+  ).execute();
+  expect(store.defer).toHaveBeenCalledWith('p', commandIds);
+});

@@ -34,6 +34,7 @@ import { PaymentWorker } from './presentation/payment-worker';
     ]),
   ],
   controllers: [PaymentsRpcController],
+  exports: [PrismaService],
   providers: [
     PrismaService,
     RabbitEventBus,

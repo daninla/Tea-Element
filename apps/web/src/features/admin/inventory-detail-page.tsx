@@ -1,4 +1,5 @@
 'use client';
+import { AdminTable } from './admin-table';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -121,53 +122,71 @@ function InventoryHistory({ id }: { id: string }) {
             {!data.items.length ? (
               <p>{t('emptyHistory')}</p>
             ) : data.kind === 'PURCHASES' ? (
-              <ul className="admin-history inventory-history">
+              <AdminTable
+                caption={t('purchases')}
+                headings={[
+                  t('purchaseDate'),
+                  t('quantity'),
+                  t('purchaseCost'),
+                  t('supplier'),
+                  t('note'),
+                  t('actor'),
+                  t('recorded'),
+                ]}
+              >
                 {data.items.map((x) => (
-                  <li key={x.id}>
-                    <strong>
-                      {x.quantity} {t(x.unit === 'GRAM' ? 'grams' : 'pieces')} ·{' '}
-                      {formatMoney(x.purchasePriceTotal)}
-                    </strong>
-                    <p>
-                      {t('supplier')}: {x.supplier}
-                    </p>
-                    <p>
-                      {t('purchaseDate')}: {date(x.purchasedAt)}
-                    </p>
-                    <p>{x.note}</p>
-                    <p>
-                      {t('actor')}: {x.actorId}
-                    </p>
-                    <time dateTime={x.createdAt}>
-                      {t('recorded')}: {date(x.createdAt)}
-                    </time>
-                  </li>
+                  <tr key={x.id}>
+                    <td>{date(x.purchasedAt)}</td>
+                    <td className="admin-numeric">
+                      {x.quantity} {t(x.unit === 'GRAM' ? 'grams' : 'pieces')}
+                    </td>
+                    <td className="admin-numeric">{formatMoney(x.purchasePriceTotal)}</td>
+                    <td>{x.supplier}</td>
+                    <td className="admin-comment">{x.note}</td>
+                    <td>{x.actorId}</td>
+                    <td>
+                      <time dateTime={x.createdAt}>{date(x.createdAt)}</time>
+                    </td>
+                  </tr>
                 ))}
-              </ul>
+              </AdminTable>
             ) : (
-              <ul className="admin-history inventory-history">
+              <AdminTable
+                caption={t('movements')}
+                headings={[
+                  t('recorded'),
+                  t('operation'),
+                  t('quantity'),
+                  t('stockChange'),
+                  t('reservedChange'),
+                  t('note'),
+                  t('actor'),
+                  t('order'),
+                ]}
+              >
                 {data.items.map((x) => (
-                  <li key={x.id}>
-                    <strong>
-                      {t(`movementTypes.${x.type}`)} · {x.quantity}{' '}
-                      {t(x.unit === 'PIECE' ? 'pieces' : 'grams')}
-                    </strong>
-                    <p>
-                      {t('stockChange')}: {x.stockDelta} · {t('reservedChange')}: {x.reservedDelta}
-                    </p>
-                    {x.note && <p>{x.note}</p>}
-                    <p>
-                      {t('actor')}: {x.actorId ?? t('system')}
-                    </p>
-                    {x.orderId && (
-                      <Link className="text-link" href={`/admin/orders/${x.orderId}`}>
-                        {t('order')}
-                      </Link>
-                    )}
-                    <time dateTime={x.createdAt}>{date(x.createdAt)}</time>
-                  </li>
+                  <tr key={x.id}>
+                    <td>
+                      <time dateTime={x.createdAt}>{date(x.createdAt)}</time>
+                    </td>
+                    <td>{t(`movementTypes.${x.type}`)}</td>
+                    <td className="admin-numeric">
+                      {x.quantity} {t(x.unit === 'PIECE' ? 'pieces' : 'grams')}
+                    </td>
+                    <td className="admin-numeric">{x.stockDelta}</td>
+                    <td className="admin-numeric">{x.reservedDelta}</td>
+                    <td className="admin-comment">{x.note}</td>
+                    <td>{x.actorId ?? t('system')}</td>
+                    <td>
+                      {x.orderId && (
+                        <Link className="text-link" href={'/admin/orders/' + x.orderId}>
+                          {t('order')}
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </ul>
+              </AdminTable>
             )}
             <nav className="account-links" aria-label={t('pagination')}>
               <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

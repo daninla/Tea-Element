@@ -29,6 +29,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </Link>
         <p className="eyebrow">{t('panel')}</p>
         <nav aria-label={t('navigation')}>
+          <Link href="/admin" aria-current={pathname === '/admin' ? 'page' : undefined}>
+            {t('dashboard')}
+          </Link>
           <Link
             href="/admin/orders"
             aria-current={pathname.startsWith('/admin/orders') ? 'page' : undefined}

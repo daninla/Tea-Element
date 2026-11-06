@@ -1,4 +1,5 @@
 'use client';
+import { AdminTable } from './admin-table';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -23,16 +24,22 @@ export function CatalogAudit({ id }: { id: string }) {
         q.data && (
           <>
             {!q.data.items.length && <p>{t('empty')}</p>}
-            <ul>
+            <AdminTable
+              caption={t('history')}
+              headings={[t('recordedAt'), t('action'), t('actor')]}
+            >
               {q.data.items.map((x) => (
-                <li key={x.id}>
-                  <time dateTime={x.createdAt}>
-                    {new Date(x.createdAt).toLocaleString('uk-UA')}
-                  </time>{' '}
-                  · {t(x.kind)} · {t('actor')}: {x.actorId}
-                </li>
+                <tr key={x.id}>
+                  <td>
+                    <time dateTime={x.createdAt}>
+                      {new Date(x.createdAt).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })}
+                    </time>
+                  </td>
+                  <td>{t(x.kind)}</td>
+                  <td>{x.actorId}</td>
+                </tr>
               ))}
-            </ul>
+            </AdminTable>
             <div className="account-links">
               <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t('previous')}

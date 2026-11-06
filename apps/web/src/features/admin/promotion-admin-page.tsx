@@ -1,4 +1,5 @@
 'use client';
+import { AdminTable, AdminTableScroll } from './admin-table';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -66,19 +67,21 @@ export function PromotionAdminPage() {
             <option value="false">{t('no')}</option>
           </select>
         </label>
-        <Button type="submit">{t('search')}</Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            filters.reset();
-            setQ('');
-            setActive('');
-            setPage(1);
-          }}
-        >
-          {t('reset')}
-        </Button>
+        <div className="account-links">
+          <Button type="submit">{t('search')}</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              filters.reset();
+              setQ('');
+              setActive('');
+              setPage(1);
+            }}
+          >
+            {t('reset')}
+          </Button>
+        </div>
       </form>
       <Button
         variant="outline"
@@ -98,13 +101,15 @@ export function PromotionAdminPage() {
         list.data && (
           <>
             <p>{t('found', { count: list.data.total })}</p>
-            <div className="admin-table-scroll">
+            <AdminTableScroll label={t('title')}>
               <table className="admin-table">
                 <caption>{t('title')}</caption>
                 <thead>
                   <tr>
                     {['name', 'discount', 'period', 'enabled', 'edit'].map((x) => (
-                      <th key={x}>{t(x)}</th>
+                      <th scope="col" key={x}>
+                        {t(x)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -112,7 +117,7 @@ export function PromotionAdminPage() {
                   {list.data.items.map((x) => (
                     <tr key={x.id}>
                       <th scope="row">{x.name}</th>
-                      <td>
+                      <td className="admin-numeric">
                         {x.type === 'PERCENT'
                           ? x.value + '%'
                           : (x.value / 100).toLocaleString('uk-UA', {
@@ -156,7 +161,7 @@ export function PromotionAdminPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </AdminTableScroll>
             {!list.data.items.length && <p>{t('empty')}</p>}
             <nav className="account-links" aria-label={t('pagination')}>
               <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
@@ -288,20 +293,26 @@ function PromotionForm({
         </label>
         <p>{t('rules')}</p>
         <h3>{t('targets')}</h3>
-        <ul>
+        <AdminTable
+          caption={t('targets')}
+          headings={[t('targetKind'), t('targetName'), t('actions')]}
+        >
           {targets.map((x, i) => (
-            <li key={x.kind + ':' + x.id}>
-              {t(x.kind)}: {x.name}{' '}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTargets(targets.filter((_, n) => n !== i))}
-              >
-                {t('remove')}
-              </Button>
-            </li>
+            <tr key={x.kind + ':' + x.id}>
+              <td>{t(x.kind)}</td>
+              <th scope="row">{x.name}</th>
+              <td>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTargets(targets.filter((_, n) => n !== i))}
+                >
+                  {t('remove')}
+                </Button>
+              </td>
+            </tr>
           ))}
-        </ul>
+        </AdminTable>
         {!targets.length && <p>{t('chooseTarget')}</p>}
         <label className="commerce-field">
           {t('targetKind')}

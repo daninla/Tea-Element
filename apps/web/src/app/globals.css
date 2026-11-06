@@ -2165,3 +2165,290 @@ img {
 .catalog-editor select {
   max-width: 100%;
 }
+
+/* Operational admin workspace. Keep storefront styles outside this boundary. */
+.admin-shell {
+  --admin-border: color-mix(in srgb, var(--foreground) 35%, var(--surface));
+  --admin-header: color-mix(in srgb, var(--foreground) 8%, var(--surface));
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-sidebar .brand {
+  font-family: var(--font-inter), Arial, sans-serif;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: normal;
+}
+.admin-main h1 {
+  font-size: 24px;
+  margin-block: 8px 16px;
+}
+.admin-main h2 {
+  font-size: 18px;
+  margin-block: 20px 10px;
+}
+.admin-main h3 {
+  font-size: 15px;
+}
+.admin-sidebar {
+  padding: 16px;
+  background: var(--admin-header);
+  border-color: var(--admin-border);
+}
+.admin-sidebar .brand {
+  font-size: 18px;
+}
+.admin-sidebar nav {
+  gap: 4px;
+}
+.admin-sidebar nav a {
+  padding: 9px 12px;
+  border: 1px solid transparent;
+}
+.admin-sidebar nav a:hover,
+.admin-sidebar nav a[aria-current='page'] {
+  border-color: var(--admin-border);
+  background: var(--surface);
+  text-decoration: none;
+}
+.admin-topbar {
+  padding: 10px 20px;
+  border-color: var(--admin-border);
+}
+.admin-main {
+  padding: 20px;
+}
+.admin-shell .button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.admin-shell .button-outline {
+  border-color: var(--admin-border);
+  background: var(--surface);
+}
+.admin-shell .button:disabled {
+  opacity: 0.55;
+}
+.admin-shell input:not([type='checkbox']):not([type='radio']),
+.admin-shell select,
+.admin-shell textarea {
+  border: 1px solid var(--admin-border);
+  border-radius: 3px;
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 13px;
+  background: var(--surface);
+}
+.admin-shell input[readonly] {
+  background: var(--admin-header) !important;
+}
+.admin-shell .commerce-field {
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.admin-shell .commerce-field > input,
+.admin-shell .commerce-field > select,
+.admin-shell .commerce-field > textarea {
+  font-weight: 400;
+}
+.admin-filters {
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-header);
+  gap: 12px;
+  margin-block: 16px;
+  align-items: end;
+}
+.admin-filters .commerce-field {
+  margin: 0;
+}
+.admin-filters .button {
+  align-self: end;
+}
+.admin-shell .account-links {
+  gap: 8px;
+  margin-block: 12px;
+  align-items: center;
+}
+.admin-shell .commerce-card,
+.admin-shell .notice,
+.admin-shell .inventory-operation {
+  border: 1px solid var(--admin-border);
+  border-radius: 3px;
+  padding: 14px;
+  box-shadow: none;
+  background: var(--surface);
+}
+.admin-shell .catalog-editor {
+  max-width: none;
+  margin-block: 16px;
+}
+.admin-shell .catalog-editor .commerce-field {
+  margin-block: 12px;
+}
+.admin-shell .catalog-variant {
+  border-color: var(--admin-border);
+  border-radius: 3px;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+.admin-shell .catalog-variant .commerce-field {
+  margin: 0;
+}
+.admin-shell .catalog-image-item {
+  border: 1px solid var(--admin-border);
+  padding: 10px;
+}
+.admin-table-scroll {
+  border: 1px solid var(--admin-border);
+  margin-block: 12px;
+  max-height: 70vh;
+  background: var(--surface);
+  overscroll-behavior-inline: contain;
+}
+.admin-table {
+  min-width: 640px;
+  background: var(--surface);
+}
+.admin-table caption {
+  padding: 10px;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-header);
+  font-weight: 650;
+}
+.admin-table th,
+.admin-table td {
+  padding: 9px 10px;
+  border: 1px solid var(--admin-border);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.admin-table thead th {
+  background: var(--admin-header);
+  font-weight: 650;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.admin-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--foreground) 3%, var(--surface));
+}
+.admin-table tbody tr:hover {
+  background: var(--soft-sage);
+}
+.admin-table .admin-numeric {
+  text-align: right;
+  white-space: nowrap;
+}
+.admin-table a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.admin-table small {
+  font-size: 12px;
+  margin-top: 3px;
+}
+.admin-table .button {
+  min-width: 80px;
+}
+.admin-table-scroll:focus-visible {
+  outline: 2px solid var(--primary-ink);
+  outline-offset: 2px;
+}
+.admin-detail-grid {
+  gap: 16px;
+  margin-block: 16px;
+}
+.admin-facts {
+  gap: 0;
+  border: 1px solid var(--admin-border);
+}
+.admin-facts dt,
+.admin-facts dd {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-facts dt {
+  background: var(--admin-header);
+}
+.admin-facts dd {
+  border-left: 1px solid var(--admin-border);
+}
+.inventory-balances {
+  gap: 8px;
+  border: 0;
+}
+.inventory-balances > div {
+  border: 1px solid var(--admin-border);
+}
+.inventory-balances dt,
+.inventory-balances dd {
+  border: 0;
+}
+.inventory-balances dd {
+  margin: 0;
+}
+@media (min-width: 700px) {
+  .admin-shell .catalog-variant {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+  }
+}
+@media (min-width: 1100px) {
+  .admin-shell {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+}
+@media (max-width: 699px) {
+  .admin-main {
+    padding: 16px 12px;
+  }
+  .admin-shell .button {
+    min-height: 40px;
+  }
+  .admin-sidebar {
+    padding: 12px;
+  }
+  .admin-sidebar nav a {
+    padding: 8px;
+  }
+}
+.admin-revenue-bar {
+  display: block;
+  height: 4px;
+  background: var(--primary-ink);
+  margin-block: 5px 1px;
+}
+.admin-shell summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.admin-table-compact {
+  min-width: 0;
+}
+.admin-shell .account-form {
+  max-width: none;
+  gap: 12px;
+}
+@media (min-width: 1100px) {
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+}
+.admin-table thead th {
+  overflow-wrap: normal;
+  word-break: normal;
+}

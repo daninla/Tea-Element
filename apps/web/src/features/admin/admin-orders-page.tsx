@@ -1,4 +1,5 @@
 'use client';
+import { AdminTableScroll } from './admin-table';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -62,7 +63,7 @@ export function AdminOrdersPage() {
             {!orders.data.items.length ? (
               <p>{t('empty')}</p>
             ) : (
-              <div className="admin-table-scroll" role="region" aria-label={t('orders')}>
+              <AdminTableScroll label={t('orders')}>
                 <table className="admin-table">
                   <caption>{t('orders')}</caption>
                   <thead>
@@ -106,12 +107,12 @@ export function AdminOrdersPage() {
                           {t(order.paymentMethod === 'ONLINE_CARD' ? 'online' : 'cod')}
                           <small>{t(`paymentStatus.${order.paymentStatus ?? 'UNPAID'}`)}</small>
                         </td>
-                        <td>{formatMoney(order.total)}</td>
+                        <td className="admin-numeric">{formatMoney(order.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </AdminTableScroll>
             )}
             <nav aria-label={t('pagination')} className="account-links">
               <Button

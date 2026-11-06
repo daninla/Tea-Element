@@ -132,3 +132,11 @@ Fixed amounts are entered in hryvnias and converted exactly to kopecks; percenta
 Period inputs display the device timezone and are sent as UTC. Product/category target searches have
 bounded navigable pages and preserve named selections. Save/reload/review follows catalog retry and
 revision rules. Existing public prices/cart quotes recalculate using the best single active discount.
+
+## Operational admin layout (stage 6.6)
+
+`/admin` provides the dashboard with explicit reporting definitions, period controls, daily revenue bars/
+table, top products, current low-stock links and recent orders. Independent failures have explicit errors.
+The admin-shell scopes compact sans-serif headings, strong table/input borders, numeric formatting,
+keyboard-scrollable bounded tables and clear action areas. All list/history/audit views use semantic tables;
+editable variant/photo collections use bordered groups. Storefront styling remains unchanged.

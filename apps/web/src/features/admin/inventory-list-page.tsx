@@ -1,4 +1,5 @@
 'use client';
+import { AdminTableScroll } from './admin-table';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -44,7 +45,7 @@ export function InventoryListPage() {
             {!list.data.items.length ? (
               <p>{t('empty')}</p>
             ) : (
-              <div className="admin-table-scroll">
+              <AdminTableScroll label={t('title')}>
                 <table className="admin-table">
                   <caption>{t('title')}</caption>
                   <thead>
@@ -71,9 +72,9 @@ export function InventoryListPage() {
                             {!x.active && ' · ' + t('inactive')}
                           </small>
                         </th>
-                        <td>{x.stock}</td>
-                        <td>{x.reserved}</td>
-                        <td>
+                        <td className="admin-numeric">{x.stock}</td>
+                        <td className="admin-numeric">{x.reserved}</td>
+                        <td className="admin-numeric">
                           {x.available}
                           {x.available <= x.lowStockThreshold && <small>{t('low')}</small>}
                         </td>
@@ -81,7 +82,7 @@ export function InventoryListPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </AdminTableScroll>
             )}
             <nav className="account-links" aria-label={t('pagination')}>
               <Button

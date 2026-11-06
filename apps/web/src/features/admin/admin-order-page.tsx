@@ -1,4 +1,5 @@
 'use client';
+import { AdminTable } from './admin-table';
 import { AdminStockMovements } from './admin-stock-movements';
 import { AdminOrderActions } from './admin-order-actions';
 import Link from 'next/link';
@@ -105,22 +106,24 @@ export function AdminOrderPage({
       </div>
       <section>
         <h2>{t('items')}</h2>
-        <ul className="admin-order-items">
+        <AdminTable
+          caption={t('items')}
+          headings={[t('product'), t('portionLabel'), t('quantity'), t('unitPrice'), t('total')]}
+        >
           {x.items.map((item) => (
-            <li key={item.variantId}>
-              <strong>{item.name}</strong>
-              <span>
+            <tr key={item.variantId}>
+              <th scope="row">{item.name}</th>
+              <td>
                 {item.weightGrams === null
                   ? unitT('piece')
-                  : unitT('portion', { weight: item.weightGrams })}{' '}
-                × {item.quantity}
-              </span>
-              <span>
-                {formatMoney(item.unitPrice)} · {t('perItem')}
-              </span>
-            </li>
+                  : unitT('portion', { weight: item.weightGrams })}
+              </td>
+              <td className="admin-numeric">{item.quantity}</td>
+              <td className="admin-numeric">{formatMoney(item.unitPrice)}</td>
+              <td className="admin-numeric">{formatMoney(item.unitPrice * item.quantity)}</td>
+            </tr>
           ))}
-        </ul>
+        </AdminTable>
         <dl className="admin-facts admin-totals">
           <dt>{t('subtotal')}</dt>
           <dd>{formatMoney(x.subtotal)}</dd>
@@ -135,34 +138,39 @@ export function AdminOrderPage({
       <section>
         <h2>{t('audit')}</h2>
         {x.actions.length ? (
-          <ol className="admin-history">
-            {x.actions.map((action, index) => (
-              <li key={index}>
-                <strong>
+          <AdminTable
+            caption={t('audit')}
+            headings={[t('recordedAt'), t('status'), t('reason'), t('actor')]}
+          >
+            {x.actions.map((action, i) => (
+              <tr key={i}>
+                <td>
+                  <time dateTime={action.at}>{date(action.at)}</time>
+                </td>
+                <td>
                   {statusT(action.fromStatus)} → {statusT(action.status)}
-                </strong>
-                <p>{action.reason}</p>
-                <p>
-                  {t('actor')}: {action.actorId}
-                </p>
-                <time dateTime={action.at}>{date(action.at)}</time>
-              </li>
+                </td>
+                <td className="admin-comment">{action.reason}</td>
+                <td>{action.actorId}</td>
+              </tr>
             ))}
-          </ol>
+          </AdminTable>
         ) : (
           <p>{t('noActions')}</p>
         )}
       </section>
       <section>
         <h2>{t('history')}</h2>
-        <ol className="admin-history">
-          {x.history.map((step, index) => (
-            <li key={`${step.at}-${index}`}>
-              <strong>{statusT(step.status)}</strong>
-              <time dateTime={step.at}>{date(step.at)}</time>
-            </li>
+        <AdminTable caption={t('history')} headings={[t('recordedAt'), t('status')]}>
+          {x.history.map((step, i) => (
+            <tr key={step.at + '-' + i}>
+              <td>
+                <time dateTime={step.at}>{date(step.at)}</time>
+              </td>
+              <td>{statusT(step.status)}</td>
+            </tr>
           ))}
-        </ol>
+        </AdminTable>
       </section>
     </>
   );

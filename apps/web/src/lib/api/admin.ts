@@ -1,5 +1,7 @@
 import type {
   StockMovementPage,
+  AdminDashboard,
+  DashboardDays,
   AdminOrderFilters,
   AdminOrderPage,
   AdminOrderDetail,
@@ -7,6 +9,7 @@ import type {
 } from '@tea/contracts';
 import { request } from './orders';
 export const adminApi = {
+  dashboard: (days: DashboardDays) => request<AdminDashboard>('/admin/dashboard?days=' + days),
   movements: (id: string, page: number) =>
     request<StockMovementPage>(`/admin/orders/${encodeURIComponent(id)}/movements?page=${page}`),
   transition: ({ id, key, ...input }: AdminOrderTransition) =>

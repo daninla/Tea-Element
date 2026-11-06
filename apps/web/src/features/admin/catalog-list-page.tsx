@@ -1,4 +1,5 @@
 'use client';
+import { AdminTableScroll } from './admin-table';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -47,7 +48,7 @@ export function CatalogListPage() {
       <p className="eyebrow">{t('eyebrow')}</p>
       <h1>{t('products')}</h1>
       <p>{t('intro')}</p>
-      <Link className="text-link" href="/admin/products/new">
+      <Link className="button button-primary" href="/admin/products/new">
         {t('newProduct')}
       </Link>
       <form
@@ -80,8 +81,10 @@ export function CatalogListPage() {
             <option value="false">{t('hidden')}</option>
           </select>
         </label>
-        <Button type="submit">{t('search')}</Button>
-        <Link href="/admin/products">{t('reset')}</Link>
+        <div className="account-links">
+          <Button type="submit">{t('search')}</Button>
+          <Link href="/admin/products">{t('reset')}</Link>
+        </div>
       </form>
       {!filters ? (
         <p role="alert">{t('invalid')}</p>
@@ -93,13 +96,15 @@ export function CatalogListPage() {
         list.data && (
           <>
             <p role="status">{t('found', { count: list.data.total })}</p>
-            <div className="admin-table-scroll">
+            <AdminTableScroll label={t('products')}>
               <table className="admin-table">
                 <caption>{t('products')}</caption>
                 <thead>
                   <tr>
                     {['name', 'category', 'visibility', 'price'].map((x) => (
-                      <th key={x}>{t(x)}</th>
+                      <th scope="col" key={x}>
+                        {t(x)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -113,7 +118,7 @@ export function CatalogListPage() {
                       </th>
                       <td>{x.category.name}</td>
                       <td>{t(x.isActive ? 'active' : 'hidden')}</td>
-                      <td>
+                      <td className="admin-numeric">
                         {(Math.min(...x.variants.map((v) => v.price)) / 100).toLocaleString(
                           'uk-UA',
                           { style: 'currency', currency: 'UAH' },
@@ -123,7 +128,7 @@ export function CatalogListPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </AdminTableScroll>
             {!list.data.items.length && <p>{t('empty')}</p>}
             <nav className="account-links" aria-label={t('pagination')}>
               <Button

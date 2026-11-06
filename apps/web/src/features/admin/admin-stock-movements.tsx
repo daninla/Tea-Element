@@ -1,4 +1,5 @@
 'use client';
+import { AdminTable } from './admin-table';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -35,26 +36,34 @@ export function AdminStockMovements({
             {!query.data.items.length ? (
               <p>{t('noMovements')}</p>
             ) : (
-              <ul className="admin-history">
+              <AdminTable
+                caption={t('movements')}
+                headings={[
+                  t('recordedAt'),
+                  t('product'),
+                  t('operation'),
+                  t('quantity'),
+                  t('stockChange'),
+                  t('reservedChange'),
+                ]}
+              >
                 {query.data.items.map((x) => (
-                  <li key={x.id}>
-                    <strong>
-                      {x.productName} · {t(`movementTypes.${x.type}`)}
-                    </strong>
-                    <p>
-                      {x.quantity} {t(x.unit === 'PIECE' ? 'pieces' : 'grams')} · {t('stockChange')}
-                      : {x.stockDelta} · {t('reservedChange')}: {x.reservedDelta}
-                    </p>
-                    <time dateTime={x.createdAt}>
-                      {new Intl.DateTimeFormat('uk-UA', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                        timeZone: 'Europe/Kyiv',
-                      }).format(new Date(x.createdAt))}
-                    </time>
-                  </li>
+                  <tr key={x.id}>
+                    <td>
+                      <time dateTime={x.createdAt}>
+                        {new Date(x.createdAt).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })}
+                      </time>
+                    </td>
+                    <th scope="row">{x.productName}</th>
+                    <td>{t(`movementTypes.${x.type}`)}</td>
+                    <td className="admin-numeric">
+                      {x.quantity} {t(x.unit === 'PIECE' ? 'pieces' : 'grams')}
+                    </td>
+                    <td className="admin-numeric">{x.stockDelta}</td>
+                    <td className="admin-numeric">{x.reservedDelta}</td>
+                  </tr>
                 ))}
-              </ul>
+              </AdminTable>
             )}
             <nav className="account-links" aria-label={t('pagination')}>
               <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

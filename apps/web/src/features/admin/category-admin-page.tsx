@@ -1,4 +1,5 @@
 'use client';
+import { AdminTableScroll } from './admin-table';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -39,13 +40,15 @@ export function CategoryAdminPage() {
       ) : (
         list.data && (
           <>
-            <div className="admin-table-scroll">
+            <AdminTableScroll label={t('categories')}>
               <table className="admin-table">
                 <caption>{t('categories')}</caption>
                 <thead>
                   <tr>
                     {['name', 'section', 'visibility', 'edit'].map((x) => (
-                      <th key={x}>{t(x)}</th>
+                      <th scope="col" key={x}>
+                        {t(x)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -70,7 +73,7 @@ export function CategoryAdminPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </AdminTableScroll>
             <nav className="account-links" aria-label={t('pagination')}>
               <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
                 {t('previous')}

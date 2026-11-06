@@ -179,7 +179,7 @@ and history pagination. Browser checks at 375/1280px cover a demo purchase, prot
 write-off and supplier/cost history with no document overflow. Physical stock was restored after the demo
 receipt/write-off pair; the real-operation setup and final documentation remain unfinished.
 
-Remaining stage 6 scope includes promotion editing, dashboard/customers, paid returns
+Remaining stage 6 scope includes dashboard/customers, paid returns
 and refunds, configurable low-stock alerts and their email delivery. Stage 6 is not complete.
 
 ## Stage 6.4 — catalog editing and product photographs
@@ -201,7 +201,23 @@ Browser acceptance at 375/1280px covers category/product creation, changed price
 the storefront, image selection/upload, hidden records and filter reset after returning from a product.
 A regression test keeps unsaved admin forms mounted during background session refresh (including file
 chooser return). Browser demonstration product/category remain explicitly labeled and deactivated.
-Stage 6 still needs promotions, dashboard/customers, paid returns/refunds and low-stock notification setup.
+Stage 6 still needs dashboard/customers, paid returns/refunds and low-stock notification setup.
+
+## Stage 6.5 — promotion administration
+
+Implemented: ADMIN paginated promotion list/search/enabled filters, creation and revision-protected editing,
+percent/fixed discounts, explicit timezone-aware period fields, paginated product/category target selection,
+deactivation, idempotent saves and transactional actor audit. Public catalog and fresh server quotes reuse
+existing best-single-discount pricing, with half-open periods and nonnegative integer kopecks. Past order
+snapshots are unchanged. No new dependency/cache is introduced; see ADR 0016.
+
+Integration verifies public prices/quotes, overlapping targets, future/expired/disabled promotions, invalid
+percentages/targets, role checks, stable replay, conflicting revisions and audit rollback. PromotionStarted
+publication and consent-aware campaign delivery remain stage 7. Browser checks at 375/1280px verify
+creation, fixed/percent edits, live public prices (220 → 165 → 207.66 → 220 UAH), deactivation and no
+horizontal document overflow. The clearly labeled demonstration promotion remains disabled.
+Remaining stage 6 scope includes dashboard,
+customers, paid returns/refunds, payment administration and configurable low-stock notifications.
 
 ## Remaining stages
 
@@ -215,7 +231,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (315 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (324 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

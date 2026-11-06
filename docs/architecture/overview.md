@@ -36,6 +36,8 @@ Stage 6.3 adds catalog-local transactional purchases/adjustments, shared-row sto
 stable command replay snapshots and product-scoped inventory history; see ADR 0014.
 Stage 6.4 adds versioned product/category editing, immutable portion identities, transactional command
 audit and catalog-owned processed image files exposed through gateway; see ADR 0015.
+Stage 6.5 adds audited/versioned promotion management with bounded product/category targets and current
+server-side best-discount pricing; see ADR 0016.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

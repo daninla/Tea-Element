@@ -238,6 +238,23 @@ Table regions contain overflow, navigation remains available on desktop, and no 
 were observed. Remaining stage 6
 scope includes customers, paid returns/refunds, payment administration and configurable low-stock alerts.
 
+## Stage 6.7 — customer accounts and guest contact history
+
+Implemented: ADMIN account/guest lists with search, stable bounded pagination and strict table layouts;
+account metadata comes from auth, guest contact groups and purchase history from orders. Account history
+uses exact user_id; guest history uses null user_id plus normalized email. Matching emails never merge
+identity or bypass verified linking. Inactive/no-order CUSTOMER accounts remain visible; staff accounts
+are excluded. Latest guest contacts, completed-paid totals and actual purchased-product snapshots are
+shown with explicit unit and identity limits. No messages, consent/ownership edits or new events exist.
+
+Real integration covers active-ADMIN recheck, secret-field exclusion, current guest grouping, literal
+search/pagination, completed/refunded statistics and disjoint account/guest scopes. No schema change or
+new dependency is required. Preference inference and consent-aware marketing remain stage 7. Remaining
+stage 6 scope includes paid returns/refunds, payment administration and configurable low-stock alerts.
+Browser checks at 375/1280px verify account/guest lists, no-order account and purchased guest cards,
+filtered return from order detail, preserved search/reset, contained horizontal scrolling and no console
+errors. See ADR 0018.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
@@ -250,7 +267,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (330 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (338 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

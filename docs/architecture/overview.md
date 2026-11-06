@@ -40,6 +40,8 @@ Stage 6.5 adds audited/versioned promotion management with bounded product/categ
 server-side best-discount pricing; see ADR 0016.
 Stage 6.6 adds an orders-owned bounded operational dashboard, independent stock/recent-order reads and
 shared compact administrative tables; see ADR 0017.
+Stage 6.7 adds auth-owned customer account reads and orders-owned guest groups/purchase history with
+separate identity scopes, bounded pages and a shared administrative UI; see ADR 0018.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

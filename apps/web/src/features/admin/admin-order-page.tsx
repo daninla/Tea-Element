@@ -38,7 +38,9 @@ export function AdminOrderPage({
   if (order.isError)
     return (
       <>
-        <Link href={returnTo}>{t('back')}</Link>
+        <Link href={returnTo}>
+          {t(returnTo.startsWith('/admin/customers/') ? 'backCustomer' : 'back')}
+        </Link>
         <h1>
           {t(
             order.error instanceof OrdersApiError && order.error.status === 404
@@ -53,7 +55,7 @@ export function AdminOrderPage({
   return (
     <>
       <Link href={returnTo} className="text-link">
-        {t('back')}
+        {t(returnTo.startsWith('/admin/customers/') ? 'backCustomer' : 'back')}
       </Link>
       <h1 className="admin-order-number">{x.number}</h1>
       <p>

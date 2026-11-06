@@ -140,3 +140,12 @@ table, top products, current low-stock links and recent orders. Independent fail
 The admin-shell scopes compact sans-serif headings, strong table/input borders, numeric formatting,
 keyboard-scrollable bounded tables and clear action areas. All list/history/audit views use semantic tables;
 editable variant/photo collections use bordered groups. Storefront styling remains unchanged.
+
+## Customer workspace (stage 6.7)
+
+`/admin/customers` offers account and guest-contact tabs with URL filters/pages. `/accounts/:id` and
+`/guest?email=...` show safe contacts, completed purchase statistics, paginated order links and actual
+snapshot products in shared strict tables. Account metadata loads from auth before its history; matching
+emails do not merge ownership. Explicit notes distinguish unverified guest groups and account consent
+from verified identity or campaign permission. Errors/empty states are separate; validated return paths
+preserve filters. There are no account edits, guest-link shortcuts or send-message controls.

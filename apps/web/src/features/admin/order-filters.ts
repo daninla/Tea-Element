@@ -1,3 +1,4 @@
+import { customerDetailReturn } from './customer-filters';
 import { z } from 'zod';
 import { ORDER_STATUSES, type AdminOrderFilters } from '@tea/contracts';
 const day = z
@@ -47,6 +48,8 @@ export function parseOrderFilters(params: URLSearchParams): AdminOrderFilters | 
 }
 
 export function adminOrdersReturn(value: string | undefined) {
+  const customer = customerDetailReturn(value);
+  if (customer) return customer;
   if (!value || !/^\/admin\/orders(?:\?[^#\\]*)?$/.test(value)) return '/admin/orders';
   const query = value.includes('?') ? value.slice(value.indexOf('?') + 1) : '';
   return parseOrderFilters(new URLSearchParams(query)) ? value : '/admin/orders';

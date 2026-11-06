@@ -245,6 +245,93 @@ try {
     200,
   );
   await status(await api('/admin/auth/me', { cookie: cookies(adminLogin) }), 200);
+  const adminCustomerCookie = cookies(adminLogin);
+  await status(await api('/admin/customers/accounts'), 401);
+  await status(await api('/admin/customers/accounts', { cookie: cookies(raceLogin) }), 403);
+  await status(await api('/admin/customers/accounts?page=0', { cookie: adminCustomerCookie }), 400);
+  await status(
+    await api('/admin/customers/accounts?role=ADMIN', { cookie: adminCustomerCookie }),
+    400,
+  );
+  const customerTag = 'customer-search-' + randomUUID() + '%_';
+  const customerRows = Array.from({ length: 23 }, (_, i) => ({
+    id: randomUUID(),
+    email: 'customer-' + i + '-' + randomUUID() + '@example.test',
+    passwordHash: 'not-a-login-fixture',
+    firstName: 'Customer',
+    lastName: customerTag,
+    role: 'CUSTOMER',
+    isActive: i !== 0,
+  }));
+  users.push(...customerRows.map((x) => x.id));
+  await db.user.createMany({ data: customerRows });
+  const customerList = await (
+    await status(
+      await api('/admin/customers/accounts?q=' + encodeURIComponent(customerTag), {
+        cookie: adminCustomerCookie,
+      }),
+      200,
+    )
+  ).json();
+  const customerPage2 = await (
+    await status(
+      await api('/admin/customers/accounts?q=' + encodeURIComponent(customerTag) + '&page=2', {
+        cookie: adminCustomerCookie,
+      }),
+      200,
+    )
+  ).json();
+  assert.equal(customerList.total, 23);
+  assert.equal(customerList.items.length, 20);
+  assert.equal(customerPage2.items.length, 3);
+  assert.equal(new Set([...customerList.items, ...customerPage2.items].map((x) => x.id)).size, 23);
+  const customerDetail = await (
+    await status(
+      await api('/admin/customers/accounts/' + customerRows[0].id, { cookie: adminCustomerCookie }),
+      200,
+    )
+  ).json();
+  assert.equal(customerDetail.isActive, false);
+  for (const x of [...customerList.items, customerDetail])
+    for (const key of [
+      'passwordHash',
+      'refreshTokens',
+      'tokenHash',
+      'defaultDelivery',
+      'ip',
+      'userAgent',
+    ])
+      assert.equal(x[key], undefined);
+  await status(
+    await api('/admin/customers/accounts/' + admin.id, { cookie: adminCustomerCookie }),
+    404,
+  );
+  await status(
+    await api('/admin/customers/accounts/' + randomUUID(), { cookie: adminCustomerCookie }),
+    404,
+  );
+  const forgedCustomerAdmin = jwt.sign(
+    { sub: user.id, email, role: 'ADMIN' },
+    { secret, algorithm: 'HS256', issuer: 'tea-auth', audience: 'tea-gateway', expiresIn: '15m' },
+  );
+  await status(
+    await api('/admin/customers/accounts', { cookie: 'tea_access=' + forgedCustomerAdmin }),
+    403,
+  );
+  const emptyCustomerPage = await (
+    await status(
+      await api('/admin/customers/accounts?q=' + encodeURIComponent(customerTag) + '&page=999', {
+        cookie: adminCustomerCookie,
+      }),
+      200,
+    )
+  ).json();
+  assert.equal(emptyCustomerPage.items.length, 0);
+  assert.equal(emptyCustomerPage.total, 23);
+  console.log(
+    'Customer accounts integration passed: real ADMIN role, inactive/no-order CUSTOMER accounts, secret-field exclusion, strict inputs, literal search, stable pagination and missing accounts.',
+  );
+
   // Persisted session expiry is enforced even when a cookie is otherwise well formed.
   const expiryLogin = await status(
     await api('/auth/login', { method: 'POST', input: { email, password } }),

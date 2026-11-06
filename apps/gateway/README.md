@@ -104,3 +104,9 @@ revision and idempotency. No gateway price calculation or database access is int
 GET `/api/v1/admin/dashboard?days=1|7|30` requires ADMIN and forwards to the orders-owned dashboard RPC.
 It returns no-store aggregates, not private bearer/contact fields. No cross-database aggregation is used;
 the UI reads recent orders and stock through existing independent protected routes.
+
+## Customer workspace
+
+ADMIN customer-account list/detail routes live in the auth module; guest groups and bounded purchase
+history routes live in the orders module. All use trusted server-supplied actor/role context and no-store
+responses. No sibling database join, identity merge, messaging or account mutation is introduced.

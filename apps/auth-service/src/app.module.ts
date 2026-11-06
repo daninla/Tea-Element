@@ -1,3 +1,4 @@
+import { CustomersModule } from './modules/customers/customers.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
@@ -27,6 +28,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     AuthModule,
     AccountModule,
+    CustomersModule,
   ],
 })
 export class AppModule {}

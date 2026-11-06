@@ -1,3 +1,7 @@
+import { CustomerOrdersStore } from './domain/customer-orders-store';
+import { ReadCustomerOrders } from './application/read-customer-orders';
+import { PrismaCustomerOrdersStore } from './infrastructure/prisma-customer-orders-store';
+import { CustomerOrdersRpcController } from './presentation/customer-orders-rpc.controller';
 import { AdminDashboardStore } from './domain/admin-dashboard-store';
 import { ReadAdminDashboard } from './application/read-admin-dashboard';
 import { PrismaAdminDashboardStore } from './infrastructure/prisma-admin-dashboard-store';
@@ -12,9 +16,11 @@ import { PrismaAdminOrdersStore } from './infrastructure/prisma-admin-orders-sto
 import { AdminOrdersRpcController } from './presentation/admin-orders-rpc.controller';
 @Module({
   imports: [OrdersModule],
-  controllers: [AdminOrdersRpcController, AdminDashboardRpcController],
+  controllers: [AdminOrdersRpcController, AdminDashboardRpcController, CustomerOrdersRpcController],
   providers: [
     ReadAdminOrders,
+    ReadCustomerOrders,
+    { provide: CustomerOrdersStore, useClass: PrismaCustomerOrdersStore },
     ReadAdminDashboard,
     { provide: AdminDashboardStore, useClass: PrismaAdminDashboardStore },
     TransitionAdminOrder,

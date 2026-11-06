@@ -805,6 +805,153 @@ try {
   console.log(
     'Dashboard integration passed: ADMIN/strict input, current and historic period bounds, Kyiv DST changes, completion-time recognition, COD/online split, refunded/unfinished/future exclusions, duplicate history, guest linking semantics, gram/piece top sellers and empty days.',
   );
+  await http('/admin/customers/guests', { status: 401 });
+  await http('/admin/customers/guests', { cookie: await cookie(other), status: 403 });
+  await http('/admin/customers/history?kind=ACCOUNT&id=' + accountUser, {
+    cookie: await cookie(other),
+    status: 403,
+  });
+  await http(
+    '/admin/customers/history?kind=ACCOUNT&id=' +
+      accountUser +
+      '&email=' +
+      encodeURIComponent(body.email),
+    { cookie: adminCookie, status: 400 },
+  );
+  await http('/admin/customers/guests?page=0', { cookie: adminCookie, status: 400 });
+  await http('/admin/customers/history?kind=GUEST&email=invalid', {
+    cookie: adminCookie,
+    status: 400,
+  });
+  await http('/admin/customers/history?kind=GUEST&email=' + randomUUID() + '%40example.test', {
+    cookie: adminCookie,
+    status: 404,
+  });
+  const contactTag = 'contacts-' + randomUUID() + '%_',
+    contactIds = [];
+  try {
+    const contactRows = Array.from({ length: 23 }, (_, i) => ({
+      ...stored,
+      id: randomUUID(),
+      number: 'TE-' + randomUUID().replaceAll('-', '').toUpperCase(),
+      userId: null,
+      status: 'CANCELLED',
+      email: 'contact-' + i + '-' + tag + '@example.test',
+      firstName: 'Contact',
+      lastName: contactTag,
+      idempotencyHash: randomBytes(32).toString('hex'),
+      createdAt: new Date('2020-01-01T12:00:00Z'),
+      receiptSentAt: new Date(),
+    }));
+    contactIds.push(...contactRows.map((x) => x.id));
+    await orders.order.createMany({ data: contactRows });
+    const paidId = randomUUID();
+    contactIds.push(paidId);
+    await orders.order.create({
+      data: {
+        ...contactRows[0],
+        id: paidId,
+        number: 'TE-' + randomUUID().replaceAll('-', '').toUpperCase(),
+        status: 'COMPLETED',
+        paymentStatus: 'PAID',
+        firstName: 'Latest contact',
+        subtotal: 19900,
+        discount: 0,
+        total: 19900,
+        items: [
+          {
+            ...stored.items[0],
+            quantity: 2,
+            weightGrams: 25,
+            unitPrice: 9950,
+            originalPrice: 9950,
+          },
+        ],
+        idempotencyHash: randomBytes(32).toString('hex'),
+        createdAt: new Date('2021-01-01T12:00:00Z'),
+      },
+    });
+    const c1 = await http('/admin/customers/guests?q=' + encodeURIComponent(contactTag), {
+        cookie: adminCookie,
+      }),
+      c2 = await http('/admin/customers/guests?q=' + encodeURIComponent(contactTag) + '&page=2', {
+        cookie: adminCookie,
+      });
+    assert.equal(c1.total, 23);
+    assert.equal(c1.items.length, 20);
+    assert.equal(c2.items.length, 3);
+    assert.equal(new Set([...c1.items, ...c2.items].map((x) => x.email)).size, 23);
+    assert.equal(c1.items[0].firstName, 'Latest contact');
+    assert.equal(c1.items[0].orderCount, 2);
+    assert.equal(c1.items[0].completedTotal, 19900);
+    const guestUrl =
+      '/admin/customers/history?kind=GUEST&email=' +
+      encodeURIComponent(contactRows[0].email.toUpperCase());
+    const guestHistory = await http(guestUrl, { cookie: adminCookie });
+    assert.equal(guestHistory.summary.orderCount, 2);
+    assert.equal(guestHistory.summary.completedCount, 1);
+    assert.equal(guestHistory.summary.completedTotal, 19900);
+    assert.equal(guestHistory.summary.contact.firstName, 'Latest contact');
+    assert.equal(guestHistory.products[0].unit, 'GRAM');
+    assert.equal(guestHistory.products[0].quantity, 50);
+    assert.equal(guestHistory.products[0].revenue, 19900);
+    for (const o of guestHistory.orders.items)
+      for (const key of [
+        'accessToken',
+        'accessTokenHash',
+        'tokenNonce',
+        'idempotencyHash',
+        'requestHash',
+      ])
+        assert.equal(o[key], undefined);
+    const outOfRange = await http(guestUrl + '&page=999', { cookie: adminCookie });
+    assert.equal(outOfRange.orders.items.length, 0);
+    assert.equal(outOfRange.summary.contact.firstName, 'Latest contact');
+    assert.equal(outOfRange.orders.total, 2);
+    await orders.order.update({ where: { id: paidId }, data: { paymentStatus: 'REFUNDED' } });
+    const refunded = await http(guestUrl, { cookie: adminCookie });
+    assert.equal(refunded.summary.completedTotal, 0);
+    assert.deepEqual(refunded.products, []);
+    const sameEmailGuest = randomUUID();
+    contactIds.push(sameEmailGuest);
+    await orders.order.create({
+      data: {
+        ...contactRows[0],
+        id: sameEmailGuest,
+        number: 'TE-' + randomUUID().replaceAll('-', '').toUpperCase(),
+        email: body.email,
+        createdAt: new Date(),
+        idempotencyHash: randomBytes(32).toString('hex'),
+      },
+    });
+    const ownCustomer = await http('/admin/customers/history?kind=ACCOUNT&id=' + accountUser, {
+      cookie: adminCookie,
+    });
+    assert.equal(
+      ownCustomer.summary.orderCount,
+      await orders.order.count({ where: { userId: accountUser } }),
+    );
+    assert.ok(ownCustomer.orders.items.every((x) => x.userId === accountUser));
+    assert.ok(ownCustomer.orders.items.every((x) => x.id !== sameEmailGuest));
+    const sameEmailGroup = await http(
+      '/admin/customers/history?kind=GUEST&email=' + encodeURIComponent(body.email),
+      { cookie: adminCookie },
+    );
+    assert.ok(sameEmailGroup.orders.items.every((x) => x.userId === null));
+    assert.ok(sameEmailGroup.orders.items.some((x) => x.id === sameEmailGuest));
+    assert.ok(sameEmailGroup.orders.items.every((x) => x.id !== created.order.id));
+    const noOrders = await http('/admin/customers/history?kind=ACCOUNT&id=' + randomUUID(), {
+      cookie: adminCookie,
+    });
+    assert.equal(noOrders.summary.orderCount, 0);
+    assert.equal(noOrders.summary.contact, null);
+    assert.deepEqual(noOrders.products, []);
+    console.log(
+      'Customer history integration passed: ADMIN-only guest groups, stable/literal pagination, latest contacts, completed/refunded totals, gram purchase snapshots, secret exclusion and strict user_id versus unlinked email history without automatic linking.',
+    );
+  } finally {
+    await orders.order.deleteMany({ where: { id: { in: contactIds } } });
+  }
   // Fulfillment: optimistic/idempotent admin commands and an acknowledged inventory deduction.
   const fulfillment = await http('/orders/guest', {
     method: 'POST',

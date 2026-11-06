@@ -39,6 +39,8 @@ export interface LoginInput {
   password: string;
 }
 export interface AuthContext {
+  userId?: string;
+  role?: Role;
   correlationId: string;
   userAgent?: string;
   ip?: string;
@@ -58,6 +60,7 @@ export interface AccessClaims {
   role: Role;
 }
 export type AuthErrorCode =
+  | 'FORBIDDEN'
   | 'INVALID_CREDENTIALS'
   | 'EMAIL_UNAVAILABLE'
   | 'INVALID_SESSION'

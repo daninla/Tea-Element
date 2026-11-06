@@ -54,3 +54,11 @@ See ADR 0011 for expiry, retry and ownership policy.
 After `pnpm build`, `pnpm test:integration` creates/migrates `auth_stage1_test`, starts isolated auth/gateway
 processes on ports 4101/4100 and uses isolated broker queues. It cleans its own users, events and topology.
 The test database is retained so the next run can exercise migration deployment again.
+
+## Customer administration (stage 6.7)
+
+`modules/customers` serves ADMIN account list/detail on `admin.customers.accounts`. It independently
+checks the current active ADMIN actor, returns only a fixed contact/profile field allowlist and exposes
+only CUSTOMER accounts, including inactive/no-order accounts. Gateway GET `/api/v1/admin/customers/accounts`
+accepts page/q; GET `/:id` returns safe account details or 404. No credential, token or default-delivery
+fields are returned, and no account mutations are added. See ADR 0018.

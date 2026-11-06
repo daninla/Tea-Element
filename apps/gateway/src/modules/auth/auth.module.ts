@@ -1,3 +1,4 @@
+import { CustomerAccountsController } from './presentation/customer-accounts.controller';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
@@ -31,7 +32,7 @@ import { RolesGuard } from './presentation/roles.guard';
       },
     ]),
   ],
-  controllers: [AuthController, AdminAuthController, AccountController],
+  controllers: [AuthController, AdminAuthController, AccountController, CustomerAccountsController],
   providers: [
     ForwardAuth,
     { provide: AuthClient, useClass: RmqAuthClient },

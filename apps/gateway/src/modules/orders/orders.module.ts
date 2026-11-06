@@ -1,3 +1,4 @@
+import { CustomerOrdersController } from './presentation/customer-orders.controller';
 import { AdminDashboardController } from './presentation/admin-dashboard.controller';
 import { CatalogModule } from '../catalog/catalog.module';
 import { AdminOrdersController } from './presentation/admin-orders.controller';
@@ -26,7 +27,13 @@ import { OrdersController, CartController } from './presentation/orders.controll
       },
     ]),
   ],
-  controllers: [OrdersController, CartController, AdminOrdersController, AdminDashboardController],
+  controllers: [
+    OrdersController,
+    CartController,
+    AdminOrdersController,
+    AdminDashboardController,
+    CustomerOrdersController,
+  ],
   providers: [ForwardOrders, { provide: OrdersClient, useClass: RmqOrdersClient }],
 })
 export class OrdersModule {}

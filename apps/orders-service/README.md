@@ -125,3 +125,12 @@ creation counts and current unlinked accounts, plus currently fulfilled/paid rev
 COMPLETED history time. Online and COD are separate; top snapshot product quantities retain gram/piece
 units. Repeatable Read, safe integer conversion and server asOf bound the report. No payment ledger or
 sibling database is read. See ADR 0017 for precise metric and settlement limits.
+
+## Customer history (stage 6.7)
+
+ADMIN RPC `admin.customers.orders` provides GUESTS pages or HISTORY with a strict account-ID/guest-email
+selector. Gateway GET `/api/v1/admin/customers/guests` accepts page/q; GET `/api/v1/admin/customers/history`
+accepts kind=ACCOUNT&id=UUID or kind=GUEST&email=EMAIL, plus page. Account history uses only user_id;
+guest groups use only null user_id and canonical contact email. No email-based ownership expansion occurs.
+Counts/contacts/order pages/completed-paid product summaries share Repeatable Read. Guest contacts are
+unverified grouping keys, not authentication or campaign permissions. See ADR 0018.

@@ -219,6 +219,25 @@ horizontal document overflow. The clearly labeled demonstration promotion remain
 Remaining stage 6 scope includes dashboard,
 customers, paid returns/refunds, payment administration and configurable low-stock notifications.
 
+## Stage 6.6 — operational admin layout and dashboard
+
+Implemented: compact sans-serif admin typography, clear cell/input borders, bounded keyboard-scrollable
+tables with headers, and tabular order lines, histories, actor audit, warehouse movements/purchases and
+promotion targets. Catalog/stock forms retain bordered editable groups. Storefront layout is unchanged.
+
+`/admin` is now the operational overview. An ADMIN-only orders report provides 1/7/30 Kyiv calendar days,
+created/currently unlinked counts, fulfilled-paid revenue split online/COD, average check, zero-filled daily
+series and top snapshot product revenue with distinct gram/piece quantities. Independent current low-stock
+and recent-order widgets use existing gateway APIs. Metric definitions and snapshot/settlement limits are
+visible in the UI. No cache, dependency or schema change is introduced; see ADR 0017.
+
+Integration covers DST boundaries, recognition by first completion rather than creation, refund/unfinished/
+future exclusions, duplicate history, current guest linking semantics and empty reports. Browser checks at
+375/1280px cover all five list sections, order/stock detail, product editing and dashboard period changes.
+Table regions contain overflow, navigation remains available on desktop, and no browser console errors
+were observed. Remaining stage 6
+scope includes customers, paid returns/refunds, payment administration and configurable low-stock alerts.
+
 ## Remaining stages
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
@@ -231,7 +250,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (324 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (330 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

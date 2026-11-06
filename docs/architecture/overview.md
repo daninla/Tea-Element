@@ -38,6 +38,8 @@ Stage 6.4 adds versioned product/category editing, immutable portion identities,
 audit and catalog-owned processed image files exposed through gateway; see ADR 0015.
 Stage 6.5 adds audited/versioned promotion management with bounded product/category targets and current
 server-side best-discount pricing; see ADR 0016.
+Stage 6.6 adds an orders-owned bounded operational dashboard, independent stock/recent-order reads and
+shared compact administrative tables; see ADR 0017.
 Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.

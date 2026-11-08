@@ -1,5 +1,11 @@
 # Orders service
 
+Stage 6.9: ADMIN PATCH `/api/v1/admin/orders/:id/status` also accepts CANCELLED with expectedStatus,
+reason and Idempotency-Key. Only pre-shipment orders without stock deduction qualify; paid online
+orders emit OrderCancelled v2 to request reservation release and the existing full-refund saga.
+Status/history/audit/Outbox are atomic under the same lock as shipment. An accepted cancellation is
+not a confirmed refund. Customer cancellation permissions are unchanged. See ADR 0020.
+
 Owns `orders_db` and its generated Prisma client. HTTP 4003 exposes health/docs only; business RPC uses
 `orders.rpc`. `pnpm setup:dev` provisions an ignored private access secret; `pnpm db:migrate` deploys
 its Prisma migrations. `pnpm dev` starts the service, publishers, consumers, expiry and receipt workers.

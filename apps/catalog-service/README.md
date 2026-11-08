@@ -1,5 +1,9 @@
 # Catalog service
 
+Stage 6.9: stock consumers accept OrderCancelled v2 (`reason: ADMIN`) as well as v1. Both use the
+existing transactional deduplication and release gram/piece reservations without increasing physical
+stock. Deploy these compatible consumers before enabling the orders v2 producer. See ADR 0020.
+
 Owns `catalog_db` and its isolated generated Prisma client. Serves catalog read and internal quote RPC on
 `catalog.rpc`; HTTP port 4002 exposes only operational `/health` and `/docs`. Public clients use gateway.
 
@@ -98,8 +102,8 @@ integer total cost and add stock. Adjustments require an expected physical balan
 current reservations. UUID command keys bind actor/input; replay returns a persisted result snapshot.
 Stock/batch/movement/command audit commit atomically. List/history pages have 20 rows; low-stock filtering
 uses available stock and gram/piece thresholds. Manual movements have nullable order/event references.
-No new cross-service event or cache is claimed. Alert emails, valuation and threshold editing remain
-future work. See ADR 0014.
+No new cross-service event or cache is claimed. Valuation remains future work. Configurable thresholds and alert emails were removed from scope
+by the owner on 2026-11-08. See ADR 0014.
 
 ## Catalog management (stage 6.4)
 

@@ -266,7 +266,7 @@ A persisted wake-up queue prevents automatic scheduling from losing a new manual
 acknowledges only request IDs captured before its provider check. Attempt timestamps do not imply provider
 success; existing observation/Outbox/expiry/refund-quarantine policies remain authoritative. See ADR 0019.
 No manual paid-order cancellation/refund retry, partial-refund or physical-return UI is implemented here.
-Remaining stage 6 scope is coordinated paid cancellations/returns and configurable low-stock alerts.
+At this milestone, coordinated paid cancellations/returns remained open. Configurable low-stock thresholds and email alerts were subsequently removed from scope by the owner on 2026-11-08.
 Marketing, production deployment/provider/email acceptance, hardening and final documentation remain open.
 
 Verification: the real payment integration suite covers literal/date/refund filters before pagination,
@@ -278,8 +278,20 @@ fits the viewport and wide audit tables scroll inside their containers. No real 
 
 ## Remaining stages
 
+Stage 6.9 implements ADMIN cancellation before shipment, including full online-payment refund intent,
+gram/piece reservation release, command replay and audit. OrderCancelled v2 preserves the v1 protocol;
+existing background jobs confirm refunds or quarantine unknown results. See ADR 0020. Physical returns
+after shipment, partial refunds and review resolution remain open. Configurable low-stock thresholds
+and email alerts were removed from scope by the owner on 2026-11-08.
+
+Verification: all four integration suites pass, including mixed gram/piece cancellation, one full
+refund, audit/Outbox rollback, command replay, delayed success and shipment/cancellation races. Browser
+QA verifies required confirmation, cancellation audit, pending then confirmed Fake refund, reservation
+release and the order-filtered payment journal. At 375px the form fits without document overflow.
+No merchant payment or real refund was performed.
+
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
-- **6:** Finish coordinated paid-order cancellations/returns and configurable low-stock alerts.
+- **6:** Finish paid-order refunds/returns. Configurable low-stock thresholds and email alerts were removed from scope by the owner on 2026-11-08.
 - **7:** Event-based marketing and email campaigns.
 - **8:** SEO, accessibility, resilience, performance and complete acceptance tests.
 
@@ -288,7 +300,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (345 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (348 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

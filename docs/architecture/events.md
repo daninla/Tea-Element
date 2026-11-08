@@ -73,6 +73,11 @@ provider keys, raw callbacks or card data enter these events. All amounts are in
 
 OrderCancelled v1 also binds `payments.order_cancelled`. Its existing CUSTOMER/RESERVATION_TIMEOUT
 reason contract is preserved; RESERVATION_TIMEOUT covers payment deadline/failure compensation too.
+OrderCancelled v2 uses the same routing key and both existing catalog/payments queues with
+`{orderId, reason: "ADMIN"}`. It is emitted by an audited ADMIN cancellation before shipment; no actor
+or free-text reason is included. Both consumers accept v1/v2 and atomically deduplicate effects.
+Catalog releases gram/piece reservations and payments persists cancellation/refund intent; cancellation
+does not itself assert a completed refund. Deploy compatible consumers before the v2 producer.
 Payment routing keys are `orders.payment_requested`, `payments.payment_succeeded`,
 `payments.payment_failed`, `payments.payment_expired`, `payments.payment_refunded`, `orders.order_paid`.
 They use the existing durable exchange/retry/DLQ topology and confirmed Outbox publishers.

@@ -1,5 +1,9 @@
 # Architecture overview
 
+Stage 6.9 adds audited ADMIN cancellation before shipment and reuses the reservation-release/full-refund
+saga via OrderCancelled v2, preserving v1 consumers. A shared order lock serializes cancellation and
+shipment; provider-confirmed refund remains separate from cancellation. See ADR 0020.
+
 The target architecture is Next.js → NestJS gateway → five independent NestJS services.
 Only the gateway exposes business HTTP routes; local service HTTP listeners currently expose
 liveness and Swagger for development. Gateway has no database. Each domain service owns its database;

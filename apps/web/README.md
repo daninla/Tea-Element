@@ -157,3 +157,11 @@ invalid callbacks. Cards show existing refund state and reconciliation audit, an
 reasoned request for a background status check. An accepted receipt/attempt time never means payment or
 refund success. Unknown requests preserve safe retry metadata until explicit audit review. Raw webhook
 and hosted checkout data are excluded. Manual paid cancellation and operator refunds are a later workflow.
+
+## Pre-shipment cancellation (stage 6.9)
+
+ADMIN order detail supports cancellation with a reason and explicit confirmation, including full refund
+intent for paid online orders. It distinguishes cancelled/pending refund/provider-confirmed refund and
+links to the order's payment journal. Unknown responses preserve actor/order-scoped command metadata
+for replay, cleared at logout. Shipping/completion and cancellation remain distinct actions. Physical
+returns and partial-refund controls are not implemented in this increment.

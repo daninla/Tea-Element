@@ -1,5 +1,10 @@
 # payments-service
 
+Stage 6.9: the cancellation consumer supports OrderCancelled v1 and v2 (ADMIN), using the existing
+whole-order tombstone and full-refund jobs. Received funds are refunded independently of cancellation
+acknowledgement. Inactive-provider jobs are quarantined before any external refund request; uncertain
+results remain REVIEW_REQUIRED. No automatic administrative retry or partial-refund UI exists.
+
 HTTP liveness: `http://localhost:4004/health`; Swagger: `http://localhost:4004/docs`.
 From the repository root: `pnpm --filter @tea/payments-service dev`. Copy `.env.example` to `.env`
 for local overrides. Liveness does not query providers, databases or brokers.

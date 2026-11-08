@@ -1,5 +1,9 @@
 # Architecture overview
 
+Stage 6.10 adds orders-local transactional payment emails. Payment outcome application and durable
+notice enqueueing commit together; leased SMTP workers retry independently without sharing a database
+or exposing guest links in broker events. See ADR 0021 for SMTP delivery limits.
+
 Stage 6.9 adds audited ADMIN cancellation before shipment and reuses the reservation-release/full-refund
 saga via OrderCancelled v2, preserving v1 consumers. A shared order lock serializes cancellation and
 shipment; provider-confirmed refund remains separate from cancellation. See ADR 0020.

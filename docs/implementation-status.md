@@ -278,6 +278,18 @@ fits the viewport and wide audit tables scroll inside their containers. No real 
 
 ## Remaining stages
 
+Stage 6.10 implements transactional online-payment receipt and confirmed full-refund emails to the
+order email, independent of marketing consent. A local transactional queue, semantic deduplication,
+bounded retries, crash-recoverable leases and private HTML/text templates are implemented; SMTP
+acceptance does not guarantee exactly-once mailbox delivery. See ADR 0021. No historical backfill,
+campaigns, failed-mail administration or production deliverability acceptance is claimed.
+
+Verification: 353 unit tests, root lint/build/typecheck/format and all four integration suites pass.
+Mailpit captures both new message kinds without marketing consent; the payments suite also checks
+rollback, semantic replay, concurrent claims, retry exhaustion, expired leases and stale acknowledgements.
+Browser QA verifies desktop and narrow phone previews; long order/attempt references wrap correctly.
+All deliveries in this acceptance run are local demonstration messages, not production email.
+
 Stage 6.9 implements ADMIN cancellation before shipment, including full online-payment refund intent,
 gram/piece reservation release, command replay and audit. OrderCancelled v2 preserves the v1 protocol;
 existing background jobs confirm refunds or quarantine unknown results. See ADR 0020. Physical returns
@@ -300,7 +312,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (348 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (353 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

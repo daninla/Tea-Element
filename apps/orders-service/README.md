@@ -1,5 +1,20 @@
 # Orders service
 
+## Transactional payment emails (stage 6.10)
+
+`modules/notifications` delivers payment receipt and provider-confirmed full-refund messages to the
+immutable order email, including guests without marketing consent. Validated payment-event handling
+enqueues `(paymentId, kind)` once in the same transaction as state/Outbox/processed markers. Historical
+attempts notify about their own funds; a known refund suppresses obsolete, unclaimed receipts.
+
+Prisma Migrate owns the local `order_payment_notices` queue. SKIP LOCKED claims use 60-second random
+leases, SMTP occurs outside transactions, and only the current lease acknowledges delivery. Three
+attempts with 5/10-second failure backoff end in FAILED. Expired claims recover; no raw SMTP errors are
+stored/logged. SENT means SMTP acceptance. A crash after acceptance can resend the stable Message-ID;
+exactly-once mailbox delivery, bounce handling and administrative requeue are not claimed. Ukrainian
+HTML/text mail contains a private tracking link and explicitly identifies this demonstration store.
+Existing initial receipts are unchanged. See ADR 0021; production deliverability remains unverified.
+
 Stage 6.9: ADMIN PATCH `/api/v1/admin/orders/:id/status` also accepts CANCELLED with expectedStatus,
 reason and Idempotency-Key. Only pre-shipment orders without stock deduction qualify; paid online
 orders emit OrderCancelled v2 to request reservation release and the existing full-refund saga.

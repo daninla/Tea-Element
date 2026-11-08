@@ -85,6 +85,13 @@ They use the existing durable exchange/retry/DLQ topology and confirmed Outbox p
 PaymentRequested/OrderCancelled consumers commit processed markers atomically. Cancellation before
 creation leaves a durable order tombstone. Callback/reconciliation observations serialize by order ID;
 semantic status transitions produce one outcome even when callback deliveries have no event ID.
+
+Stage 6.10: the existing orders PaymentSucceeded/PaymentRefunded consumer also enqueues a local
+transactional email after validating the attempt/amount/currency. Notice, order/attempt changes and
+processed marker commit together. Unique `(paymentId, kind)` prevents semantic duplicate jobs; known
+historical attempts can notify without changing the active order. Refund-before-success suppresses
+obsolete receipts. No new event, queue subscription or contact/bearer payload is introduced. SMTP
+delivery and retry are independent from broker acknowledgement; see ADR 0021.
 Raw callback envelopes, signature validity and outcome are stored in payments_db before rejection;
 this audit is deliberately independent of the atomic payment-state/Outbox transaction.
 

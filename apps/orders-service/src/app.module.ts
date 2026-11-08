@@ -1,5 +1,6 @@
 import { AdministrationModule } from './modules/administration/administration.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
@@ -26,6 +27,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     HealthModule,
     OrdersModule,
+    NotificationsModule,
     AdministrationModule,
   ],
 })

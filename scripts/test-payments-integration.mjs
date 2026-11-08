@@ -559,6 +559,15 @@ try {
     },
   });
   await status(paidCancellation.order, 'PAID');
+  await waitFor(
+    async () =>
+      (
+        await orders.orderPaymentNotice.findUnique({
+          where: { paymentId_kind: { paymentId: paidCancellation.payment.id, kind: 'RECEIVED' } },
+        })
+      )?.status === 'SENT',
+    'payment received SMTP delivery',
+  );
   const cancelPath = `/admin/orders/${paidCancellation.order.id}/status`,
     cancelKey = randomUUID(),
     cancelBody = {
@@ -688,6 +697,24 @@ try {
   });
   assert.equal(pieceAfter.stockPieces, pieceBefore.stockPieces);
   assert.equal(pieceAfter.reservedPieces, pieceBefore.reservedPieces);
+  await waitFor(
+    async () =>
+      (
+        await orders.orderPaymentNotice.findUnique({
+          where: { paymentId_kind: { paymentId: paidCancellation.payment.id, kind: 'REFUNDED' } },
+        })
+      )?.status === 'SENT',
+    'payment refunded SMTP delivery',
+  );
+  const mail = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
+  for (const title of ['Оплату отримано', 'Повернення оплати підтверджено']) {
+    assert.ok(
+      mail.messages.some(
+        (x) => x.Subject.includes(paidCancellation.order.number) && x.Subject.includes(title),
+      ),
+      'transactional message captured by Mailpit',
+    );
+  }
   // Duplicate cancellation delivery and delayed payment-success never reopen the order or refund twice.
   for (const queue of ['catalog.order_cancelled', 'payments.order_cancelled']) {
     await channel.sendToQueue(
@@ -718,6 +745,10 @@ try {
   assert.equal(afterRefund.status, 'CANCELLED');
   assert.equal(afterRefund.paymentStatus, 'REFUNDED');
   assert.equal(await db.refund.count({ where: { paymentId: paidCancellation.payment.id } }), 1);
+  assert.equal(
+    await orders.orderPaymentNotice.count({ where: { paymentId: paidCancellation.payment.id } }),
+    2,
+  );
   await http(path, {
     method: 'PATCH',
     key: randomUUID(),
@@ -770,6 +801,183 @@ try {
   }
   console.log(
     'Paid cancellation integration passed: ADMIN-only, strict commands, atomic audit/Outbox rollback, concurrent replay, v2 cancellation, one full refund, reservation release, delayed success and shipment/cancellation race.',
+  );
+  // Deterministic local queue acceptance: no worker can claim the fixtures created after this pause.
+  const ordersChild = children.find((c) => c.service === 'orders-service');
+  ordersChild.kill('SIGSTOP');
+  try {
+    const { PrismaOrderStore } = reqO('./dist/modules/orders/infrastructure/prisma-order-store');
+    const { PrismaPaymentNoticeStore } = reqO(
+      './dist/modules/notifications/infrastructure/prisma-payment-notice-store',
+    );
+    const source = await orders.order.findUniqueOrThrow({
+      where: { id: paidCancellation.order.id },
+    });
+    const fixtureId = randomUUID(),
+      fixturePayment = randomUUID();
+    await orders.order.create({
+      data: {
+        ...source,
+        id: fixtureId,
+        number: 'TE-' + fixtureId.replaceAll('-', '').toUpperCase(),
+        status: 'AWAITING_PAYMENT',
+        paymentStatus: 'UNPAID',
+        paymentAttemptId: fixturePayment,
+        idempotencyHash: randomBytes(32).toString('hex'),
+        requestHash: randomBytes(32).toString('hex'),
+        receiptSentAt: new Date(),
+      },
+    });
+    await orders.paymentAttempt.create({ data: { id: fixturePayment, orderId: fixtureId } });
+    const success = event('PaymentSucceeded', fixtureId, {
+      paymentId: fixturePayment,
+      amount: source.total,
+      currency: 'UAH',
+    });
+    const broken = orders.$extends({
+      query: {
+        orderPaymentNotice: {
+          upsert() {
+            throw new Error('Injected notification queue failure');
+          },
+        },
+      },
+    });
+    await assert.rejects(new PrismaOrderStore(broken).handle(success));
+    assert.equal(
+      (await orders.order.findUniqueOrThrow({ where: { id: fixtureId } })).status,
+      'AWAITING_PAYMENT',
+    );
+    assert.equal(
+      await orders.processedEvent.findUnique({ where: { eventId: success.eventId } }),
+      null,
+    );
+    assert.equal(
+      (await orders.paymentAttempt.findUniqueOrThrow({ where: { id: fixturePayment } })).status,
+      'PENDING',
+    );
+    const localOrders = new PrismaOrderStore(orders),
+      notices = new PrismaPaymentNoticeStore(orders);
+    await localOrders.handle(success);
+    await localOrders.handle(success);
+    await localOrders.handle({ ...success, eventId: randomUUID() });
+    assert.equal(
+      await orders.orderPaymentNotice.count({ where: { paymentId: fixturePayment } }),
+      1,
+    );
+    let notice = await orders.orderPaymentNotice.findUniqueOrThrow({
+      where: { paymentId_kind: { paymentId: fixturePayment, kind: 'RECEIVED' } },
+    });
+    const past = new Date('2000-01-01T00:00:00Z');
+    await orders.orderPaymentNotice.update({
+      where: { id: notice.id },
+      data: { nextAttemptAt: past },
+    });
+    const claims = await Promise.all([notices.claim(), notices.claim()]);
+    const claimed = claims.find((x) => x?.id === notice.id);
+    assert.ok(claimed);
+    assert.equal(claims.filter((x) => x?.id === notice.id).length, 1);
+    await notices.finish(notice.id, claimed.leaseId, false);
+    notice = await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: notice.id } });
+    assert.equal(notice.status, 'PENDING');
+    assert.equal(notice.attempts, 1);
+    assert.ok(notice.nextAttemptAt > new Date());
+    await orders.orderPaymentNotice.update({
+      where: { id: notice.id },
+      data: { nextAttemptAt: past },
+    });
+    const retry = await notices.claim();
+    assert.equal(retry.id, notice.id);
+    await notices.finish(notice.id, claimed.leaseId, true);
+    assert.equal(
+      (await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: notice.id } })).status,
+      'PENDING',
+    );
+    await notices.finish(notice.id, retry.leaseId, false);
+    await orders.orderPaymentNotice.update({
+      where: { id: notice.id },
+      data: { nextAttemptAt: past },
+    });
+    const last = await notices.claim();
+    assert.equal(last.id, notice.id);
+    await notices.finish(notice.id, last.leaseId, false);
+    assert.equal(
+      (await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: notice.id } })).status,
+      'FAILED',
+    );
+    const recovered = await orders.orderPaymentNotice.create({
+      data: {
+        orderId: fixtureId,
+        paymentId: randomUUID(),
+        kind: 'REFUNDED',
+        amount: source.total,
+        nextAttemptAt: past,
+        leaseId: randomUUID(),
+        leaseUntil: past,
+        attempts: 1,
+      },
+    });
+    const recoveredLease = await notices.claim();
+    assert.equal(recoveredLease.id, recovered.id);
+    assert.notEqual(recoveredLease.leaseId, recovered.leaseId);
+    await notices.finish(recovered.id, recovered.leaseId, true);
+    assert.equal(
+      (await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: recovered.id } })).status,
+      'PENDING',
+    );
+    await notices.finish(recovered.id, recoveredLease.leaseId, true);
+    assert.equal(
+      (await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: recovered.id } })).status,
+      'SENT',
+    );
+    const exhausted = await orders.orderPaymentNotice.create({
+      data: {
+        orderId: fixtureId,
+        paymentId: randomUUID(),
+        kind: 'RECEIVED',
+        amount: source.total,
+        nextAttemptAt: past,
+        leaseId: randomUUID(),
+        leaseUntil: past,
+        attempts: 3,
+      },
+    });
+    await notices.claim();
+    assert.equal(
+      (await orders.orderPaymentNotice.findUniqueOrThrow({ where: { id: exhausted.id } })).status,
+      'FAILED',
+    );
+    // A known obsolete attempt still receives its own money notification, never changes active state.
+    const older = randomUUID();
+    await orders.paymentAttempt.create({ data: { id: older, orderId: fixtureId } });
+    const refund = event('PaymentRefunded', fixtureId, {
+      paymentId: older,
+      amount: source.total,
+      currency: 'UAH',
+    });
+    await localOrders.handle(refund);
+    await localOrders.handle({
+      ...success,
+      eventId: randomUUID(),
+      payload: { ...success.payload, paymentId: older },
+    });
+    assert.equal(
+      await orders.orderPaymentNotice.count({ where: { paymentId: older, kind: 'RECEIVED' } }),
+      0,
+    );
+    assert.equal(
+      await orders.orderPaymentNotice.count({ where: { paymentId: older, kind: 'REFUNDED' } }),
+      1,
+    );
+    assert.equal(
+      (await orders.order.findUniqueOrThrow({ where: { id: fixtureId } })).paymentStatus,
+      'PAID',
+    );
+  } finally {
+    ordersChild.kill('SIGCONT');
+  }
+  console.log(
+    'Payment email integration passed: actual SMTP receipt/refund without marketing consent, semantic/event deduplication, atomic rollback, concurrent claims, bounded retries, lease recovery, stale acknowledgement and reordered historical refunds.',
   );
   const paymentActor = randomUUID(),
     paymentAdminCookie = cookieFor(paymentActor, 'ADMIN');

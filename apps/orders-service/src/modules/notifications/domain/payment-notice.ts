@@ -1,10 +1,10 @@
-export type PaymentNoticeKind = 'RECEIVED' | 'REFUNDED';
+export type PaymentNoticeKind = 'RECEIVED' | 'REFUNDED' | 'SHIPPED' | 'COMPLETED';
 export interface PaymentNotice {
   id: string;
   leaseId: string;
   kind: PaymentNoticeKind;
   orderNumber: string;
-  paymentId: string;
+  paymentId: string | null;
   email: string;
   firstName: string;
   amount: number;

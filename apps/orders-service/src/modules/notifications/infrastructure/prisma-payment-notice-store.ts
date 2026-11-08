@@ -17,9 +17,13 @@ export class PrismaPaymentNoticeStore extends PaymentNoticeStore {
         data: { status: 'FAILED', leaseId: null, leaseUntil: null },
       });
       const rows = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id FROM order_payment_notices WHERE status='PENDING' AND attempts<3
-        AND next_attempt_at<=${now} AND (lease_until IS NULL OR lease_until<=${now})
-        ORDER BY next_attempt_at,created_at,id FOR UPDATE SKIP LOCKED LIMIT 1`;
+        SELECT n.id FROM order_payment_notices n WHERE n.status='PENDING' AND n.attempts<3
+        AND n.next_attempt_at<=${now} AND (n.lease_until IS NULL OR n.lease_until<=${now})
+        AND (n.kind<>'COMPLETED' OR NOT EXISTS (
+          SELECT 1 FROM order_payment_notices earlier WHERE earlier.order_id=n.order_id
+          AND earlier.kind='SHIPPED' AND earlier.status='PENDING'
+        ))
+        ORDER BY n.next_attempt_at,n.created_at,n.id FOR UPDATE OF n SKIP LOCKED LIMIT 1`;
       if (!rows[0]) return null;
       const notice = await tx.orderPaymentNotice.findUniqueOrThrow({
         where: { id: rows[0].id },
@@ -28,6 +32,7 @@ export class PrismaPaymentNoticeStore extends PaymentNoticeStore {
       // A refund can arrive while a crashed sender's lease is expiring.
       if (
         notice.kind === 'RECEIVED' &&
+        notice.paymentId &&
         (await tx.orderPaymentNotice.findUnique({
           where: { paymentId_kind: { paymentId: notice.paymentId, kind: 'REFUNDED' } },
         }))

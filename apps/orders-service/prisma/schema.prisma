@@ -60,7 +60,8 @@ model Order {
 model OrderPaymentNotice {
  id String @id @default(uuid()) @db.Uuid
  orderId String @map("order_id") @db.Uuid
- paymentId String @map("payment_id") @db.Uuid
+ paymentId String? @map("payment_id") @db.Uuid
+ dedupeKey String? @unique @map("dedupe_key")
  kind String
  amount Int
  currency String @default("UAH")

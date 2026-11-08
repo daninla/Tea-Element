@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
+import { enqueueFulfillmentNotice } from '../../notifications/infrastructure/enqueue-fulfillment-notice';
 import { canShip, canComplete, canCancel } from '../domain/fulfillment-policy';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -200,6 +201,7 @@ export class PrismaAdminOrdersStore extends AdminOrdersStore {
           payload: event as unknown as Prisma.InputJsonObject,
         },
       });
+      if (input.status !== 'CANCELLED') await enqueueFulfillmentNotice(tx, row, input.status);
     });
     return this.detail(input.id);
   }

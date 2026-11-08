@@ -10,7 +10,7 @@ services:
       [
         'sh',
         '-c',
-        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm --filter @tea/catalog-service db:generate && pnpm --filter @tea/auth-service db:migrate && DATABASE_URL=postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db pnpm --filter @tea/catalog-service db:migrate && DATABASE_URL=postgresql://orders:tea_dev_orders@postgres:5432/orders_db pnpm --filter @tea/orders-service db:migrate && DATABASE_URL=postgresql://payments:tea_dev_payments@postgres:5432/payments_db pnpm --filter @tea/payments-service db:migrate',
+        'corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm setup:dev && pnpm --filter @tea/auth-service db:generate && pnpm --filter @tea/catalog-service db:generate && pnpm --filter @tea/auth-service db:migrate && DATABASE_URL=postgresql://catalog:tea_dev_catalog@postgres:5432/catalog_db pnpm --filter @tea/catalog-service db:migrate && DATABASE_URL=postgresql://orders:tea_dev_orders@postgres:5432/orders_db pnpm --filter @tea/orders-service db:migrate && DATABASE_URL=postgresql://payments:tea_dev_payments@postgres:5432/payments_db pnpm --filter @tea/payments-service db:migrate && DATABASE_URL=postgresql://marketing:tea_dev_marketing@postgres:5432/marketing_db pnpm --filter @tea/marketing-service db:migrate',
       ]
 
     environment:
@@ -229,8 +229,7 @@ services:
       DATABASE_URL: postgresql://marketing:tea_dev_marketing@postgres:5432/marketing_db
       RABBITMQ_URL: amqp://tea:tea_dev@rabbitmq:5672
       REDIS_URL: redis://redis:6379
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
+      SMTP_URL: smtp://mailpit:1025
     depends_on:
       workspace:
         condition: service_completed_successfully

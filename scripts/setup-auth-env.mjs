@@ -65,3 +65,17 @@ if (!/^ORDER_ACCESS_SECRET=.+$/m.test(ordersContent)) {
 }
 await writeFile(ordersEnv, ordersContent, { mode: 0o600 });
 await chmod(ordersEnv, 0o600);
+
+const marketingEnv = path.join(root, 'apps/marketing-service/.env');
+let marketingContent;
+try {
+  marketingContent = await readFile(marketingEnv, 'utf8');
+} catch {
+  marketingContent = await readFile(path.join(root, 'apps/marketing-service/.env.example'), 'utf8');
+}
+if (!/^MARKETING_UNSUBSCRIBE_SECRET=.+$/m.test(marketingContent))
+  marketingContent =
+    marketingContent.replace(/^MARKETING_UNSUBSCRIBE_SECRET=.*$/m, '') +
+    `\nMARKETING_UNSUBSCRIBE_SECRET=${randomBytes(48).toString('hex')}\n`;
+await writeFile(marketingEnv, marketingContent, { mode: 0o600 });
+await chmod(marketingEnv, 0o600);

@@ -134,6 +134,7 @@ export type OrderCompleted = DomainEvent<
     firstName: string;
     lastName: string;
     marketingConsent: boolean;
+    marketingConsentAt?: string;
     total: number;
     items: { productId: string; quantity: number }[];
   }

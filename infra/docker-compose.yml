@@ -14,6 +14,7 @@ services:
       - ./postgres/catalog-access.sql:/docker-entrypoint-initdb.d/03-catalog-access.sql:ro
       - ./postgres/orders-access.sql:/docker-entrypoint-initdb.d/03-orders-access.sql:ro
       - ./postgres/payments-access.sql:/docker-entrypoint-initdb.d/04-payments-access.sql:ro
+      - ./postgres/marketing-access.sql:/docker-entrypoint-initdb.d/05-marketing-access.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U tea_bootstrap -d postgres']
       interval: 5s

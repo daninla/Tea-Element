@@ -38,3 +38,4 @@ export * from './dashboard';
 export * from './customers';
 
 export * from './payment-administration';
+export * from './marketing';

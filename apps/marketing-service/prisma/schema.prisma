@@ -1,0 +1,82 @@
+generator client {
+ provider = "prisma-client-js"
+ output = "../generated/prisma"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+ shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+model CustomerProfile {
+ id String @id @default(uuid()) @db.Uuid
+ email String @unique
+ firstName String @map("first_name")
+ consent Boolean @default(false)
+ consentAt DateTime? @map("consent_at")
+ tokenNonce String @map("token_nonce")
+ lastMarketingAt DateTime? @map("last_marketing_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ purchases MarketingPurchase[]
+ registrations MarketingRegistration[]
+ logs EmailLog[]
+ @@index([consent,lastMarketingAt])
+ @@map("customer_profiles")
+}
+model MarketingRegistration {
+ id String @id @db.Uuid
+ profileId String @map("profile_id") @db.Uuid
+ profile CustomerProfile @relation(fields:[profileId],references:[id])
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@map("marketing_registrations")
+}
+model MarketingPurchase {
+ id String @id @db.Uuid
+ profileId String @map("profile_id") @db.Uuid
+ completedAt DateTime @map("completed_at")
+ total Int
+ profile CustomerProfile @relation(fields:[profileId],references:[id])
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([profileId,completedAt])
+ @@map("marketing_purchases")
+}
+model EmailLog {
+ id String @id @default(uuid()) @db.Uuid
+ profileId String @map("profile_id") @db.Uuid
+ campaign String
+ cycleId String @map("cycle_id") @db.Uuid
+ status String @default("PENDING")
+ attempts Int @default(0)
+ firstAttemptAt DateTime? @map("first_attempt_at")
+ nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+ leaseId String? @map("lease_id") @db.Uuid
+ leaseUntil DateTime? @map("lease_until")
+ sentAt DateTime? @map("sent_at")
+ profile CustomerProfile @relation(fields:[profileId],references:[id])
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@unique([profileId,campaign,cycleId])
+ @@index([status,nextAttemptAt,leaseUntil])
+ @@map("email_logs")
+}
+model ProcessedEvent {
+ id String @id @db.Uuid
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@map("processed_events")
+}
+model Outbox {
+ id String @id @db.Uuid
+ eventName String @map("event_name")
+ payload Json
+ correlationId String @map("correlation_id")
+ publishedAt DateTime? @map("published_at")
+ attempts Int @default(0)
+ nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@index([publishedAt,nextAttemptAt])
+ @@map("outbox")
+}

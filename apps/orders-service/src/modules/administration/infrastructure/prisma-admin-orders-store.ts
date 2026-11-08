@@ -186,6 +186,9 @@ export class PrismaAdminOrdersStore extends AdminOrdersStore {
                   firstName: row.firstName,
                   lastName: row.lastName,
                   marketingConsent: !!row.marketingConsentAt,
+                  ...(row.marketingConsentAt
+                    ? { marketingConsentAt: row.marketingConsentAt.toISOString() }
+                    : {}),
                   total: row.total,
                   items: (row.items as unknown as QuotedItem[]).map((x) => ({
                     productId: x.productId,

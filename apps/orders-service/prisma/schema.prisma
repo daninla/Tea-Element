@@ -49,12 +49,34 @@ model Order {
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
  history OrderStatusHistory[]
+ paymentNotices OrderPaymentNotice[]
  @@index([userId, createdAt])
  @@index([email,createdAt])
  @@index([status, reservationExpiresAt])
  @@index([receiptSentAt])
  @@index([status,paymentExpiresAt])
  @@map("orders")
+}
+model OrderPaymentNotice {
+ id String @id @default(uuid()) @db.Uuid
+ orderId String @map("order_id") @db.Uuid
+ paymentId String @map("payment_id") @db.Uuid
+ kind String
+ amount Int
+ currency String @default("UAH")
+ status String @default("PENDING")
+ attempts Int @default(0)
+ nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+ leaseId String? @map("lease_id") @db.Uuid
+ leaseUntil DateTime? @map("lease_until")
+ sentAt DateTime? @map("sent_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+ @@unique([paymentId,kind])
+ @@index([status,nextAttemptAt,leaseUntil])
+ @@index([orderId,createdAt])
+ @@map("order_payment_notices")
 }
 model OrderStatusHistory {
  id String @id @default(uuid()) @db.Uuid

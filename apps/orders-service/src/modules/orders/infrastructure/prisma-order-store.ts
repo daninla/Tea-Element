@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { enqueuePaymentNotice } from '../../notifications/infrastructure/enqueue-payment-notice';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   UserEmailVerified,
@@ -324,7 +325,12 @@ export class PrismaOrderStore extends OrderStore {
         await tx.processedEvent.create({ data: { eventId: event.eventId } });
         return;
       }
-      if ('amount' in event.payload) {
+      if (
+        event.name === 'PaymentSucceeded' ||
+        event.name === 'PaymentFailed' ||
+        event.name === 'PaymentExpired' ||
+        event.name === 'PaymentRefunded'
+      ) {
         if (row.total !== event.payload.amount || event.payload.currency !== 'UAH')
           throw new OrderError('PAYMENT_MISMATCH', 'Payment does not match order', 400);
         const known = await tx.paymentAttempt.findUnique({
@@ -333,12 +339,18 @@ export class PrismaOrderStore extends OrderStore {
         if (row.paymentAttemptId !== event.payload.paymentId) {
           if (!known || known.orderId !== id)
             throw new OrderError('PAYMENT_MISMATCH', 'Unknown attempt', 400);
+          await enqueuePaymentNotice(tx, event, known.status === 'PaymentRefunded');
           await tx.paymentAttempt.update({ where: { id: known.id }, data: { status: event.name } });
           await tx.processedEvent.create({ data: { eventId: event.eventId } });
           return;
         }
         if (row.paymentMethod !== 'ONLINE_CARD')
           throw new OrderError('PAYMENT_MISMATCH', 'Payment method mismatch', 400);
+        await enqueuePaymentNotice(
+          tx,
+          event,
+          row.paymentStatus === 'REFUNDED' || known?.status === 'PaymentRefunded',
+        );
         if (known)
           await tx.paymentAttempt.update({ where: { id: known.id }, data: { status: event.name } });
         if (event.name === 'PaymentSucceeded' && row.paymentStatus !== 'REFUNDED') {

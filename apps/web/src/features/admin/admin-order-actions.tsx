@@ -113,7 +113,9 @@ export function AdminOrderActions({ order }: { order: AdminOrderDetail }) {
           </fieldset>
         </form>
       ) : (
-        !['SHIPPED', 'COMPLETED'].includes(order.status) && <p>{t('noTransitions')}</p>
+        !['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'SHIPPED', 'COMPLETED'].includes(
+          order.status,
+        ) && <p>{t('noTransitions')}</p>
       )}
     </section>
   );

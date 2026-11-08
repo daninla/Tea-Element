@@ -2,6 +2,7 @@
 import { AdminTable } from './admin-table';
 import { AdminStockMovements } from './admin-stock-movements';
 import { AdminOrderActions } from './admin-order-actions';
+import { AdminOrderCancellation } from './admin-order-cancellation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -66,6 +67,11 @@ export function AdminOrderPage({
         {t('refresh')}
       </Button>
       <AdminOrderActions order={x} />
+      <AdminOrderCancellation
+        key={x.id + ':' + x.status}
+        order={x}
+        actorId={session.data?.id ?? ''}
+      />
       <AdminStockMovements
         key={x.id}
         id={x.id}

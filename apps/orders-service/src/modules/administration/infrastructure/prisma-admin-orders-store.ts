@@ -1,5 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
-import { canShip, canComplete } from '../domain/fulfillment-policy';
+import { canShip, canComplete, canCancel } from '../domain/fulfillment-policy';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   AdminOrderFilters,
@@ -133,7 +133,13 @@ export class PrismaAdminOrdersStore extends AdminOrdersStore {
       }
       if (row.status !== input.expectedStatus)
         throw new OrderError('STALE_ORDER', 'Order changed; reload before retrying', 409);
-      if (!(input.status === 'SHIPPED' ? canShip(row) : canComplete(row)))
+      if (
+        !(input.status === 'CANCELLED'
+          ? canCancel(row)
+          : input.status === 'SHIPPED'
+            ? canShip(row)
+            : canComplete(row))
+      )
         throw new OrderError('INVALID_TRANSITION', 'Transition is not allowed', 409);
       await tx.order.update({
         where: { id: input.id },
@@ -158,26 +164,33 @@ export class PrismaAdminOrdersStore extends AdminOrdersStore {
       });
       const event: CheckoutEvent = {
         eventId: randomUUID(),
-        name: input.status === 'SHIPPED' ? 'OrderShipped' : 'OrderCompleted',
-        version: 1,
+        name:
+          input.status === 'CANCELLED'
+            ? 'OrderCancelled'
+            : input.status === 'SHIPPED'
+              ? 'OrderShipped'
+              : 'OrderCompleted',
+        version: input.status === 'CANCELLED' ? 2 : 1,
         occurredAt: new Date().toISOString(),
         correlationId,
         payload:
-          input.status === 'SHIPPED'
-            ? { orderId: row.id }
-            : {
-                orderId: row.id,
-                userId: row.userId,
-                email: row.email,
-                firstName: row.firstName,
-                lastName: row.lastName,
-                marketingConsent: !!row.marketingConsentAt,
-                total: row.total,
-                items: (row.items as unknown as QuotedItem[]).map((x) => ({
-                  productId: x.productId,
-                  quantity: x.quantity,
-                })),
-              },
+          input.status === 'CANCELLED'
+            ? { orderId: row.id, reason: 'ADMIN' }
+            : input.status === 'SHIPPED'
+              ? { orderId: row.id }
+              : {
+                  orderId: row.id,
+                  userId: row.userId,
+                  email: row.email,
+                  firstName: row.firstName,
+                  lastName: row.lastName,
+                  marketingConsent: !!row.marketingConsentAt,
+                  total: row.total,
+                  items: (row.items as unknown as QuotedItem[]).map((x) => ({
+                    productId: x.productId,
+                    quantity: x.quantity,
+                  })),
+                },
       } as CheckoutEvent;
       await tx.outbox.create({
         data: {

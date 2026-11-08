@@ -129,9 +129,9 @@ async function status(order, value) {
     `order ${value}`,
   );
 }
-async function create(variantId, ownerCookie) {
+async function create(variantId, ownerCookie, extraItems = []) {
   const input = {
-    items: [{ variantId, quantity: 1 }],
+    items: [{ variantId, quantity: 1 }, ...extraItems],
     firstName: 'Тест',
     lastName: 'Оплати',
     phone: '+380501234567',
@@ -540,6 +540,237 @@ try {
   });
   assert.equal(fulfilled.status, 'COMPLETED');
   assert.equal(fulfilled.paymentStatus, 'PAID');
+  // Stage 6.9: administrator cancellation before fulfillment reuses the durable refund saga.
+  const pieceVariant = await catalog.productVariant.findFirstOrThrow({
+    where: { weightGrams: null },
+  });
+  const pieceBefore = await catalog.inventory.findUniqueOrThrow({
+    where: { productId: pieceVariant.productId },
+  });
+  const paidCancellation = await create(variantId, undefined, [
+    { variantId: pieceVariant.id, quantity: 1 },
+  ]);
+  await http('/payments/simulate', {
+    method: 'POST',
+    body: {
+      number: paidCancellation.order.number,
+      token: paidCancellation.accessToken,
+      outcome: 'SUCCEEDED',
+    },
+  });
+  await status(paidCancellation.order, 'PAID');
+  const cancelPath = `/admin/orders/${paidCancellation.order.id}/status`,
+    cancelKey = randomUUID(),
+    cancelBody = {
+      status: 'CANCELLED',
+      expectedStatus: 'PAID',
+      reason: 'Demonstration customer requested cancellation before shipment',
+    };
+  await http(cancelPath, { method: 'PATCH', key: cancelKey, body: cancelBody, status: 401 });
+  await http(cancelPath, {
+    method: 'PATCH',
+    key: cancelKey,
+    cookie: cookieFor(owner),
+    body: cancelBody,
+    status: 403,
+  });
+  await http(cancelPath, { method: 'PATCH', cookie: adminCookie, body: cancelBody, status: 400 });
+  await http(cancelPath, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: { ...cancelBody, amount: 1 },
+    status: 400,
+  });
+  await http(cancelPath, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: { ...cancelBody, expectedStatus: 'AWAITING_PAYMENT' },
+    status: 409,
+  });
+  const { PrismaAdminOrdersStore } = reqO(
+    './dist/modules/administration/infrastructure/prisma-admin-orders-store',
+  );
+  // An audit or Outbox failure must roll back the status, history and publication together.
+  for (const model of ['adminOrderCommand', 'outbox']) {
+    const broken = orders.$extends({
+      query: {
+        [model]: {
+          create() {
+            throw new Error('Injected cancellation failure');
+          },
+        },
+      },
+    });
+    await assert.rejects(
+      new PrismaAdminOrdersStore(broken).transition(
+        { ...cancelBody, id: paidCancellation.order.id, key: randomUUID() },
+        owner,
+        randomUUID(),
+      ),
+    );
+    assert.equal(
+      (await orders.order.findUniqueOrThrow({ where: { id: paidCancellation.order.id } })).status,
+      'PAID',
+    );
+    assert.equal(
+      await orders.orderStatusHistory.count({
+        where: { orderId: paidCancellation.order.id, status: 'CANCELLED' },
+      }),
+      0,
+    );
+  }
+  const cancellations = await Promise.all(
+    Array.from({ length: 3 }, () =>
+      http(cancelPath, { method: 'PATCH', key: cancelKey, cookie: adminCookie, body: cancelBody }),
+    ),
+  );
+  assert.ok(cancellations.every((x) => x.status === 'CANCELLED'));
+  await http(cancelPath, {
+    method: 'PATCH',
+    key: cancelKey,
+    cookie: adminCookie,
+    body: { ...cancelBody, reason: 'Changed reason' },
+    status: 409,
+  });
+  await http(cancelPath, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: cancelBody,
+    status: 409,
+  });
+  const cancellationAudit = await orders.adminOrderCommand.findMany({
+    where: { orderId: paidCancellation.order.id },
+  });
+  assert.equal(cancellationAudit.length, 1);
+  assert.equal(cancellationAudit[0].reason, cancelBody.reason);
+  const cancellationEvents = await orders.outbox.findMany({
+    where: {
+      eventName: 'OrderCancelled',
+      payload: { path: ['payload', 'orderId'], equals: paidCancellation.order.id },
+    },
+  });
+  assert.equal(cancellationEvents.length, 1);
+  const cancellationEvent = cancellationEvents[0].payload;
+  assert.equal(cancellationEvent.version, 2);
+  assert.equal(cancellationEvent.payload.reason, 'ADMIN');
+  assert.equal('reasonText' in cancellationEvent.payload, false);
+  await waitFor(
+    async () =>
+      (await db.payment.findUniqueOrThrow({ where: { id: paidCancellation.payment.id } }))
+        .status === 'REFUNDED',
+    'administrator full refund',
+  );
+  await waitFor(
+    async () =>
+      (await orders.order.findUniqueOrThrow({ where: { id: paidCancellation.order.id } }))
+        .paymentStatus === 'REFUNDED',
+    'refunded order projection',
+  );
+  assert.equal(
+    (await db.refund.findUniqueOrThrow({ where: { paymentId: paidCancellation.payment.id } }))
+      .amount,
+    paidCancellation.order.total,
+  );
+  await waitFor(
+    async () =>
+      (
+        await catalog.stockReservation.findUniqueOrThrow({
+          where: { orderId: paidCancellation.order.id },
+        })
+      ).status === 'RELEASED',
+    'administrator reservation release',
+  );
+  const pieceAfter = await catalog.inventory.findUniqueOrThrow({
+    where: { productId: pieceVariant.productId },
+  });
+  assert.equal(pieceAfter.stockPieces, pieceBefore.stockPieces);
+  assert.equal(pieceAfter.reservedPieces, pieceBefore.reservedPieces);
+  // Duplicate cancellation delivery and delayed payment-success never reopen the order or refund twice.
+  for (const queue of ['catalog.order_cancelled', 'payments.order_cancelled']) {
+    await channel.sendToQueue(
+      `${namespace}.${queue}`,
+      Buffer.from(JSON.stringify(cancellationEvent)),
+      { persistent: true },
+    );
+  }
+  await channel.waitForConfirms();
+  const lateSuccess = event('PaymentSucceeded', paidCancellation.order.id, {
+    paymentId: paidCancellation.payment.id,
+    amount: paidCancellation.order.total,
+    currency: 'UAH',
+  });
+  channel.sendToQueue(
+    `${namespace}.orders.payment_succeeded`,
+    Buffer.from(JSON.stringify(lateSuccess)),
+    { persistent: true },
+  );
+  await channel.waitForConfirms();
+  await waitFor(
+    () => orders.processedEvent.findUnique({ where: { eventId: lateSuccess.eventId } }),
+    'delayed success after refund',
+  );
+  const afterRefund = await http(`/admin/orders/${paidCancellation.order.id}`, {
+    cookie: adminCookie,
+  });
+  assert.equal(afterRefund.status, 'CANCELLED');
+  assert.equal(afterRefund.paymentStatus, 'REFUNDED');
+  assert.equal(await db.refund.count({ where: { paymentId: paidCancellation.payment.id } }), 1);
+  await http(path, {
+    method: 'PATCH',
+    key: randomUUID(),
+    cookie: adminCookie,
+    body: { ...cancelBody, expectedStatus: 'COMPLETED' },
+    status: 409,
+  });
+  // Competing shipment/cancellation commands serialize under the same order lock.
+  const racing = await create(variantId);
+  await http('/payments/simulate', {
+    method: 'POST',
+    body: { number: racing.order.number, token: racing.accessToken, outcome: 'SUCCEEDED' },
+  });
+  await status(racing.order, 'PAID');
+  const transitions = new PrismaAdminOrdersStore(orders),
+    raceResults = await Promise.allSettled(
+      ['SHIPPED', 'CANCELLED'].map((status) =>
+        transitions.transition(
+          {
+            id: racing.order.id,
+            status,
+            expectedStatus: 'PAID',
+            reason: 'Race acceptance check',
+            key: randomUUID(),
+          },
+          owner,
+          randomUUID(),
+        ),
+      ),
+    );
+  assert.equal(raceResults.filter((x) => x.status === 'fulfilled').length, 1);
+  assert.equal(await orders.adminOrderCommand.count({ where: { orderId: racing.order.id } }), 1);
+  const winner = await orders.order.findUniqueOrThrow({ where: { id: racing.order.id } });
+  if (winner.status === 'SHIPPED') {
+    await waitFor(
+      async () =>
+        (await catalog.stockReservation.findUniqueOrThrow({ where: { orderId: racing.order.id } }))
+          .status === 'CONSUMED',
+      'shipment race winner',
+    );
+    assert.equal(await db.refund.count({ where: { paymentId: racing.payment.id } }), 0);
+  } else {
+    assert.equal(winner.status, 'CANCELLED');
+    await waitFor(
+      async () =>
+        (await catalog.stockReservation.findUniqueOrThrow({ where: { orderId: racing.order.id } }))
+          .status === 'RELEASED',
+      'cancellation race winner',
+    );
+  }
+  console.log(
+    'Paid cancellation integration passed: ADMIN-only, strict commands, atomic audit/Outbox rollback, concurrent replay, v2 cancellation, one full refund, reservation release, delayed success and shipment/cancellation race.',
+  );
   const paymentActor = randomUUID(),
     paymentAdminCookie = cookieFor(paymentActor, 'ADMIN');
   await http('/admin/payments', { status: 401 });

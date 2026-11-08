@@ -1,4 +1,18 @@
 import type { OrderStatus } from '@tea/contracts';
+export function canCancel(order: {
+  status: OrderStatus;
+  paymentMethod: string;
+  paymentStatus: string;
+  stockDeductedAt: Date | null;
+}) {
+  return (
+    !order.stockDeductedAt &&
+    (['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT'].includes(order.status) ||
+      (order.status === 'PAID' &&
+        order.paymentMethod === 'ONLINE_CARD' &&
+        order.paymentStatus === 'PAID'))
+  );
+}
 export function canShip(order: {
   status: OrderStatus;
   paymentMethod: string;

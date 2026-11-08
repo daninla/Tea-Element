@@ -25,6 +25,10 @@ export class MaintainPayments {
     await this.store.expire();
     const refund = await this.store.claimRefund();
     if (refund) {
+      if (refund.provider !== readEnvironment().PAYMENT_PROVIDER.toUpperCase()) {
+        await this.store.refundResult(refund.id, 'REVIEW_REQUIRED', randomUUID());
+        return;
+      }
       try {
         const result = await this.provider.refund(identity(refund));
         await this.store.refundResult(refund.id, result.status, randomUUID());

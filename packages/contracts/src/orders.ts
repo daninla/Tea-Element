@@ -114,10 +114,15 @@ export function checkoutRoutingKey(event: CheckoutEvent) {
     ? CHECKOUT_ROUTES.OrderCreatedV2
     : CHECKOUT_ROUTES[event.name];
 }
-export type OrderCancelled = DomainEvent<
+export type OrderCancelledV1 = DomainEvent<
   'OrderCancelled',
   { orderId: string; reason: 'CUSTOMER' | 'RESERVATION_TIMEOUT' }
 >;
+export type OrderCancelledV2 = Omit<OrderCancelledV1, 'version' | 'payload'> & {
+  version: 2;
+  payload: { orderId: string; reason: 'ADMIN' };
+};
+export type OrderCancelled = OrderCancelledV1 | OrderCancelledV2;
 export type OrderShipped = DomainEvent<'OrderShipped', { orderId: string }>;
 export type StockDeducted = DomainEvent<'StockDeducted', { orderId: string }>;
 export type OrderCompleted = DomainEvent<

@@ -45,11 +45,27 @@ describe('MaintainPayments', () => {
     expect(store.expire).toHaveBeenCalled();
   });
   it('quarantines an ambiguous refund instead of retrying it', async () => {
-    store.claimRefund.mockResolvedValueOnce({ id: 'p', amount: 100, currency: 'UAH' });
+    store.claimRefund.mockResolvedValueOnce({
+      id: 'p',
+      provider: 'FAKE',
+      amount: 100,
+      currency: 'UAH',
+    });
     provider.refund.mockRejectedValueOnce(new Error('timeout'));
     await useCase.execute();
     expect(store.refundResult).toHaveBeenCalledWith('p', 'REVIEW_REQUIRED', expect.any(String));
     expect(provider.refund).toHaveBeenCalledTimes(1);
+  });
+  it('quarantines a refund belonging to an inactive provider without contacting the selected provider', async () => {
+    store.claimRefund.mockResolvedValueOnce({
+      id: 'p',
+      provider: 'LIQPAY',
+      amount: 100,
+      currency: 'UAH',
+    });
+    await useCase.execute();
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(store.refundResult).toHaveBeenCalledWith('p', 'REVIEW_REQUIRED', expect.any(String));
   });
 });
 it('acknowledges only captured reconciliation requests even when provider status is unavailable', async () => {

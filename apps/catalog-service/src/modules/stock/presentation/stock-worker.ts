@@ -82,7 +82,17 @@ const shippedSchema = z
     payload: z.object({ orderId: z.string().uuid() }).strict(),
   })
   .strict();
-const schema = z.union([legacySchema, v2Schema, shippedSchema]);
+const cancelledV2Schema = z
+  .object({
+    eventId: z.string().uuid(),
+    version: z.literal(2),
+    occurredAt: z.string().datetime(),
+    correlationId: z.string().min(1).max(100),
+    name: z.literal('OrderCancelled'),
+    payload: z.object({ orderId: z.string().uuid(), reason: z.literal('ADMIN') }).strict(),
+  })
+  .strict();
+const schema = z.union([legacySchema, v2Schema, shippedSchema, cancelledV2Schema]);
 @Injectable()
 export class StockWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;

@@ -48,7 +48,7 @@ export interface AdminOrderDetail extends OrderView {
 
 export interface AdminOrderTransition {
   id: string;
-  status: 'SHIPPED' | 'COMPLETED';
+  status: 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
   expectedStatus: OrderStatus;
   reason: string;
   key: string;

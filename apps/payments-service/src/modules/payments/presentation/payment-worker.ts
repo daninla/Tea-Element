@@ -10,7 +10,7 @@ const envelope = {
   correlationId: z.string().min(1).max(100),
   version: z.literal(1),
 };
-const schema = z.discriminatedUnion('name', [
+const legacySchema = z.discriminatedUnion('name', [
   z
     .object({
       ...envelope,
@@ -41,6 +41,17 @@ const schema = z.discriminatedUnion('name', [
       payload: z
         .object({ orderId: z.string().uuid(), reason: z.enum(['CUSTOMER', 'RESERVATION_TIMEOUT']) })
         .strict(),
+    })
+    .strict(),
+]);
+const schema = z.union([
+  legacySchema,
+  z
+    .object({
+      ...envelope,
+      version: z.literal(2),
+      name: z.literal('OrderCancelled'),
+      payload: z.object({ orderId: z.string().uuid(), reason: z.literal('ADMIN') }).strict(),
     })
     .strict(),
 ]);

@@ -47,7 +47,7 @@ class AdminOrderFiltersDto {
   @IsOptional() @IsISO8601({ strict: true }) to?: string;
 }
 class AdminOrderTransitionDto {
-  @IsIn(['SHIPPED', 'COMPLETED']) status!: 'SHIPPED' | 'COMPLETED';
+  @IsIn(['SHIPPED', 'COMPLETED', 'CANCELLED']) status!: 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
   @IsIn(ORDER_STATUSES) expectedStatus!: OrderStatus;
   @IsString() @MinLength(3) @MaxLength(500) reason!: string;
 }

@@ -69,7 +69,7 @@ export class AdminOrdersRpcController {
       z
         .object({
           id: z.string().uuid(),
-          status: z.enum(['SHIPPED', 'COMPLETED']),
+          status: z.enum(['SHIPPED', 'COMPLETED', 'CANCELLED']),
           expectedStatus: z.enum(ORDER_STATUSES),
           reason: z.string().trim().min(3).max(500),
           key: z.string().uuid(),

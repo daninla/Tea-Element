@@ -1,4 +1,19 @@
-import { canShip, canComplete } from './fulfillment-policy';
+import { canShip, canComplete, canCancel } from './fulfillment-policy';
+it('cancels only before shipment and never after a stock deduction', () => {
+  const order = {
+    status: 'PAID' as const,
+    paymentMethod: 'ONLINE_CARD',
+    paymentStatus: 'PAID',
+    stockDeductedAt: null,
+  };
+  expect(canCancel(order)).toBe(true);
+  for (const status of ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT'] as const)
+    expect(canCancel({ ...order, status, paymentStatus: 'UNPAID' })).toBe(true);
+  for (const status of ['SHIPPED', 'COMPLETED', 'CANCELLED', 'REJECTED'] as const)
+    expect(canCancel({ ...order, status })).toBe(false);
+  expect(canCancel({ ...order, stockDeductedAt: new Date() })).toBe(false);
+  expect(canCancel({ ...order, paymentStatus: 'REFUNDED' })).toBe(false);
+});
 it('ships only confirmed COD or paid online orders', () => {
   expect(
     canShip({ status: 'CONFIRMED', paymentMethod: 'CASH_ON_DELIVERY', paymentStatus: 'UNPAID' }),

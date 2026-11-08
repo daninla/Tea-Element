@@ -44,7 +44,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             {t('inventory')}
           </Link>
-          {(['products', 'categories', 'promotions', 'customers', 'payments'] as const).map((x) => (
+          {(
+            ['products', 'categories', 'promotions', 'customers', 'payments', 'campaigns'] as const
+          ).map((x) => (
             <Link
               key={x}
               href={'/admin/' + x}

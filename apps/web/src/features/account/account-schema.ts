@@ -10,7 +10,7 @@ export function safeAccountNext(value: string | null) {
     return value;
   if (
     value &&
-    /^\/admin(?:\/(?:orders|inventory|products|categories|promotions|payments)(?:\/(?:[0-9a-f-]{36}|new))?)?(?:\?[A-Za-z0-9%=&+_.-]*)?$/.test(
+    /^\/admin(?:\/(?:orders|inventory|products|categories|promotions|payments|campaigns)(?:\/(?:[0-9a-f-]{36}|new))?)?(?:\?[A-Za-z0-9%=&+_.-]*)?$/.test(
       value,
     )
   )

@@ -1,7 +1,7 @@
 # Marketing service
 
-Stage 7.1 owns marketing_db and its Prisma client. Business RPC uses marketing.rpc; HTTP 4005 exposes
-health/docs only. No sibling database/source imports exist. See ADR 0023.
+Stage 7.2 owns marketing_db and its Prisma client. Business RPC uses marketing.rpc; HTTP 4005 exposes
+health/docs only. No sibling database/source imports exist. See ADRs 0023/0024.
 
 Root `pnpm setup:dev` creates a private persistent unsubscribe key; `pnpm db:migrate` includes this
 service. `pnpm --filter @tea/marketing-service db:generate` generates its client. Development starts
@@ -13,15 +13,26 @@ subscribe a new profile; new completion events carry optional marketingConsentAt
 pending mail and clears derived purchases/name, retaining minimal suppression/proof/audit state.
 It never changes order access or transactional messages.
 
-WIN_BACK waits at least 30 days or 1.5 times average purchase interval rounded up. One reminder is
-allowed per latest purchase, with a global seven-day address slot reserved before SMTP. Three attempts,
-backoff and leases use email_logs. Opt-out serializes with final SMTP submission. Stable Message-ID
-reduces ambiguity but cannot guarantee exactly-once mailbox delivery; bounce handling is future work.
+WIN_BACK waits a fixed 30 days after the latest completed purchase, once per purchase cycle.
+DISCOUNT sends a generic notice once per currently active promotion ID, linking to tea and teaware
+sale catalogs. No recommendation/consumption model, welcome series or manual bulk sends are needed.
+Promotion metadata comes from catalog RPC (100/page, max five pages/pass, continued cursor); an RPC
+failure skips the sending pass. Changes apply after synchronization, normally the next minute for a
+small catalog. Revision checks reject older snapshots; dates are checked again before SMTP.
 
-`MARKETING_WINBACK_ENABLED=false` is the default. Enable only for the intended environment/SMTP
-recipient population. This first reminder links to the catalog. Recommendations, promotions, welcome
-rules, account consent controls and administration/log pages remain subsequent increments. Production
-sender/domain configuration and deliverability are not accepted yet.
+`/admin/campaigns` has two switches and a filtered/paginated journal. Gateway RBAC and service input
+validation protect GET `/api/v1/admin/campaigns`, PATCH `/api/v1/admin/campaigns/:campaign` and GET `/api/v1/admin/email-logs`.
+PATCH requires a UUID Idempotency-Key and expectedRevision. Setting, cancellation and actor-bound
+command audit commit atomically; replay returns the original receipt and stale updates conflict.
+No raw errors, bearer tokens or profile details are exposed by the journal.
+
+Both rules default off. `MARKETING_WINBACK_ENABLED` is the legacy initial fallback only, overridden
+by a persisted setting once configured; DISCOUNT has no enablement env. Delivery reserves a shared
+seven-day address slot with its owning job ID; one pending job per address, discounts first. Three
+attempts, 5/10-second backoff and 60-second leases use email_logs. Opt-out and disable serialize with
+bounded final SMTP submission and cancel pending jobs. Cancelled cycles are not automatically resent
+when a rule is re-enabled. Stable Message-ID cannot guarantee exactly-once mailbox delivery.
+Production sender/domain configuration, bounce handling and deliverability are not accepted yet.
 
 The gateway exposes public POST `/api/v1/marketing/unsubscribe` with a signed proof body, trusted Origin
 and rate limit. `/unsubscribe#token=...` performs the idempotent operation without login. Tokens never

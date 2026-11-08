@@ -25,6 +25,7 @@ const env = {
   DATABASE_URL: url,
   EVENTS_NAMESPACE: namespace,
   MARKETING_RPC_QUEUE: namespace + '.marketing.rpc',
+  CATALOG_RPC_QUEUE: namespace + '.catalog.rpc',
   JWT_ACCESS_SECRET: secret,
   RABBITMQ_URL: 'amqp://tea:tea_dev@localhost:5672',
   CORS_ORIGIN: 'http://localhost:3000',
@@ -195,7 +196,7 @@ try {
   const slow = registration(`slow-${tag}@example.test`);
   await store.ingest(slow);
   await store.ingest(purchase(slow.payload.email, 80));
-  await store.ingest(purchase(slow.payload.email, 40));
+  await store.ingest(purchase(slow.payload.email, 20));
   const broken = db.$extends({
       query: {
         processedEvent: {
@@ -340,8 +341,185 @@ try {
     () => db.marketingRegistration.findUnique({ where: { id: offline.payload.userId } }),
     'offline event catchup',
   );
+  // Administrative switches, metadata-only discounts and the shared delivery slot.
+  const gatewayReq = createRequire(path.join(root, 'apps/gateway/package.json'));
+  const { JwtService } = gatewayReq('@nestjs/jwt');
+  const actorId = randomUUID(),
+    jwt = new JwtService();
+  const cookie = (role = 'ADMIN') =>
+    'tea_access=' +
+    jwt.sign(
+      { sub: actorId, email: 'admin@example.test', role },
+      { secret, algorithm: 'HS256', issuer: 'tea-auth', audience: 'tea-gateway', expiresIn: '15m' },
+    );
+  async function admin(route, options = {}) {
+    const r = await fetch('http://localhost:4500/api/v1/admin/' + route, {
+      method: options.method ?? 'GET',
+      headers: {
+        'content-type': 'application/json',
+        origin: env.CORS_ORIGIN,
+        ...(options.auth === false ? {} : { cookie: cookie(options.role) }),
+        ...(options.key ? { 'idempotency-key': options.key } : {}),
+      },
+      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await r.json();
+    assert.equal(r.status, options.status ?? 200, JSON.stringify(data));
+    if (r.ok) assert.equal(r.headers.get('cache-control'), 'no-store');
+    return data;
+  }
+  await admin('campaigns', { auth: false, status: 401 });
+  await admin('email-logs', { role: 'CUSTOMER', status: 403 });
+  await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    role: 'CUSTOMER',
+    key: randomUUID(),
+    body: { enabled: true, expectedRevision: 0 },
+    status: 403,
+  });
+  const settings = await admin('campaigns');
+  assert.equal(settings.length, 2);
+  assert.ok(settings.every((x) => !x.enabled));
+  await admin('email-logs?page=0', { status: 400 });
+  await admin('email-logs?campaign=WELCOME', { status: 400 });
+  await admin('email-logs?private=true', { status: 400 });
+  await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    body: { enabled: true, expectedRevision: 0 },
+    status: 400,
+  });
+  const configureKey = randomUUID(),
+    configureBody = { enabled: true, expectedRevision: 0 };
+  const configured = await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    key: configureKey,
+    body: configureBody,
+  });
+  assert.equal(configured.revision, 1);
+  assert.deepEqual(
+    await admin('campaigns/DISCOUNT', { method: 'PATCH', key: configureKey, body: configureBody }),
+    configured,
+  );
+  assert.equal(await db.campaignCommand.count({ where: { key: configureKey, actorId } }), 1);
+  await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    key: configureKey,
+    body: { ...configureBody, enabled: false },
+    status: 409,
+  });
+  await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { enabled: false, expectedRevision: 0 },
+    status: 409,
+  });
+  await store.configure(
+    { campaign: 'WIN_BACK', enabled: false, expectedRevision: 0, key: randomUUID() },
+    actorId,
+  );
+  for (const p of await db.customerProfile.findMany({ where: { consent: true } }))
+    await store.unsubscribe(unsubscribeToken(p.id, p.tokenNonce, secret));
+  const discountEmail = `discount-${tag}%_@example.test`;
+  await store.ingest(registration(discountEmail));
+  const promotion = (extra = {}) => ({
+    id: randomUUID(),
+    title: 'Демо знижки <script>',
+    active: true,
+    startsAt: date(1),
+    endsAt: date(-10),
+    revision: 0,
+    ...extra,
+  });
+  const inactive = promotion({ active: false }),
+    future = promotion({ startsAt: date(-1) }),
+    expired = promotion({ endsAt: date(1) });
+  await store.syncPromotions([inactive, future, expired]);
+  await store.schedule(now);
+  assert.equal(await db.emailLog.count({ where: { campaign: 'DISCOUNT' } }), 0);
+  const active = promotion();
+  await store.syncPromotions([active]);
+  await Promise.all([store.schedule(now), store.schedule(now)]);
+  assert.equal(await db.emailLog.count({ where: { campaign: 'DISCOUNT' } }), 1);
+  const beforeDiscount = sent.length;
+  await Promise.all([store.deliver(now), store.deliver(now)]);
+  assert.equal(sent.length, beforeDiscount + 1);
+  assert.equal(sent.at(-1).campaign, 'DISCOUNT');
+  const discountMessages = await (await fetch('http://localhost:8025/api/v1/messages')).json();
+  const captured = discountMessages.messages.find(
+    (x) =>
+      x.Subject === 'Знижки у Чайному елементі' && JSON.stringify(x.To).includes(discountEmail),
+  );
+  assert.ok(captured);
+  const discountContent = await (
+    await fetch('http://localhost:8025/api/v1/message/' + captured.ID)
+  ).json();
+  for (const part of [discountContent.HTML, discountContent.Text]) {
+    assert.ok(part.includes('/catalog?onSale=true'));
+    assert.ok(part.includes('/teaware?onSale=true'));
+    assert.ok(part.includes('/unsubscribe#token='));
+  }
+  assert.ok(!discountContent.HTML.includes('<script>'));
+  await store.ingest(purchase(discountEmail, 40));
+  await store.configure(
+    { campaign: 'WIN_BACK', enabled: true, expectedRevision: 1, key: randomUUID() },
+    actorId,
+  );
+  await store.schedule(now);
+  assert.equal(
+    await db.emailLog.count({ where: { campaign: 'WIN_BACK', profile: { email: discountEmail } } }),
+    0,
+  );
+  const logs = await admin(
+    'email-logs?campaign=DISCOUNT&status=SENT&q=' + encodeURIComponent('%_'),
+  );
+  assert.equal(logs.total, 1);
+  assert.equal(logs.items[0].email, discountEmail);
+  for (const field of ['tokenNonce', 'consentAt', 'lastMarketingAt', 'leaseId', 'fingerprint'])
+    assert.ok(!JSON.stringify(logs).includes(field));
+  assert.equal((await admin('email-logs?page=9999')).items.length, 0);
+  // Older metadata must never re-activate a disabled promotion.
+  await store.syncPromotions([{ ...active, active: false, revision: 1 }]);
+  await store.syncPromotions([active]);
+  assert.equal(
+    (await db.promotionSnapshot.findUniqueOrThrow({ where: { id: active.id } })).active,
+    false,
+  );
+  const next = promotion();
+  await store.syncPromotions([next]);
+  await store.ingest(registration(`cancel-discount-${tag}@example.test`));
+  await store.schedule(now);
+  assert.equal(await db.emailLog.count({ where: { campaign: 'DISCOUNT', status: 'PENDING' } }), 1);
+  const brokenSettings = db.$extends({
+    query: {
+      campaignCommand: {
+        create() {
+          throw new Error('injected audit failure');
+        },
+      },
+    },
+  });
+  await assert.rejects(() =>
+    new PrismaCampaignStore(brokenSettings, { send: async () => {} }).configure(
+      { campaign: 'DISCOUNT', enabled: false, expectedRevision: 1, key: randomUUID() },
+      actorId,
+    ),
+  );
+  assert.equal(
+    (await db.campaignSetting.findUniqueOrThrow({ where: { campaign: 'DISCOUNT' } })).enabled,
+    true,
+  );
+  assert.equal(await db.emailLog.count({ where: { campaign: 'DISCOUNT', status: 'PENDING' } }), 1);
+  await admin('campaigns/DISCOUNT', {
+    method: 'PATCH',
+    key: randomUUID(),
+    body: { enabled: false, expectedRevision: 1 },
+  });
+  assert.equal(await db.emailLog.count({ where: { campaign: 'DISCOUNT', status: 'PENDING' } }), 0);
+  await store.deliver(now);
+  assert.equal(sent.length, beforeDiscount + 1);
   console.log(
-    'Marketing integration passed: clean migrations, real RabbitMQ projection/replay, consent-only purchase data, legacy-safe opt-in, atomic rollback, SQL win-back intervals, concurrent scheduling/delivery, SMTP capture, global weekly cap, bounded retry, fresh-purchase cancellation, signed/Origin-protected idempotent unsubscribe, no stale resubscribe, in-flight opt-out serialization and stopped-service catchup.',
+    'Marketing integration passed: clean migrations, real RabbitMQ projection/replay, consent-only purchase data, legacy-safe opt-in, atomic rollback, fixed thirty-day reminders, audited admin switches/replay/conflicts/rollback, literal filtered private logs, active-only generic discount SMTP, stale promotion revisions, cancellation on disable, concurrent scheduling/delivery, SMTP capture, global weekly cap, bounded retry, fresh-purchase cancellation, signed/Origin-protected idempotent unsubscribe, no stale resubscribe, in-flight opt-out serialization and stopped-service catchup.',
   );
 } finally {
   for (const child of children)
@@ -352,7 +530,12 @@ try {
   smtp?.onModuleDestroy();
   await db?.$disconnect();
   if (channel) {
-    for (const q of ['marketing.user_registered', 'marketing.order_completed', 'marketing.rpc'])
+    for (const q of [
+      'marketing.user_registered',
+      'marketing.order_completed',
+      'marketing.rpc',
+      'catalog.rpc',
+    ])
       for (const suffix of ['', '.retry', '.dlq'])
         await channel.deleteQueue(namespace + '.' + q + suffix).catch(() => {});
     await channel.deleteExchange(namespace + '.events').catch(() => {});

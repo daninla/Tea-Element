@@ -1030,6 +1030,45 @@ try {
   assert.equal(saleAudit.total, 4);
   assert.equal((await admin('/admin/promotions?page=999')).items.length, 0);
   assert.equal((await admin('/admin/promotions/' + sale.id)).id, sale.id);
+  // Public promotion metadata for marketing uses only the catalog RPC boundary.
+  const { ClientProxyFactory, Transport } = requireCatalog('@nestjs/microservices');
+  const { firstValueFrom, timeout } = requireCatalog('rxjs');
+  const metadataClient = ClientProxyFactory.create({
+    transport: Transport.RMQ,
+    options: {
+      urls: [env.RABBITMQ_URL],
+      queue,
+      queueOptions: { durable: true, messageTtl: 6000 },
+      persistent: false,
+    },
+  });
+  try {
+    const readMetadata = (input) =>
+      firstValueFrom(
+        metadataClient
+          .send('catalog.marketing.promotions', { input, context: { correlationId: randomUUID() } })
+          .pipe(timeout(5000)),
+      );
+    const metadata = await readMetadata({});
+    assert.equal(metadata.ok, true);
+    const snapshot = metadata.value.items.find((x) => x.id === sale.id);
+    assert.ok(snapshot);
+    const currentPromotion = await db.promotion.findUniqueOrThrow({ where: { id: sale.id } });
+    assert.equal(snapshot.revision, currentPromotion.revision);
+    assert.equal(snapshot.active, currentPromotion.isActive);
+    assert.deepEqual(
+      Object.keys(snapshot).sort(),
+      ['id', 'title', 'active', 'startsAt', 'endsAt', 'revision'].sort(),
+    );
+    const nextMetadata = await readMetadata({ after: snapshot.id });
+    assert.equal(nextMetadata.ok, true);
+    assert.ok(nextMetadata.value.items.every((x) => x.id > snapshot.id));
+    assert.equal((await readMetadata({ after: 'invalid' })).error.statusCode, 400);
+    assert.equal((await readMetadata({ email: 'unwanted@example.test' })).error.statusCode, 400);
+  } finally {
+    await metadataClient.close();
+  }
+
   console.log(
     'Promotion integration passed: RBAC, percent/fixed fresh catalog and quotes, best non-stacked discount, time windows, deactivation, strict targets, stable replay, revision races, audit rollback, literal search and pagination.',
   );

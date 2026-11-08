@@ -278,19 +278,30 @@ fits the viewport and wide audit tables scroll inside their containers. No real 
 
 ## Remaining stages
 
-Stage 7.1 implements marketing-owned consent/purchase projections, WIN_BACK, durable delivery logs,
-weekly frequency reservation and signed one-click unsubscribe through gateway/web. No purchase
-history is copied without active consent; opt-out removes derived history/name and cancels pending
-mail. Rule eligibility is at least 30 days, adjusted by purchase intervals. Campaigns default disabled;
-administration/log UI, other rules, account preference controls and recommendations remain open.
-See ADR 0023. Automatic approval review rejected tooling SELECT grants for marketing PII; these are
-unapplied, while application access and tests use the service owner role normally.
+Stage 7.2 completes the owner's simplified newsletter scope: two rules only, generic DISCOUNT notices
+and fixed 30-day WIN_BACK reminders. No personalized recommendations, consumption model, welcome
+series, new-product announcements, template editor or manual campaign sending is required. Two ADMIN
+switches and a strict paginated/filterable journal are available at `/admin/campaigns`. Settings,
+queue cancellation and actor-bound idempotency/audit receipts commit together; revision checks reject
+stale edits. Both rules default disabled. See ADRs 0023/0024.
 
-Verification: 366 unit tests, root lint/build/type/format and all five integration suites pass. The
-marketing suite covers fresh migrations, real RMQ/SMTP/RPC, replay/rollback, consent/legacy bounds,
-weekly reservation, retry exhaustion, opt-out/submission ordering and stopped-service catch-up.
-Browser QA captures a fictional campaign in Mailpit and successful public unsubscribe; its fragment
-is removed and the 375px page has no horizontal overflow. Automatic campaigns remain disabled.
+Marketing retains only consented purchase projections and uses a catalog RPC snapshot of public
+promotion metadata; no sibling database access or new broker events. Active date/revision checks,
+one pending job per profile and a shared weekly slot prevent competing rules from multiplying mail.
+Opt-out clears derived history/name; disabling cancels pending mail and serializes with final SMTP.
+Cancelled cycles are not automatically resent on re-enable. Timestamped consent prevents stale opt-in.
+Automatic approval review's earlier tooling SELECT grants for marketing PII remain unapplied;
+application functionality uses the owner role and is unaffected.
+
+Verification: 372 unit tests, root lint/build/type/format and all five integration suites pass.
+Real PostgreSQL/RMQ/HTTP/Mailpit checks cover consent/legacy boundaries, fixed 30-day eligibility,
+active-only generic discount capture in HTML/text, global weekly limits, retries, command replay,
+revision conflicts, audit rollback, safe literal-filtered logs, cancellation on disable, unsubscribe
+races and stopped-service catch-up. Production sender/domain, real SMTP credentials and deliverability
+acceptance remain separate; automated campaigns stay disabled in development after verification.
+Browser QA at 375px/1280px verifies both on/off controls, persisted disabled state after reload,
+empty search/reset, a captured delivery journal row and no horizontal document overflow. The journal
+scrolls independently on mobile; no browser errors or warnings were observed.
 
 Stage 6.11 adds transactional shipment/completion emails, using the existing durable queue and
 immutable order email for guests/accounts without marketing consent. Status, history, administrator

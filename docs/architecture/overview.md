@@ -1,8 +1,10 @@
 # Architecture overview
 
-Stage 7.1 activates marketing-owned consent/purchase projections, the first win-back email log/worker
-and public gateway-backed unsubscribe page. Timestamped consent prevents stale re-subscription;
-campaigns default disabled and recommendations/administration remain follow-up work. See ADR 0023.
+Stage 7.2 completes the owner's simplified marketing scope: fixed 30-day reminders, generic discount
+notices, two audited ADMIN switches and a paginated email journal. The marketing service owns all
+consent/history/jobs/settings, reads only public promotion metadata via catalog RPC and defaults both
+rules off. A shared seven-day address slot and one pending job serialize rules; opt-out/disable lock
+against final SMTP submission. No recommendation or consumption model is required. See ADRs 0023/0024.
 
 Stage 6.11 adds shipment/completion emails using the orders-local delivery queue. Status, audit,
 history, Outbox and notice enqueueing commit together; status-specific dedupe keys preserve multiple

@@ -8,11 +8,14 @@ import { ReadCatalogAdmin } from './application/read-catalog-admin';
 import { WriteCatalogAdmin } from './application/write-catalog-admin';
 import { UploadCatalogImage } from './application/upload-catalog-image';
 import { ReadCatalogImage } from './application/read-catalog-image';
+import { ReadMarketingPromotions } from './application/read-marketing-promotions';
+import { MarketingPromotionsController } from './presentation/marketing-promotions.controller';
 @Module({
   imports: [StockModule],
-  controllers: [CatalogAdminRpcController],
+  controllers: [CatalogAdminRpcController, MarketingPromotionsController],
   providers: [
     ReadCatalogAdmin,
+    ReadMarketingPromotions,
     WriteCatalogAdmin,
     UploadCatalogImage,
     ReadCatalogImage,

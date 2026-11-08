@@ -85,6 +85,33 @@ const include = {
 };
 @Injectable()
 export class PrismaCatalogAdminStore extends CatalogAdminStore {
+  async marketingPromotions(after?: string) {
+    const rows = await this.db.promotion.findMany({
+      where: after ? { id: { gt: after } } : {},
+      orderBy: { id: 'asc' },
+      take: 101,
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        startsAt: true,
+        endsAt: true,
+        revision: true,
+      },
+    });
+    const items = rows.slice(0, 100);
+    return {
+      items: items.map((x) => ({
+        id: x.id,
+        title: x.name,
+        active: x.isActive,
+        startsAt: x.startsAt.toISOString(),
+        endsAt: x.endsAt.toISOString(),
+        revision: x.revision,
+      })),
+      nextCursor: rows.length > 100 ? items[items.length - 1]!.id : null,
+    };
+  }
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {
     super();
   }

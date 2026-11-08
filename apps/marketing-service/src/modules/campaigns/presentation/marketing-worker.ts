@@ -4,6 +4,7 @@ import { readEnvironment } from '../../../config/environment';
 import { RabbitEventBus } from '../../../shared/rabbit-event-bus';
 import { HandleMarketingEvent } from '../application/handle-marketing-event';
 import { RunCampaigns } from '../application/run-campaigns';
+import { SyncPromotions } from '../application/sync-promotions';
 const base = {
   eventId: z.string().uuid(),
   version: z.literal(1),
@@ -73,6 +74,7 @@ export class MarketingWorker implements OnModuleInit, OnModuleDestroy {
     @Inject(RabbitEventBus) private readonly bus: RabbitEventBus,
     @Inject(HandleMarketingEvent) private readonly handler: HandleMarketingEvent,
     @Inject(RunCampaigns) private readonly campaigns: RunCampaigns,
+    @Inject(SyncPromotions) private readonly promotions: SyncPromotions,
   ) {}
   onModuleInit() {
     if (readEnvironment().NODE_ENV === 'test') return;
@@ -93,6 +95,7 @@ export class MarketingWorker implements OnModuleInit, OnModuleDestroy {
       );
     if (Date.now() >= this.nextRun) {
       this.nextRun = Date.now() + 60000;
+      await this.promotions.execute();
       await this.campaigns.execute();
     }
   }

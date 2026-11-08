@@ -5,6 +5,10 @@ import { MarketingClient } from './domain/marketing-client';
 import { RmqMarketingClient } from './infrastructure/rmq-marketing-client';
 import { ForwardMarketing } from './application/forward-marketing';
 import { MarketingController } from './presentation/marketing.controller';
+import {
+  AdminCampaignsController,
+  AdminEmailLogsController,
+} from './presentation/admin-campaigns.controller';
 @Module({
   imports: [
     ClientsModule.registerAsync([
@@ -22,7 +26,7 @@ import { MarketingController } from './presentation/marketing.controller';
       },
     ]),
   ],
-  controllers: [MarketingController],
+  controllers: [MarketingController, AdminCampaignsController, AdminEmailLogsController],
   providers: [ForwardMarketing, { provide: MarketingClient, useClass: RmqMarketingClient }],
 })
 export class MarketingModule {}

@@ -1,4 +1,5 @@
 import type {
+  MarketingPromotionPage,
   CatalogAdminRead,
   CatalogAdminWrite,
   CatalogReadResult,
@@ -22,6 +23,7 @@ export class CatalogAdminError extends Error {
   }
 }
 export abstract class CatalogAdminStore {
+  abstract marketingPromotions(after?: string): Promise<MarketingPromotionPage>;
   abstract read(input: CatalogAdminRead): Promise<CatalogReadResult>;
   abstract write(input: CatalogAdminWrite, actorId: string): Promise<CatalogWriteResult>;
 }

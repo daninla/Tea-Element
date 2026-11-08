@@ -10,6 +10,7 @@ const schema = z.object({
     .default('postgresql://marketing:tea_dev_marketing@localhost:5433/marketing_db'),
   RABBITMQ_URL: z.string().url().default('amqp://tea:tea_dev@localhost:5672'),
   MARKETING_RPC_QUEUE: z.string().default('marketing.rpc'),
+  CATALOG_RPC_QUEUE: z.string().default('catalog.rpc'),
   EVENTS_NAMESPACE: z
     .string()
     .regex(/^[a-z0-9.-]+$/)

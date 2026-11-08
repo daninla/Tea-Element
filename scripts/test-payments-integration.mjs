@@ -540,6 +540,16 @@ try {
   });
   assert.equal(fulfilled.status, 'COMPLETED');
   assert.equal(fulfilled.paymentStatus, 'PAID');
+  for (const kind of ['SHIPPED', 'COMPLETED'])
+    await waitFor(
+      async () =>
+        (
+          await orders.orderPaymentNotice.findUnique({
+            where: { dedupeKey: `order:${onlineFulfillment.order.id}:${kind}` },
+          })
+        )?.status === 'SENT',
+      `online fulfillment ${kind} notification`,
+    );
   // Stage 6.9: administrator cancellation before fulfillment reuses the durable refund saga.
   const pieceVariant = await catalog.productVariant.findFirstOrThrow({
     where: { weightGrams: null },

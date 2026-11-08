@@ -29,3 +29,21 @@ it('confirms only the refunded payment and makes the demo boundary explicit', ()
   expect(mail.text).toContain('демонстраційний');
   expect(mail.text).toContain('attempt');
 });
+it('describes shipment without inventing a payment, tracking number or delivery date', () => {
+  const mail = paymentNoticeTemplate({ ...notice, kind: 'SHIPPED', paymentId: null });
+  expect(mail.subject).toContain('Замовлення відправлено');
+  expect(mail.text).toContain('1.01 UAH');
+  expect(mail.text).toContain(notice.link);
+  expect(mail.text).not.toContain('Спроба оплати');
+  expect(mail.html).not.toContain('Спроба оплати');
+  expect(mail.html).not.toContain('null');
+  expect(mail.text).toContain('Реальних платежів і відправлень не проводимо');
+});
+it('thanks the buyer on completion without claiming a second payment', () => {
+  const mail = paymentNoticeTemplate({ ...notice, kind: 'COMPLETED', paymentId: null });
+  expect(mail.subject).toContain('Замовлення завершено');
+  expect(mail.text).toContain('Дякуємо за покупку');
+  expect(mail.text).not.toContain('Оплату отримано');
+  expect(mail.html).toContain('&lt;img');
+  expect(mail.html).toContain('Перевірити замовлення');
+});

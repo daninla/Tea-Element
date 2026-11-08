@@ -984,12 +984,37 @@ try {
     }),
   );
   await assert.rejects(() => brokenAdmin.transition(shipCommand, actor, randomUUID()));
+  const brokenNotices = new PrismaAdminOrdersStore(
+    orders.$extends({
+      query: {
+        orderPaymentNotice: {
+          upsert() {
+            throw new Error('injected notification failure');
+          },
+        },
+      },
+    }),
+  );
+  await assert.rejects(() => brokenNotices.transition(shipCommand, actor, randomUUID()));
   assert.equal(
     (await orders.order.findUniqueOrThrow({ where: { id: fulfillment.order.id } })).status,
     'CONFIRMED',
   );
   assert.equal(
     await orders.adminOrderCommand.count({ where: { orderId: fulfillment.order.id } }),
+    0,
+  );
+  assert.equal(
+    await orders.orderPaymentNotice.count({ where: { orderId: fulfillment.order.id } }),
+    0,
+  );
+  assert.equal(
+    await orders.outbox.count({
+      where: {
+        eventName: 'OrderShipped',
+        payload: { path: ['payload', 'orderId'], equals: fulfillment.order.id },
+      },
+    }),
     0,
   );
   const beforeTea = await catalog.inventory.findUniqueOrThrow({ where: { productId: product.id } });
@@ -1127,6 +1152,24 @@ try {
     expectedStatus: 'SHIPPED',
     reason: 'Demonstration delivered and COD collected',
   };
+  await assert.rejects(() =>
+    brokenNotices.transition(
+      { ...completeBody, id: fulfillment.order.id, key: completeKey },
+      actor,
+      randomUUID(),
+    ),
+  );
+  const rolledBackCompletion = await orders.order.findUniqueOrThrow({
+    where: { id: fulfillment.order.id },
+  });
+  assert.equal(rolledBackCompletion.status, 'SHIPPED');
+  assert.equal(rolledBackCompletion.paymentStatus, 'UNPAID');
+  assert.equal(
+    await orders.orderPaymentNotice.count({
+      where: { orderId: fulfillment.order.id, kind: 'COMPLETED' },
+    }),
+    0,
+  );
   const [completed] = await Promise.all([
     http(changePath, {
       method: 'PATCH',
@@ -1152,6 +1195,108 @@ try {
     },
   });
   assert.equal(completion, 1);
+  for (const kind of ['SHIPPED', 'COMPLETED']) {
+    await waitFor(
+      async () =>
+        (
+          await orders.orderPaymentNotice.findUnique({
+            where: { dedupeKey: `order:${fulfillment.order.id}:${kind}` },
+          })
+        )?.status === 'SENT',
+      `fulfillment ${kind} SMTP delivery`,
+    );
+  }
+  const fulfillmentNotices = await orders.orderPaymentNotice.findMany({
+    where: { orderId: fulfillment.order.id },
+  });
+  assert.equal(fulfillmentNotices.length, 2);
+  assert.ok(fulfillmentNotices.every((x) => x.paymentId === null && x.amount === completed.total));
+  const messageList = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
+  for (const subject of ['Замовлення відправлено', 'Замовлення завершено'])
+    assert.equal(
+      messageList.messages.filter(
+        (x) => x.Subject.includes(fulfillment.order.number) && x.Subject.includes(subject),
+      ).length,
+      1,
+    );
+  const shipmentNotice = fulfillmentNotices.find((x) => x.kind === 'SHIPPED'),
+    completionNotice = fulfillmentNotices.find((x) => x.kind === 'COMPLETED');
+  assert.ok(shipmentNotice.sentAt <= completionNotice.sentAt);
+  // A delayed/in-flight shipment notice cannot be overtaken by completion in another worker.
+  const ordersProcess = children.find((x) => x.teaService === 'orders-service');
+  ordersProcess.kill('SIGSTOP');
+  try {
+    const { PrismaPaymentNoticeStore } = reqOrders(
+      './dist/modules/notifications/infrastructure/prisma-payment-notice-store',
+    );
+    const notices = new PrismaPaymentNoticeStore(orders),
+      fixtureId = randomUUID();
+    const source = await orders.order.findUniqueOrThrow({ where: { id: fulfillment.order.id } });
+    await orders.order.create({
+      data: {
+        ...source,
+        id: fixtureId,
+        number: 'TE-' + fixtureId.replaceAll('-', '').toUpperCase(),
+        idempotencyHash: randomBytes(32).toString('hex'),
+        requestHash: randomBytes(32).toString('hex'),
+        receiptSentAt: new Date(),
+      },
+    });
+    const past = new Date('2000-01-01T00:00:00Z');
+    const pendingShip = await orders.orderPaymentNotice.create({
+      data: {
+        orderId: fixtureId,
+        kind: 'SHIPPED',
+        amount: source.total,
+        dedupeKey: `order:${fixtureId}:SHIPPED`,
+        nextAttemptAt: new Date('2099-01-01T00:00:00Z'),
+      },
+    });
+    const pendingComplete = await orders.orderPaymentNotice.create({
+      data: {
+        orderId: fixtureId,
+        kind: 'COMPLETED',
+        amount: source.total,
+        dedupeKey: `order:${fixtureId}:COMPLETED`,
+        nextAttemptAt: past,
+      },
+    });
+    assert.notEqual((await notices.claim())?.id, pendingComplete.id);
+    await orders.orderPaymentNotice.update({
+      where: { id: pendingShip.id },
+      data: { nextAttemptAt: past },
+    });
+    const claim = await notices.claim();
+    assert.equal(claim.id, pendingShip.id);
+    assert.notEqual((await notices.claim())?.id, pendingComplete.id);
+    await notices.finish(pendingShip.id, claim.leaseId, false);
+    assert.notEqual((await notices.claim())?.id, pendingComplete.id);
+    await orders.orderPaymentNotice.update({
+      where: { id: pendingShip.id },
+      data: { nextAttemptAt: past },
+    });
+    const retried = await notices.claim();
+    assert.equal(retried.id, pendingShip.id);
+    await notices.finish(pendingShip.id, retried.leaseId, true);
+    const completionClaim = await notices.claim();
+    assert.equal(completionClaim.id, pendingComplete.id);
+    await notices.finish(pendingComplete.id, completionClaim.leaseId, true);
+    await assert.rejects(() =>
+      orders.orderPaymentNotice.create({
+        data: {
+          orderId: fixtureId,
+          kind: 'SHIPPED',
+          amount: source.total,
+          dedupeKey: pendingShip.dedupeKey,
+        },
+      }),
+    );
+  } finally {
+    ordersProcess.kill('SIGCONT');
+  }
+  console.log(
+    'Fulfillment email integration passed: guest COD SMTP delivery without marketing consent, null payment references, stable deduplication, transactional rollback and shipment-before-completion across retry and concurrent claims.',
+  );
   await http(`/orders/${fulfillment.order.number}/cancel?token=${fulfillment.accessToken}`, {
     method: 'POST',
     body: {},

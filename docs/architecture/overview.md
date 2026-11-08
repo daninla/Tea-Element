@@ -1,5 +1,9 @@
 # Architecture overview
 
+Stage 7.1 activates marketing-owned consent/purchase projections, the first win-back email log/worker
+and public gateway-backed unsubscribe page. Timestamped consent prevents stale re-subscription;
+campaigns default disabled and recommendations/administration remain follow-up work. See ADR 0023.
+
 Stage 6.11 adds shipment/completion emails using the orders-local delivery queue. Status, audit,
 history, Outbox and notice enqueueing commit together; status-specific dedupe keys preserve multiple
 payment attempts. Completion submission waits for its shipment notice to finish or exhaust retries.
@@ -57,7 +61,7 @@ Stage 6.7 adds auth-owned customer account reads and orders-owned guest groups/p
 separate identity scopes, bounded pages and a shared administrative UI; see ADR 0018.
 Stage 6.8 adds payments-owned administrative ledger/event/refund reads and audited durable requests for
 provider-status reconciliation using the existing worker/provider/state machine; see ADR 0019.
-Merchant LiqPay sandbox acceptance remains external. Marketing consumers are not implemented yet.
+Merchant LiqPay sandbox acceptance remains external. Initial marketing consumers are implemented in stage 7.1.
 Business API routes use `/api/v1`; operational `/health` and `/docs` remain outside that prefix.
 Liveness is deliberately independent of downstream dependencies.
 

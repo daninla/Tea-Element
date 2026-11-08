@@ -1,12 +1,11 @@
 # Tea Element / Чайний елемент
 
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
-**Current milestone: stage 4 carts and guest checkout.** The Ukrainian storefront supports browsing,
-a persistent cart, server-calculated prices, guest orders with payment on receipt, private tracking and
-cancellation. A separate teaware/accessories section supports piece goods in mixed orders with tea.
-Orders and catalog use a transactional Outbox and an idempotent stock reservation saga.
-All orders are explicitly demonstrations without real payment or fulfillment. Online payment is stage 4a;
-customer account UI, administration and marketing remain later milestones.
+**Current milestone: stage 7.1, consent-aware marketing.** Storefront, mixed tea/teaware orders,
+guest/account checkout, payment simulation, accounts and administration are implemented. Transactional
+emails and the first consent-aware win-back/unsubscribe workflow work locally. Outbox and idempotent
+sagas coordinate orders/stock/payments. All acceptance remains demonstrational; merchant sandbox,
+production hardening and remaining marketing controls are open. Campaigns default disabled.
 
 ## Start locally (five commands)
 
@@ -67,8 +66,8 @@ CI repeats quality checks, validates both Compose configurations and smoke-tests
 own separate databases: auth, catalog, orders, payments and marketing. Shared contracts live in
 `packages/contracts`; shared tooling lives in `packages/eslint-config` and `packages/tsconfig`.
 Read [architecture](docs/architecture/overview.md), [milestone status](docs/implementation-status.md),
-and [AGENTS.md](AGENTS.md) before continuing. Next milestone: SPEC stage 4a, online payment.
-Forgot/reset-password, email verification and customer auth screens remain documented follow-up work.
+and [AGENTS.md](AGENTS.md) before continuing. Next milestone: marketing administration and further
+campaigns, then production acceptance/hardening and the owner's final documentation guide.
 
 ## Public catalog examples
 

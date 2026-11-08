@@ -278,6 +278,20 @@ fits the viewport and wide audit tables scroll inside their containers. No real 
 
 ## Remaining stages
 
+Stage 7.1 implements marketing-owned consent/purchase projections, WIN_BACK, durable delivery logs,
+weekly frequency reservation and signed one-click unsubscribe through gateway/web. No purchase
+history is copied without active consent; opt-out removes derived history/name and cancels pending
+mail. Rule eligibility is at least 30 days, adjusted by purchase intervals. Campaigns default disabled;
+administration/log UI, other rules, account preference controls and recommendations remain open.
+See ADR 0023. Automatic approval review rejected tooling SELECT grants for marketing PII; these are
+unapplied, while application access and tests use the service owner role normally.
+
+Verification: 366 unit tests, root lint/build/type/format and all five integration suites pass. The
+marketing suite covers fresh migrations, real RMQ/SMTP/RPC, replay/rollback, consent/legacy bounds,
+weekly reservation, retry exhaustion, opt-out/submission ordering and stopped-service catch-up.
+Browser QA captures a fictional campaign in Mailpit and successful public unsubscribe; its fragment
+is removed and the 375px page has no horizontal overflow. Automatic campaigns remain disabled.
+
 Stage 6.11 adds transactional shipment/completion emails, using the existing durable queue and
 immutable order email for guests/accounts without marketing consent. Status, history, administrator
 audit, Outbox and notification enqueueing commit atomically. Unique per-order/status keys preserve
@@ -316,7 +330,7 @@ release and the order-filtered payment journal. At 375px the form fits without d
 No merchant payment or real refund was performed.
 
 - **4a external acceptance:** Verify hosted checkout/return/refund with the owner’s LiqPay sandbox account. Offline development acceptance and storefront code are implemented; no real merchant payment has been tested.
-- **6:** Finish paid-order refunds/returns. Configurable low-stock thresholds and email alerts were removed from scope by the owner on 2026-11-08.
+- **6:** Further returns/refund-management work was removed from scope by the owner on 2026-11-08. Existing late/erroneous-payment compensation remains. Configurable stock threshold emails are also excluded.
 - **7:** Event-based marketing and email campaigns.
 - **8:** SEO, accessibility, resilience, performance and complete acceptance tests.
 
@@ -325,7 +339,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (355 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (366 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

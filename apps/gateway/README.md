@@ -1,5 +1,9 @@
 # Gateway
 
+Stage 7.1: public POST `/api/v1/marketing/unsubscribe` forwards a strict signed-token body to marketing
+RPC. Trusted Origin, a 10/minute rate limit and no-store apply. No address/profile data is returned;
+GET does not unsubscribe. MARKETING_RPC_QUEUE supports isolated environments. See ADR 0023.
+
 HTTP boundary on port 4000; no Prisma dependency or database access. `/health` is public liveness;
 Swagger is at `/docs`. Business routes use `/api/v1`. Run root `pnpm setup:dev` before starting.
 

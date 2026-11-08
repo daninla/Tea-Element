@@ -1,5 +1,10 @@
 # Event catalog
 
+Stage 7.1 activates marketing.user_registered and marketing.order_completed consumers. OrderCompleted
+v1 adds optional `marketingConsentAt` (ISO checkout opt-in time); a legacy boolean alone never grants a
+new subscription. Consent/purchase projection and processed marker commit together, with registration/
+order IDs deduplicated too. No private order/unsubscribe token enters events. See ADR 0023.
+
 Stage 6.11: ADMIN shipment/completion transactions enqueue local status emails together with existing
 OrderShipped/OrderCompleted Outbox rows. This adds no event or subscription and publishes no private
 tracking link. Per-order status deduplication and SMTP ordering use the local queue; see ADR 0022.

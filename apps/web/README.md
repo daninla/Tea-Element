@@ -1,5 +1,9 @@
 # Web
 
+Stage 7.1 adds `/unsubscribe#token=...`: a public noindex/no-referrer page consumes the fragment once,
+removes it from the visible URL, POSTs through gateway and shows success/error/retry without login or
+email disclosure. Transactional order messages remain unaffected. See ADR 0023.
+
 Next.js 15 App Router Ukrainian storefront and guest checkout (stage 4). Start all applications with `pnpm dev`, or use
 `pnpm --filter @tea/web dev` on port 3000 with the gateway/catalog already running. Seed demo data with
 `pnpm db:seed`. `GET /health` reports liveness.

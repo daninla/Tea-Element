@@ -1,5 +1,10 @@
 # Architecture overview
 
+Stage 6.11 adds shipment/completion emails using the orders-local delivery queue. Status, audit,
+history, Outbox and notice enqueueing commit together; status-specific dedupe keys preserve multiple
+payment attempts. Completion submission waits for its shipment notice to finish or exhaust retries.
+See ADR 0022. Initiating partial refunds and configurable stock email alerts are excluded by the owner.
+
 Stage 6.10 adds orders-local transactional payment emails. Payment outcome application and durable
 notice enqueueing commit together; leased SMTP workers retry independently without sharing a database
 or exposing guest links in broker events. See ADR 0021 for SMTP delivery limits.

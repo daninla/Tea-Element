@@ -278,6 +278,19 @@ fits the viewport and wide audit tables scroll inside their containers. No real 
 
 ## Remaining stages
 
+Stage 6.11 adds transactional shipment/completion emails, using the existing durable queue and
+immutable order email for guests/accounts without marketing consent. Status, history, administrator
+audit, Outbox and notification enqueueing commit atomically. Unique per-order/status keys preserve
+per-attempt payment deduplication; completion cannot overtake a pending shipment notice. No carrier
+tracking, historical backfill or production deliverability is claimed. See ADR 0022. Initiating partial
+refunds was removed from scope by the owner on 2026-11-08; stock threshold emails remain excluded.
+
+Verification: 355 unit tests and all root lint/build/type/format checks pass; all four real integration
+suites pass. Guest COD and online shipment/completion reach Mailpit once per status; queue failure
+rolls back the transition. Deterministic queue checks cover completion blocked by a delayed retry or
+active shipment lease, then becoming eligible after acknowledgement. Browser previews verify real
+captured HTML on desktop/phone with wrapped references and no invented payment-attempt details.
+
 Stage 6.10 implements transactional online-payment receipt and confirmed full-refund emails to the
 order email, independent of marketing consent. A local transactional queue, semantic deduplication,
 bounded retries, crash-recoverable leases and private HTML/text templates are implemented; SMTP
@@ -293,7 +306,7 @@ All deliveries in this acceptance run are local demonstration messages, not prod
 Stage 6.9 implements ADMIN cancellation before shipment, including full online-payment refund intent,
 gram/piece reservation release, command replay and audit. OrderCancelled v2 preserves the v1 protocol;
 existing background jobs confirm refunds or quarantine unknown results. See ADR 0020. Physical returns
-after shipment, partial refunds and review resolution remain open. Configurable low-stock thresholds
+after shipment and review resolution remain open. Initiating partial refunds was removed from scope by the owner on 2026-11-08. Configurable low-stock thresholds
 and email alerts were removed from scope by the owner on 2026-11-08.
 
 Verification: all four integration suites pass, including mixed gram/piece cancellation, one full
@@ -312,7 +325,7 @@ is represented as implemented before its milestone.
 
 ## Verification in the initial development environment
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (353 tests), `pnpm build` and `pnpm format:check` pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (355 tests), `pnpm build` and `pnpm format:check` pass.
 - Catalog use-case coverage: 100% statements, branches, functions and lines; real catalog integration passes.
 - Auth use-case coverage: 100% lines, 98.61% statements, 92.85% branches; real PostgreSQL/RabbitMQ integration passes.
 - Auth migration applies to a clean integration database; admin seed runs twice and preserves the existing password.

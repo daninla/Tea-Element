@@ -1,5 +1,18 @@
 # Orders service
 
+## Fulfillment emails (stage 6.11)
+
+ADMIN shipment and completion enqueue Ukrainian HTML/text notifications to the immutable order email
+for guests and accounts, independently of marketing consent. Status/history/audit/Outbox/notice share
+the existing order transaction. A unique per-order/status dedupe key complements the unchanged
+per-payment/kind key in the historical `order_payment_notices` table. Fulfillment rows have a null
+payment ID and omit payment-attempt details. Migration preserves existing rows.
+
+The leased worker defers completion while shipment remains PENDING, including leases/retry backoff;
+terminal shipment success/failure unblocks it. No historical backfill or carrier tracking is invented.
+Upgrade all notice workers before enabling the extended producer. SMTP acceptance/crash limitations
+from ADR 0021 remain; see ADR 0022. Partial refunds and stock threshold emails are excluded by the owner.
+
 ## Transactional payment emails (stage 6.10)
 
 `modules/notifications` delivers payment receipt and provider-confirmed full-refund messages to the

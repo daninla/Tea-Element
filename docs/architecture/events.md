@@ -1,5 +1,9 @@
 # Event catalog
 
+Stage 6.11: ADMIN shipment/completion transactions enqueue local status emails together with existing
+OrderShipped/OrderCompleted Outbox rows. This adds no event or subscription and publishes no private
+tracking link. Per-order status deduplication and SMTP ordering use the local queue; see ADR 0022.
+
 | Event / version    | Producer              | Consumer queue                                                | Payload                                              | Trigger                                  |
 | ------------------ | --------------------- | ------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------- |
 | UserRegistered / 1 | auth-service Register | marketing.user_registered (durable, consumer planned stage 7) | userId, email, firstName, lastName, marketingConsent | Customer and first session are committed |

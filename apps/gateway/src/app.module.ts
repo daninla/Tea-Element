@@ -1,4 +1,5 @@
 import { PaymentsModule } from './modules/payments/payments.module';
+import { MarketingModule } from './modules/marketing/marketing.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { HealthModule } from './modules/health/health.module';
     CatalogModule,
     OrdersModule,
     PaymentsModule,
+    MarketingModule,
     AuthModule,
   ],
 })

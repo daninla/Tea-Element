@@ -7,7 +7,8 @@ import { orderToken } from './order-token';
 export class ReceiptWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
   private active?: Promise<void>;
-  private readonly transport = createTransport(readEnvironment().SMTP_URL, {
+  private readonly env = readEnvironment();
+  private readonly transport = createTransport(this.env.SMTP_URL, {
     connectionTimeout: 3000,
     socketTimeout: 5000,
   });
@@ -38,7 +39,7 @@ export class ReceiptWorker implements OnModuleInit, OnModuleDestroy {
           orderToken(order.tokenNonce, readEnvironment().ORDER_ACCESS_SECRET),
         );
         await this.transport.sendMail({
-          from: 'Чайний елемент <orders@tea-element.test>',
+          from: { name: 'Чайний елемент', address: this.env.SMTP_FROM_ADDRESS },
           to: order.email,
           subject: `${order.lookupRequestedAt ? 'Приватне посилання' : 'Замовлення'} ${order.number}`,
           messageId: `<order-${order.id}-${order.lookupRequestedAt?.getTime() ?? 'initial'}@tea-element.test>`,

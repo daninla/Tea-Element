@@ -6,6 +6,7 @@ config({ path: resolve(__dirname, '../../.env') });
 const schema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   SMTP_URL: z.string().url().default('smtp://localhost:1025'),
+  SMTP_FROM_ADDRESS: z.string().email(),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   ORDERS_RPC_QUEUE: z.string().default('orders.rpc'),
   AUTH_RPC_QUEUE: z.string().min(1).default('auth.rpc'),
@@ -23,6 +24,9 @@ const schema = z.object({
 export function readEnvironment(source: NodeJS.ProcessEnv = process.env) {
   return schema.parse({
     ...source,
+    SMTP_FROM_ADDRESS:
+      source.SMTP_FROM_ADDRESS ??
+      (source.NODE_ENV === 'production' ? undefined : 'account@tea-element.test'),
     JWT_ACCESS_SECRET:
       source.JWT_ACCESS_SECRET ??
       (source.NODE_ENV === 'test' ? 'test-secret-only-do-not-use-in-production-12345' : undefined),

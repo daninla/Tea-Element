@@ -17,6 +17,7 @@ const schema = z.object({
     .url()
     .default('postgresql://orders:tea_dev_orders@localhost:5433/orders_db'),
   SMTP_URL: z.string().url().default('smtp://localhost:1025'),
+  SMTP_FROM_ADDRESS: z.string().email(),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4003),
@@ -26,6 +27,9 @@ const schema = z.object({
 export function readEnvironment(source: NodeJS.ProcessEnv = process.env) {
   return schema.parse({
     ...source,
+    SMTP_FROM_ADDRESS:
+      source.SMTP_FROM_ADDRESS ??
+      (source.NODE_ENV === 'production' ? undefined : 'orders@tea-element.test'),
     ORDER_ACCESS_SECRET:
       source.ORDER_ACCESS_SECRET ??
       (source.NODE_ENV === 'test' ? 'test-only-order-secret-12345678901234567890' : undefined),

@@ -17,6 +17,7 @@ const url = `postgresql://marketing:tea_dev_marketing@localhost:5433/${name}`,
 Object.assign(process.env, {
   MARKETING_UNSUBSCRIBE_SECRET: secret,
   MARKETING_WINBACK_ENABLED: 'true',
+  SMTP_FROM_ADDRESS: 'campaigns-qa@example.test',
 });
 const env = {
   ...process.env,
@@ -451,6 +452,7 @@ try {
       x.Subject === 'Знижки у Чайному елементі' && JSON.stringify(x.To).includes(discountEmail),
   );
   assert.ok(captured);
+  assert.equal(captured.From.Address, process.env.SMTP_FROM_ADDRESS);
   const discountContent = await (
     await fetch('http://localhost:8025/api/v1/message/' + captured.ID)
   ).json();

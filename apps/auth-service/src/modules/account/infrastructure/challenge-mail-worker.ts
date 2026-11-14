@@ -7,7 +7,8 @@ import { emailToken } from '../domain/email-token';
 export class ChallengeMailWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
   private active?: Promise<void>;
-  private readonly transport = createTransport(readEnvironment().SMTP_URL, {
+  private readonly env = readEnvironment();
+  private readonly transport = createTransport(this.env.SMTP_URL, {
     connectionTimeout: 3000,
     socketTimeout: 5000,
   });
@@ -48,7 +49,7 @@ export class ChallengeMailWorker implements OnModuleInit, OnModuleDestroy {
         }).toString();
         try {
           await this.transport.sendMail({
-            from: 'Чайний елемент <account@tea-element.test>',
+            from: { name: 'Чайний елемент', address: this.env.SMTP_FROM_ADDRESS },
             to: row.user.email,
             subject:
               row.kind === 'VERIFY_EMAIL'

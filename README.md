@@ -1,11 +1,9 @@
 # Tea Element / Чайний елемент
 
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
-**Current milestone: stage 7.1, consent-aware marketing.** Storefront, mixed tea/teaware orders,
-guest/account checkout, payment simulation, accounts and administration are implemented. Transactional
-emails and the first consent-aware win-back/unsubscribe workflow work locally. Outbox and idempotent
-sagas coordinate orders/stock/payments. All acceptance remains demonstrational; merchant sandbox,
-production hardening and remaining marketing controls are open. Campaigns default disabled.
+The local release includes tea and teaware, guest and account checkout, simulated online payments,
+order fulfillment, administration and two consent-based email campaigns. For the remaining steps
+toward a public store, see [release readiness](docs/release-readiness.md).
 
 ## Start locally (five commands)
 
@@ -17,13 +15,13 @@ The current user must have access to the Docker daemon. Ports 3000, 4000–4005,
 pnpm install
 pnpm infra:up
 pnpm setup:dev
-pnpm db:migrate
+pnpm db:migrate && pnpm db:seed
 pnpm dev
 ```
 
 Environment defaults are usable for local development. To override them, copy the application's
 `.env.example` to `.env` inside that application directory. Never commit real credentials.
-The migration command targets auth-service, catalog-service and orders-service.
+The migration command applies the five service schemas.
 Run `pnpm db:seed` for the local admin and demo catalog (12 teas, 4 equipment products, 40 variants, 2 promotions). Run `pnpm seed:admin` to provision a
 local admin from the private auth-service `.env`; re-running preserves its password.
 Check all seven applications from another terminal with `pnpm health`.
@@ -36,7 +34,7 @@ Check all seven applications from another terminal with `pnpm health`.
 
 `pnpm infra:down` stops infrastructure and preserves data. For containerized applications, see
 [infra/README.md](infra/README.md). `/health` checks process liveness, not downstream readiness.
-Auth and catalog require their own PostgreSQL databases and RabbitMQ. Other domain services remain foundations.
+Each domain service owns its PostgreSQL database and communicates through RabbitMQ.
 
 ## Quality
 
@@ -50,12 +48,12 @@ pnpm format:check
 
 Tests exercise service HTTP boundaries, auth/catalog use-cases, Outbox retry semantics, catalog URL
 validation, product selection, structured data escaping and deterministic currency formatting.
-After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth, catalog, order and payment behavior using a
+After building, `pnpm test:integration` verifies real PostgreSQL/RabbitMQ/HTTP auth, catalog, order, payment and marketing behavior using
 dedicated test databases and isolated broker queues; Docker must be accessible. The orders suite also
 checks no oversell, replay/reordering, cancellation, timeout and local SMTP; it deletes its temporary
 databases and queues. Run it alone with `pnpm test:orders:integration`. The payment suite uses three fresh databases and
 checks signed audit, private access, atomic outcomes, deadline/stock compensation and late refunds;
-run it alone with `pnpm test:payments:integration`. The storefront online-payment UI remains next.
+run it alone with `pnpm test:payments:integration`.
 Turborepo builds contracts before dependent applications. Watch mode uses Nest CLI monorepo projects.
 Git hooks use Husky, lint-staged and Commitlint when a writable Git repository is available.
 CI repeats quality checks, validates both Compose configurations and smoke-tests all HTTP apps.
@@ -66,8 +64,8 @@ CI repeats quality checks, validates both Compose configurations and smoke-tests
 own separate databases: auth, catalog, orders, payments and marketing. Shared contracts live in
 `packages/contracts`; shared tooling lives in `packages/eslint-config` and `packages/tsconfig`.
 Read [architecture](docs/architecture/overview.md), [milestone status](docs/implementation-status.md),
-and [AGENTS.md](AGENTS.md) before continuing. Next milestone: marketing administration and further
-campaigns, then production acceptance/hardening and the owner's final documentation guide.
+and [AGENTS.md](AGENTS.md) before continuing. The owner’s [final documentation requirements](docs/final-documentation-requirements.md)
+are recorded for the real-operation handoff.
 
 ## Public catalog examples
 

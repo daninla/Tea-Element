@@ -40,15 +40,20 @@ for (const [index, name] of names.entries()) {
 // Never print credentials. The owner can inspect their private auth-service/.env if needed.
 console.log('Local auth environment is ready. Secrets are stored only in ignored .env files.');
 
-const catalogEnv = path.join(root, 'apps/catalog-service/.env');
-try {
-  await readFile(catalogEnv);
-} catch {
-  await writeFile(
-    catalogEnv,
-    await readFile(path.join(root, 'apps/catalog-service/.env.example')),
-    { mode: 0o600 },
-  );
+for (const name of ['catalog-service', 'payments-service']) {
+  const directory = path.join(root, 'apps', name);
+  try {
+    await writeFile(
+      path.join(directory, '.env'),
+      await readFile(path.join(directory, '.env.example')),
+      {
+        flag: 'wx',
+        mode: 0o600,
+      },
+    );
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+  }
 }
 
 const ordersEnv = path.join(root, 'apps/orders-service/.env');

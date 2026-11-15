@@ -5,7 +5,7 @@ import type {
   DeliveryRequest,
   DeliverySelection,
 } from '@tea/contracts';
-import { DeliveryProvider } from '../domain/delivery-provider';
+import { DeliveryProvider, type Parcel } from '../domain/delivery-provider';
 import { OrderError, QuoteProvider } from '../domain/order-store';
 import { validateOrderQuote } from '../domain/order-policy';
 
@@ -46,22 +46,30 @@ export class CheckoutDelivery {
     paymentMethod: CreateOrderInput['paymentMethod'],
   ) {
     const env = process.env;
-    const weight = quote.items.reduce(
+    const limit = positiveInteger(env.DELIVERY_BOX_MAX_GRAMS, 30_000);
+    const branchPacking =
+      selection.carrier === 'NOVA_POSHTA' && env.NOVA_POSHTA_BRANCH_PACKING === 'true';
+    const goodsWeight = quote.items.reduce(
       (sum, item) =>
         sum +
         item.quantity * (item.weightGrams ?? positiveInteger(env.DELIVERY_PIECE_GRAMS, 20_000)),
-      positiveInteger(env.DELIVERY_PACKAGING_GRAMS, 10_000),
+      0,
     );
-    if (weight > positiveInteger(env.DELIVERY_BOX_MAX_GRAMS, 30_000))
+    const weight =
+      goodsWeight + (branchPacking ? 0 : positiveInteger(env.DELIVERY_PACKAGING_GRAMS, 10_000));
+    if (weight > limit)
       throw new OrderError('DELIVERY_PARCEL_TOO_HEAVY', 'Choose another delivery method', 400);
-    const rate = await this.provider.rate(selection, {
-      weight,
-      length: positiveInteger(env.DELIVERY_BOX_LENGTH_CM, 120),
-      width: positiveInteger(env.DELIVERY_BOX_WIDTH_CM, 120),
-      height: positiveInteger(env.DELIVERY_BOX_HEIGHT_CM, 120),
-      value: quote.total,
-      cod: paymentMethod === 'CASH_ON_DELIVERY',
-    });
+    const common = { value: quote.total, cod: paymentMethod === 'CASH_ON_DELIVERY' };
+    const parcel: Parcel = branchPacking
+      ? { ...common, weight: limit, branchPacking: true }
+      : {
+          ...common,
+          weight,
+          length: positiveInteger(env.DELIVERY_BOX_LENGTH_CM, 120),
+          width: positiveInteger(env.DELIVERY_BOX_WIDTH_CM, 120),
+          height: positiveInteger(env.DELIVERY_BOX_HEIGHT_CM, 120),
+        };
+    const rate = await this.provider.rate(selection, parcel);
     if (!Number.isSafeInteger(rate.fee) || rate.fee < 0 || rate.fee + quote.total > 2147483647)
       throw new OrderError('DELIVERY_UNAVAILABLE', 'Invalid delivery tariff', 503);
     return rate;

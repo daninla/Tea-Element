@@ -5,14 +5,9 @@ import type {
   DeliverySelection,
 } from '@tea/contracts';
 
-export interface Parcel {
-  weight: number;
-  length: number;
-  width: number;
-  height: number;
-  value: number;
-  cod: boolean;
-}
+export type Parcel = { weight: number; value: number; cod: boolean } & (
+  { length: number; width: number; height: number; branchPacking?: false } | { branchPacking: true }
+);
 
 export abstract class DeliveryProvider {
   abstract available(): DeliveryCarrier[];

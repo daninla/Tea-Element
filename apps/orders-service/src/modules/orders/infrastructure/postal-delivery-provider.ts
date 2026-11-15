@@ -245,7 +245,9 @@ export class PostalDeliveryProvider extends DeliveryProvider {
         CargoType: 'Parcel',
         SeatsAmount: 1,
         Weight: parcel.weight / 1000,
-        VolumeGeneral: (parcel.length * parcel.width * parcel.height) / 1_000_000,
+        ...(!parcel.branchPacking && {
+          VolumeGeneral: (parcel.length * parcel.width * parcel.height) / 1_000_000,
+        }),
         Cost: parcel.value / 100,
       });
       // Standard NovaPay transfer tariff (2% + UAH 20). Prefer the standard
@@ -253,11 +255,14 @@ export class PostalDeliveryProvider extends DeliveryProvider {
       fee =
         money(price?.Cost) +
         (parcel.cod ? Math.round((parcel.value * 2) / 100) + 2000 : 0) +
-        (point.kind === 'LOCKER' ? 1000 : 0);
+        (point.kind === 'LOCKER' ? 1000 : 0) +
+        (parcel.branchPacking ? 1500 : 0);
     } else {
       const to = text(destination.POSTINDEX);
       if (!postcode.test(to)) return unavailable();
-      const { value, cod, ...dimensions } = parcel;
+      if (parcel.branchPacking) return unavailable();
+      const { value, cod, weight, length, width, height } = parcel;
+      const dimensions = { weight, length, width, height };
       const quoted = await this.request(
         endpoint('ecom/0.0.1/domestic/delivery-price', { token: env.UKRPOSHTA_TOKEN! }),
         {

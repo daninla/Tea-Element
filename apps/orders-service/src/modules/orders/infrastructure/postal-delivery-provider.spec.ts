@@ -24,9 +24,11 @@ it('resolves Zaporizhzhia branch 19 and adds the locker and collect-on-delivery 
       expect(methodProperties).toMatchObject({
         CitySender: sender,
         CityRecipient: recipient,
-        Weight: 0.7,
+        Weight: expect.any(Number),
         Cost: 120,
       });
+      if (methodProperties.Weight === 1)
+        expect(methodProperties).not.toHaveProperty('VolumeGeneral');
       return Response.json({ success: true, data: [{ Cost: '80.50' }] });
     }
     if (methodProperties.CityName) {
@@ -73,7 +75,12 @@ it('resolves Zaporizhzhia branch 19 and adds the locker and collect-on-delivery 
   await expect(provider.rate(selection, { ...parcel, cod: false })).resolves.toMatchObject({
     fee: 9050,
   });
-  expect(fetcher).toHaveBeenCalledTimes(5);
+  await expect(
+    provider.rate(selection, { weight: 1000, value: 12000, cod: true, branchPacking: true }),
+  ).resolves.toMatchObject({ fee: 12790 });
+  const tariff = JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body));
+  expect(tariff.methodProperties.Weight).toBe(1);
+  expect(fetcher).toHaveBeenCalledTimes(7);
 });
 
 it('quotes Ukrposhta using the selected postcode, without treating its card terminal as a locker', async () => {

@@ -183,3 +183,10 @@ Quote failures do not become free shipping. Existing manual delivery and pickup 
 The verified fee and destination are saved in the order snapshot, and the order total includes the
 fee. When booking a COD shipment, the goods amount and carrier charges must be entered separately so
 the customer is charged once. Booking the shipment itself is manual.
+
+For packing at a Nova Poshta branch, set `NOVA_POSHTA_BRANCH_PACKING=true` and
+`DELIVERY_BOX_MAX_GRAMS=1000` for this shop. Checkout rates a single estimated 1 kg parcel and
+includes UAH 15 for small-box packing at the branch. The weight limit checks goods weight in this
+mode because the packaging weight is unknown. Staff must verify the final packed weight, size and
+price. This mode has no measured volume and is intended for small orders. Teaware still requires a
+configured estimated unit weight. Ukrposhta continues to require measured packaging settings.

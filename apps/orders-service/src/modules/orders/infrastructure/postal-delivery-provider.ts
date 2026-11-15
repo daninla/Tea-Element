@@ -104,7 +104,7 @@ export class PostalDeliveryProvider extends DeliveryProvider {
       throw new OrderError('INVALID_DELIVERY_POINT', 'Select a region', 400);
     const source =
       carrier === 'NOVA_POSHTA'
-        ? await this.nova('Address', 'getCities', { FindByString: query, Limit: 20, Page: 1 })
+        ? await this.nova('Address', 'getCities', { FindByString: query, Limit: '20', Page: '1' })
         : await this.ukDirectory('get_city_by_region_id_and_district_id_and_city_ua', {
             city_ua: query,
             region_id: regionId!,
@@ -178,20 +178,31 @@ export class PostalDeliveryProvider extends DeliveryProvider {
         text(x.IS_SECURITY) !== '1',
     );
   }
+  private readonly novaPoints = new Map<string, { row: Row; expiresAt: number }>();
+
   async points(carrier: DeliveryCarrier, cityId: string, query?: string) {
-    const points = (await this.pointRows(carrier, cityId, query)).map((x) =>
-      this.point(carrier, x),
-    );
-    return points
+    const rows = await this.pointRows(carrier, cityId, query);
+    const points = rows
+      .map((row) => ({ row, point: this.point(carrier, row) }))
       .filter(
-        (x) =>
-          x.id &&
-          x.number &&
-          x.address &&
-          (!query || (x.number + ' ' + x.address).toLowerCase().includes(query.toLowerCase())),
+        ({ point }) =>
+          point.id &&
+          point.number &&
+          point.address &&
+          (!query ||
+            (point.number + ' ' + point.address).toLowerCase().includes(query.toLowerCase())),
       )
-      .sort((a, b) => a.number.localeCompare(b.number, 'uk', { numeric: true }))
+      .sort((a, b) => a.point.number.localeCompare(b.point.number, 'uk', { numeric: true }))
       .slice(0, 100);
+    if (carrier === 'NOVA_POSHTA') {
+      for (const { row, point } of points) {
+        if (text(row.CityRef) !== cityId) continue;
+        if (this.novaPoints.size >= 500)
+          this.novaPoints.delete(this.novaPoints.keys().next().value!);
+        this.novaPoints.set(cityId + ':' + point.id, { row, expiresAt: Date.now() + 60_000 });
+      }
+    }
+    return points.map(({ point }) => point);
   }
   private senderCity?: { ref: string; expiresAt: number };
 
@@ -221,8 +232,14 @@ export class PostalDeliveryProvider extends DeliveryProvider {
 
   async rate(selection: DeliverySelection, parcel: Parcel) {
     const { carrier, cityId, pointId } = selection;
+    const cached =
+      carrier === 'NOVA_POSHTA' && this.available().includes(carrier)
+        ? this.novaPoints.get(cityId + ':' + pointId)
+        : undefined;
     const [rows, senderCity] = await Promise.all([
-      this.pointRows(carrier, cityId, undefined, pointId),
+      cached && cached.expiresAt > Date.now()
+        ? [cached.row]
+        : this.pointRows(carrier, cityId, undefined, pointId),
       carrier === 'NOVA_POSHTA' && this.available().includes(carrier)
         ? this.novaSenderCity()
         : undefined,

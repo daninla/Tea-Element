@@ -83,6 +83,20 @@ it('resolves Zaporizhzhia branch 19 and adds the locker and collect-on-delivery 
   expect(fetcher).toHaveBeenCalledTimes(7);
 });
 
+it('uses the string pagination required by the live Nova Poshta city API', async () => {
+  process.env = { ...env, NOVA_POSHTA_API_KEY: 'fixture', NOVA_POSHTA_SENDER_CITY_REF: sender };
+  jest.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      calledMethod: 'getCities',
+      methodProperties: { FindByString: 'Київ', Page: '1', Limit: '20' },
+    });
+    return Response.json({ success: true, data: [{ Ref: recipient, Description: 'Київ' }] });
+  });
+  await expect(new PostalDeliveryProvider().cities('NOVA_POSHTA', 'Київ')).resolves.toEqual([
+    { id: recipient, name: 'Київ' },
+  ]);
+});
+
 it('quotes Ukrposhta using the selected postcode, without treating its card terminal as a locker', async () => {
   process.env = {
     ...env,

@@ -54,6 +54,16 @@ export class OrdersController {
     });
   }
   @Public()
+  @Post('delivery')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  checkoutDelivery(@Body() input: unknown, @Req() req: AuthenticatedRequest) {
+    return this.orders.execute(ORDERS_PATTERNS.delivery, {
+      input,
+      context: { correlationId: String(req.id) },
+    });
+  }
+  @Public()
   @Post('guest')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   guest(

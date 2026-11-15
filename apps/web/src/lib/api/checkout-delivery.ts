@@ -1,0 +1,22 @@
+import type {
+  DeliveryCarrier,
+  DeliveryCity,
+  DeliveryPoint,
+  DeliveryQuote,
+  DeliveryRequest,
+} from '@tea/contracts';
+import { request } from './orders';
+
+function delivery<T>(input: DeliveryRequest) {
+  return request<T>('/orders/delivery', 'POST', input);
+}
+export const checkoutDeliveryApi = {
+  carriers: () => delivery<DeliveryCarrier[]>({ kind: 'CARRIERS' }),
+  regions: () => delivery<DeliveryCity[]>({ kind: 'REGIONS', carrier: 'UKRPOSHTA' }),
+  cities: (carrier: DeliveryCarrier, query: string, regionId?: string) =>
+    delivery<DeliveryCity[]>({ kind: 'CITIES', carrier, query, regionId }),
+  points: (carrier: DeliveryCarrier, cityId: string, query: string) =>
+    delivery<DeliveryPoint[]>({ kind: 'POINTS', carrier, cityId, query }),
+  quote: (input: Omit<Extract<DeliveryRequest, { kind: 'QUOTE' }>, 'kind'>) =>
+    delivery<DeliveryQuote>({ kind: 'QUOTE', ...input }),
+};

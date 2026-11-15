@@ -12,7 +12,8 @@ import { ReadCart } from '../application/read-cart';
 import { SaveCart } from '../application/save-cart';
 import { MergeCart } from '../application/merge-cart';
 import { QuoteCart } from '../application/quote-cart';
-import { cartItems, createInput, access, context } from './orders-schema';
+import { CheckoutDelivery } from '../application/checkout-delivery';
+import { cartItems, createInput, access, context, deliveryRequest } from './orders-schema';
 async function handle<T, R>(
   raw: unknown,
   input: z.ZodType<T>,
@@ -56,7 +57,13 @@ export class OrdersRpcController {
     @Inject(SaveCart) private readonly saveCart: SaveCart,
     @Inject(MergeCart) private readonly mergeCart: MergeCart,
     @Inject(QuoteCart) private readonly quote: QuoteCart,
+    @Inject(CheckoutDelivery) private readonly delivery: CheckoutDelivery,
   ) {}
+  @MessagePattern(ORDERS_PATTERNS.delivery) checkoutDelivery(@Payload() raw: unknown) {
+    return handle(raw, deliveryRequest, (input, ctx) =>
+      this.delivery.execute(input, ctx.correlationId),
+    );
+  }
   @MessagePattern(ORDERS_PATTERNS.quote) quoteCart(@Payload() raw: unknown) {
     return handle(raw, z.object({ items: cartItems }).strict(), (x, c) =>
       this.quote.execute(x.items, c.correlationId),

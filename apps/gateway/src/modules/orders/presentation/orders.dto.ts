@@ -30,17 +30,26 @@ export class CartDto {
   @Type(() => CartItemDto)
   items!: CartItemDto[];
 }
+class DeliverySelectionDto {
+  @IsIn(['NOVA_POSHTA', 'UKRPOSHTA']) carrier!: 'NOVA_POSHTA' | 'UKRPOSHTA';
+  @IsString() @MinLength(1) @MaxLength(64) cityId!: string;
+  @IsString() @MinLength(1) @MaxLength(64) pointId!: string;
+}
 export class DeliveryDto {
-  @IsIn(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP']) method!:
-    'NOVA_POSHTA_BRANCH' | 'NOVA_POSHTA_COURIER' | 'PICKUP';
+  @IsIn(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP', 'CARRIER_POINT']) method!:
+    'NOVA_POSHTA_BRANCH' | 'NOVA_POSHTA_COURIER' | 'PICKUP' | 'CARRIER_POINT';
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeliverySelectionDto)
+  selection?: DeliverySelectionDto;
   @IsString()
   @MaxLength(100)
-  @ValidateIf((x: DeliveryDto) => x.method !== 'PICKUP')
+  @ValidateIf((x: DeliveryDto) => x.method !== 'PICKUP' && x.method !== 'CARRIER_POINT')
   @MinLength(2)
   city!: string;
   @IsString()
   @MaxLength(300)
-  @ValidateIf((x: DeliveryDto) => x.method !== 'PICKUP')
+  @ValidateIf((x: DeliveryDto) => x.method !== 'PICKUP' && x.method !== 'CARRIER_POINT')
   @MinLength(2)
   address!: string;
 }
@@ -53,6 +62,7 @@ export class CreateOrderDto extends CartDto {
   @ValidateNested() @Type(() => DeliveryDto) delivery!: DeliveryDto;
   @IsIn(['CASH_ON_DELIVERY', 'ONLINE_CARD']) paymentMethod!: 'CASH_ON_DELIVERY' | 'ONLINE_CARD';
   @IsOptional() @IsString() @MaxLength(1000) comment?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(2147483647) expectedDeliveryTotal?: number;
   @IsBoolean() marketingConsent!: boolean;
   @Equals(true) acceptTerms!: true;
 }

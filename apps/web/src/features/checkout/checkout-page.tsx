@@ -12,10 +12,13 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/features/cart/cart-store';
 import { useCartQuote } from '@/features/cart/use-cart-quote';
 import { rememberAccess } from '@/features/payments/private-access';
+import { checkoutDeliveryApi } from '@/lib/api/checkout-delivery';
+import { DeliveryPointFields } from './delivery-point-fields';
 import { checkoutSchema, type CheckoutFields } from './checkout-schema';
 import { checkoutAttempt, fingerprintOrder } from './checkout-attempt';
 export function CheckoutPage() {
   const t = useTranslations('checkout');
+  const dt = useTranslations('checkoutDelivery');
   const cartT = useTranslations('cart');
   const router = useRouter();
   const quote = useCartQuote();
@@ -40,6 +43,20 @@ export function CheckoutPage() {
     },
   });
   const method = form.watch('delivery.method');
+  const selection = form.watch('delivery.selection');
+  const paymentMethod = form.watch('paymentMethod');
+  const carriers = useQuery({
+    queryKey: ['delivery-carriers'],
+    queryFn: checkoutDeliveryApi.carriers,
+    retry: false,
+  });
+  const deliveryQuote = useQuery({
+    queryKey: ['delivery-quote', selection, cart.items, paymentMethod, quote.data?.total],
+    queryFn: () =>
+      checkoutDeliveryApi.quote({ selection: selection!, items: cart.items, paymentMethod }),
+    enabled: method === 'CARRIER_POINT' && !!selection && cart.items.length > 0 && !!quote.data,
+    retry: false,
+  });
   useEffect(() => {
     if (session.data) {
       for (const field of ['firstName', 'lastName', 'phone', 'email'] as const)
@@ -49,7 +66,13 @@ export function CheckoutPage() {
     }
   }, [session.data, form]);
   async function submit(fields: CheckoutFields) {
-    if (busy.current || !quote.data) return;
+    if (
+      busy.current ||
+      !quote.data ||
+      (method === 'CARRIER_POINT' &&
+        (!deliveryQuote.data || deliveryQuote.isFetching || deliveryQuote.isError))
+    )
+      return;
     busy.current = true;
     setLocked(true);
     setError(null);
@@ -70,7 +93,16 @@ export function CheckoutPage() {
         await quote.refetch();
         return;
       }
-      const input = { ...fields, items, acceptTerms: true as const };
+      const input = {
+        ...fields,
+        items,
+        acceptTerms: true as const,
+        delivery:
+          method === 'CARRIER_POINT'
+            ? { ...fields.delivery, city: '', address: '' }
+            : { ...fields.delivery, selection: undefined },
+        ...(method === 'CARRIER_POINT' ? { expectedDeliveryTotal: deliveryQuote.data!.total } : {}),
+      };
       const fingerprint = await fingerprintOrder(input);
       const { key } = checkoutAttempt(
         fingerprint,
@@ -88,6 +120,12 @@ export function CheckoutPage() {
         `/order/${created.order.number}${created.order.paymentMethod === 'ONLINE_CARD' ? '/pay' : ''}?token=${encodeURIComponent(created.accessToken)}`,
       );
     } catch (e) {
+      if (e instanceof OrdersApiError && e.code === 'DELIVERY_PRICE_CHANGED') {
+        sessionStorage.removeItem('tea-checkout-attempt');
+        await Promise.all([quote.refetch(), deliveryQuote.refetch()]);
+        setError(dt('priceChanged'));
+        return;
+      }
       setError(
         e instanceof OrdersApiError && e.code === 'IDEMPOTENCY_CONFLICT'
           ? t('conflict')
@@ -163,13 +201,26 @@ export function CheckoutPage() {
             <legend>{t('delivery')}</legend>
             <label className="commerce-field">
               {t('deliveryMethod')}
-              <select {...form.register('delivery.method')}>
+              <select
+                {...form.register('delivery.method', {
+                  onChange: () => form.setValue('delivery.selection', undefined),
+                })}
+              >
+                {!!carriers.data?.length && <option value="CARRIER_POINT">{dt('method')}</option>}
                 <option value="NOVA_POSHTA_BRANCH">{t('branch')}</option>
                 <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
                 <option value="PICKUP">{t('pickup')}</option>
               </select>
             </label>
-            {method === 'PICKUP' ? (
+            {carriers.isError && <p role="alert">{dt('lookupError')}</p>}
+            {method === 'CARRIER_POINT' && carriers.data?.length ? (
+              <DeliveryPointFields
+                carriers={carriers.data}
+                change={(value) =>
+                  form.setValue('delivery.selection', value, { shouldDirty: true })
+                }
+              />
+            ) : method === 'PICKUP' ? (
               <p className="muted-copy">{t('pickupNote')}</p>
             ) : (
               <div className="form-grid">
@@ -236,7 +287,16 @@ export function CheckoutPage() {
           <Button
             type="submit"
             disabled={
-              locked || !quote.data || quote.isFetching || !!invalidStock || session.isPending
+              locked ||
+              !quote.data ||
+              quote.isFetching ||
+              !!invalidStock ||
+              session.isPending ||
+              (method === 'CARRIER_POINT' &&
+                (!selection ||
+                  !deliveryQuote.data ||
+                  deliveryQuote.isFetching ||
+                  deliveryQuote.isError))
             }
           >
             {locked ? t('submitting') : review ? t('confirmUpdated') : t('submit')}
@@ -278,11 +338,33 @@ export function CheckoutPage() {
                   <span>{cartT('discount')}</span>
                   <span>−{formatMoney(quote.data.discount)}</span>
                 </p>
+                {method === 'CARRIER_POINT' && (
+                  <p>
+                    <span>{dt('fee')}</span>
+                    <span>
+                      {deliveryQuote.isFetching
+                        ? dt('loading')
+                        : deliveryQuote.isError
+                          ? dt('quoteError')
+                          : deliveryQuote.data
+                            ? formatMoney(deliveryQuote.data.fee)
+                            : dt('selectPoint')}
+                    </span>
+                  </p>
+                )}
                 <p className="cart-grand-total">
                   <span>{cartT('total')}</span>
-                  <strong>{formatMoney(quote.data.total)}</strong>
+                  <strong>
+                    {method === 'CARRIER_POINT'
+                      ? deliveryQuote.data && !deliveryQuote.isFetching && !deliveryQuote.isError
+                        ? formatMoney(deliveryQuote.data.total)
+                        : '—'
+                      : formatMoney(quote.data.total)}
+                  </strong>
                 </p>
-                <small>{cartT('deliveryNote')}</small>
+                <small>
+                  {method === 'CARRIER_POINT' ? dt('estimateNote') : cartT('deliveryNote')}
+                </small>
               </div>
               {invalidStock && (
                 <p role="alert" className="field-error">

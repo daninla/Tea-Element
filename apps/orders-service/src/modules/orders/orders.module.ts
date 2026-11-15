@@ -20,6 +20,9 @@ import { QuoteCart } from './application/quote-cart';
 import { HandleOrderEvent } from './application/handle-order-event';
 import { ExpireReservations } from './application/expire-reservations';
 import { OrdersRpcController } from './presentation/orders-rpc.controller';
+import { CheckoutDelivery } from './application/checkout-delivery';
+import { DeliveryProvider } from './domain/delivery-provider';
+import { PostalDeliveryProvider } from './infrastructure/postal-delivery-provider';
 import { OrderWorker } from './presentation/order-worker';
 @Module({
   imports: [
@@ -49,6 +52,8 @@ import { OrderWorker } from './presentation/order-worker';
     { provide: OrderStore, useClass: PrismaOrderStore },
     { provide: QuoteProvider, useClass: RmqQuoteProvider },
     CreateOrder,
+    CheckoutDelivery,
+    { provide: DeliveryProvider, useClass: PostalDeliveryProvider },
     ChangePayment,
     AccountOrders,
     GetOrder,

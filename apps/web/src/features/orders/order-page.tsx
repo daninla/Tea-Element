@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 export function OrderPage({ number }: { number: string }) {
   const { token, ready } = usePrivateAccess(number);
   const t = useTranslations('order');
+  const deliveryT = useTranslations('checkoutDelivery');
   const cartT = useTranslations('cart');
   const accountT = useTranslations('account');
   const client = useQueryClient();
@@ -98,6 +99,12 @@ export function OrderPage({ number }: { number: string }) {
               <span>{cartT('discount')}</span>
               <span>−{formatMoney(order.discount)}</span>
             </p>
+            {order.deliveryFee !== undefined && (
+              <p>
+                <span>{deliveryT('fee')}</span>
+                <span>{formatMoney(order.deliveryFee)}</span>
+              </p>
+            )}
             <p className="cart-grand-total">
               <span>{cartT('total')}</span>
               <strong>{formatMoney(order.total)}</strong>
@@ -116,7 +123,11 @@ export function OrderPage({ number }: { number: string }) {
             {order.firstName} {order.lastName}
           </p>
           <p>{order.phone}</p>
-          <p>{t(`deliveryMethod.${order.delivery.method}`)}</p>
+          <p>
+            {order.delivery.selection
+              ? deliveryT(order.delivery.selection.carrier)
+              : t(`deliveryMethod.${order.delivery.method}`)}
+          </p>
           {order.delivery.method !== 'PICKUP' && (
             <p>
               {order.delivery.city}, {order.delivery.address}

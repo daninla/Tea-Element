@@ -11,6 +11,7 @@ export const ORDERS_PATTERNS = {
   changePayment: 'orders.change_payment',
   list: 'orders.list',
   lookup: 'orders.lookup',
+  delivery: 'orders.delivery',
 } as const;
 export const ORDER_STATUSES = [
   'PENDING',
@@ -43,10 +44,46 @@ export interface CartQuote {
   discount: number;
   total: number;
 }
+export const DELIVERY_CARRIERS = ['NOVA_POSHTA', 'UKRPOSHTA'] as const;
+export type DeliveryCarrier = (typeof DELIVERY_CARRIERS)[number];
+export interface DeliverySelection {
+  carrier: DeliveryCarrier;
+  cityId: string;
+  pointId: string;
+}
+export interface DeliveryCity {
+  id: string;
+  name: string;
+}
+export interface DeliveryPoint {
+  id: string;
+  number: string;
+  address: string;
+  kind: 'BRANCH' | 'LOCKER';
+}
+export interface DeliveryQuote {
+  fee: number;
+  total: number;
+}
+export type DeliveryRequest =
+  | { kind: 'CARRIERS' }
+  | { kind: 'REGIONS'; carrier: 'UKRPOSHTA' }
+  | { kind: 'CITIES'; carrier: DeliveryCarrier; query: string; regionId?: string }
+  | { kind: 'POINTS'; carrier: DeliveryCarrier; cityId: string; query?: string }
+  | {
+      kind: 'QUOTE';
+      selection: DeliverySelection;
+      items: CartItemInput[];
+      paymentMethod: CreateOrderInput['paymentMethod'];
+    };
 export interface DeliveryInput {
   method: 'NOVA_POSHTA_BRANCH' | 'NOVA_POSHTA_COURIER' | 'PICKUP';
   city: string;
   address: string;
+}
+export interface OrderDeliveryInput extends Omit<DeliveryInput, 'method'> {
+  method: DeliveryInput['method'] | 'CARRIER_POINT';
+  selection?: DeliverySelection;
 }
 export interface CreateOrderInput {
   items: CartItemInput[];
@@ -54,8 +91,9 @@ export interface CreateOrderInput {
   lastName: string;
   phone: string;
   email: string;
-  delivery: DeliveryInput;
+  delivery: OrderDeliveryInput;
   paymentMethod: 'CASH_ON_DELIVERY' | 'ONLINE_CARD';
+  expectedDeliveryTotal?: number;
   comment?: string;
   marketingConsent: boolean;
   acceptTerms: true;
@@ -68,7 +106,8 @@ export interface OrderView {
   subtotal: number;
   discount: number;
   total: number;
-  delivery: DeliveryInput;
+  delivery: OrderDeliveryInput;
+  deliveryFee?: number;
   firstName: string;
   lastName: string;
   phone: string;

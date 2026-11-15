@@ -10,7 +10,7 @@ import type {
   OrderView,
   OrderStatus,
   QuotedItem,
-  DeliveryInput,
+  OrderDeliveryInput,
   CheckoutEvent,
   PaymentOutcome,
   StockReserved,
@@ -41,7 +41,13 @@ export function view(row: Loaded): OrderView {
     subtotal: row.subtotal,
     discount: row.discount,
     total: row.total,
-    delivery: row.delivery as unknown as DeliveryInput,
+    delivery: row.delivery as unknown as OrderDeliveryInput,
+    ...(typeof row.delivery === 'object' &&
+    row.delivery &&
+    'fee' in row.delivery &&
+    typeof row.delivery.fee === 'number'
+      ? { deliveryFee: row.delivery.fee }
+      : {}),
     firstName: row.firstName,
     lastName: row.lastName,
     email: row.email,
@@ -80,7 +86,12 @@ export class PrismaOrderStore extends OrderStore {
     });
     return row ? this.response(row, input, context) : null;
   }
-  async create(input: CreateOrderInput, context: CreateContext, quote: CartQuote) {
+  async create(
+    input: CreateOrderInput,
+    context: CreateContext,
+    quote: CartQuote,
+    delivery?: { fee: number; city: string; address: string },
+  ) {
     const key = hashes(input, context);
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key.idempotencyHash},0))`;
@@ -100,13 +111,13 @@ export class PrismaOrderStore extends OrderStore {
           items: json(quote.items),
           subtotal: quote.subtotal,
           discount: quote.discount,
-          total: quote.total,
+          total: quote.total + (delivery?.fee ?? 0),
           paymentMethod: input.paymentMethod,
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email,
           phone: input.phone,
-          delivery: json(input.delivery),
+          delivery: json(delivery ? { ...input.delivery, ...delivery } : input.delivery),
           comment: input.comment ?? '',
           marketingConsentAt: input.marketingConsent ? new Date() : null,
           accessTokenHash: digest(token),
@@ -201,6 +212,15 @@ export class PrismaOrderStore extends OrderStore {
         row.paymentExpiresAt <= new Date()
       )
         throw new OrderError('INVALID_TRANSITION', 'Payment cannot be changed', 409);
+      if (
+        action === 'COD' &&
+        (row.delivery as unknown as OrderDeliveryInput).method === 'CARRIER_POINT'
+      )
+        throw new OrderError(
+          'INVALID_TRANSITION',
+          'Changing payment requires a new delivery quote',
+          409,
+        );
       if (action === 'RETRY' && row.paymentStatus !== 'FAILED')
         throw new OrderError('INVALID_TRANSITION', 'Payment is not failed', 409);
       await tx.paymentAttempt.upsert({

@@ -168,3 +168,18 @@ accepts kind=ACCOUNT&id=UUID or kind=GUEST&email=EMAIL, plus page. Account histo
 guest groups use only null user_id and canonical contact email. No email-based ownership expansion occurs.
 Counts/contacts/order pages/completed-paid product summaries share Repeatable Read. Guest contacts are
 unverified grouping keys, not authentication or campaign permissions. See ADR 0018.
+
+### Carrier checkout
+
+Carrier options are enabled by server-side credentials in the orders service. Nova Poshta resolves
+the configured Ukrainian sender city and branch number against its directory. The shop default is
+`Запоріжжя`, branch `19`. An explicit sender city Ref is optional. Ukrposhta requires the business
+Bearer, Token and sender postcode.
+
+Configure measured box dimensions, packaging mass, maximum packed mass, and a conservative mass per
+teaware unit in the orders service. See the environment example. Rates are estimates for one box.
+The checkout fetches a directory and quote, and order submission revalidates the point and total.
+Quote failures do not become free shipping. Existing manual delivery and pickup stay available.
+The verified fee and destination are saved in the order snapshot, and the order total includes the
+fee. When booking a COD shipment, the goods amount and carrier charges must be entered separately so
+the customer is charged once. Booking the shipment itself is manual.

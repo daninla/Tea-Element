@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DELIVERY_CARRIERS } from '@tea/contracts';
 export const checkoutSchema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
@@ -6,12 +7,22 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email().max(320),
   delivery: z
     .object({
-      method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP']),
+      method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP', 'CARRIER_POINT']),
       city: z.string().trim().max(100),
       address: z.string().trim().max(300),
+      selection: z
+        .object({
+          carrier: z.enum(DELIVERY_CARRIERS),
+          cityId: z.string().min(1).max(64),
+          pointId: z.string().min(1).max(64),
+        })
+        .optional(),
     })
     .superRefine((x, ctx) => {
-      if (x.method !== 'PICKUP') {
+      if (x.method === 'CARRIER_POINT') {
+        if (!x.selection)
+          ctx.addIssue({ code: 'custom', path: ['selection'], message: 'required' });
+      } else if (x.method !== 'PICKUP') {
         if (x.city.length < 2)
           ctx.addIssue({ code: 'custom', path: ['city'], message: 'required' });
         if (x.address.length < 2)

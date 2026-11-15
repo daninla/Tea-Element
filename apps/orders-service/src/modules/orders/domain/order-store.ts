@@ -36,6 +36,7 @@ export abstract class OrderStore {
     input: CreateOrderInput,
     context: CreateContext,
     quote: CartQuote,
+    delivery?: { fee: number; city: string; address: string },
   ): Promise<CreatedOrder>;
   abstract get(input: AccessInput): Promise<OrderView>;
   abstract cancel(input: AccessInput, correlationId: string): Promise<OrderView>;

@@ -185,13 +185,15 @@ export function PaymentPage({ number, result = false }: { number: string; result
                 {t('retry')}
               </Button>
             )}
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => void action(() => change('COD'))}
-            >
-              {t('switchCod')}
-            </Button>
+            {current.delivery?.method !== 'CARRIER_POINT' && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void action(() => change('COD'))}
+              >
+                {t('switchCod')}
+              </Button>
+            )}
           </div>
         )}
         {error && (

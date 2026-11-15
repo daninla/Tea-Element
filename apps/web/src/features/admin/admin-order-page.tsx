@@ -18,6 +18,7 @@ export function AdminOrderPage({
   returnTo?: string;
 }) {
   const t = useTranslations('admin');
+  const deliveryT = useTranslations('checkoutDelivery');
   const statusT = useTranslations('order.status');
   const unitT = useTranslations('admin');
   const session = useQuery({ queryKey: ['customer-session'], queryFn: ordersApi.me, retry: false });
@@ -102,7 +103,11 @@ export function AdminOrderPage({
         </section>
         <section className="notice">
           <h2>{t('delivery')}</h2>
-          <p>{t(`deliveryMethods.${x.delivery.method}`)}</p>
+          <p>
+            {x.delivery.selection
+              ? deliveryT(x.delivery.selection.carrier)
+              : t(`deliveryMethods.${x.delivery.method}`)}
+          </p>
           <p>{x.delivery.city}</p>
           <p>{x.delivery.address}</p>
           <h2>{t('payment')}</h2>
@@ -137,6 +142,12 @@ export function AdminOrderPage({
           <dd>{formatMoney(x.subtotal)}</dd>
           <dt>{t('discount')}</dt>
           <dd>{formatMoney(x.discount)}</dd>
+          {x.deliveryFee !== undefined && (
+            <>
+              <dt>{deliveryT('fee')}</dt>
+              <dd>{formatMoney(x.deliveryFee)}</dd>
+            </>
+          )}
           <dt>{t('total')}</dt>
           <dd>
             <strong>{formatMoney(x.total)}</strong>

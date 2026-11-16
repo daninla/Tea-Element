@@ -5,7 +5,7 @@ import type { OrderStore, QuoteProvider } from '../domain/order-store';
 describe('CreateOrder', () => {
   const input = {
     items: [{ variantId: 'v', quantity: 1 }],
-    delivery: { method: 'PICKUP', city: '', address: '' },
+    delivery: { method: 'NOVA_POSHTA_BRANCH', city: 'Київ', address: 'Відділення 1' },
   } as CreateOrderInput;
   const context = { idempotencyKey: 'key', correlationId: 'correlation' };
   const created = { order: { number: 'one' }, accessToken: 'token' } as CreatedOrder;
@@ -74,6 +74,21 @@ describe('CreateOrder', () => {
     const accepted = { ...selected, expectedDeliveryTotal: 199 };
     await useCase.execute(accepted, context);
     expect(store.create).toHaveBeenCalledWith(accepted, context, quote, rate);
+  });
+  it('rejects new pickup orders before asking for a quote', async () => {
+    const store = { replay: jest.fn().mockResolvedValue(null), create: jest.fn() };
+    const catalog = { quote: jest.fn() };
+    await expect(
+      new CreateOrder(store as unknown as OrderStore, catalog).execute(
+        {
+          ...input,
+          delivery: { method: 'PICKUP', city: '', address: '' },
+        },
+        context,
+      ),
+    ).rejects.toMatchObject({ code: 'DELIVERY_METHOD_UNAVAILABLE' });
+    expect(catalog.quote).not.toHaveBeenCalled();
+    expect(store.create).not.toHaveBeenCalled();
   });
   it('does not persist on missing stock', async () => {
     const store = { replay: jest.fn().mockResolvedValue(null), create: jest.fn() };

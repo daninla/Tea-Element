@@ -13,13 +13,14 @@ export function ProfileForm({ user }: { user: PublicUser }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<'saved' | 'error' | null>(null);
   const gate = useRef(false);
+  const savedDelivery = user.defaultDelivery?.method === 'PICKUP' ? null : user.defaultDelivery;
   const form = useForm({
     defaultValues: {
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone ?? '',
-      saveDelivery: !!user.defaultDelivery,
-      delivery: user.defaultDelivery ?? { method: 'PICKUP' as const, city: '', address: '' },
+      saveDelivery: !!savedDelivery,
+      delivery: savedDelivery ?? { method: 'NOVA_POSHTA_BRANCH' as const, city: '', address: '' },
     },
   });
   async function save(raw: unknown) {
@@ -72,23 +73,18 @@ export function ProfileForm({ user }: { user: PublicUser }) {
             <label className="commerce-field">
               {t('deliveryMethod')}
               <select {...form.register('delivery.method')}>
-                <option value="PICKUP">{t('pickup')}</option>
                 <option value="NOVA_POSHTA_BRANCH">{t('branch')}</option>
                 <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
               </select>
             </label>
-            {form.watch('delivery.method') !== 'PICKUP' && (
-              <>
-                <label className="commerce-field">
-                  {t('city')}
-                  <input {...form.register('delivery.city')} maxLength={100} />
-                </label>
-                <label className="commerce-field">
-                  {t('address')}
-                  <input {...form.register('delivery.address')} maxLength={300} />
-                </label>
-              </>
-            )}
+            <label className="commerce-field">
+              {t('city')}
+              <input {...form.register('delivery.city')} maxLength={100} />
+            </label>
+            <label className="commerce-field">
+              {t('address')}
+              <input {...form.register('delivery.address')} maxLength={300} />
+            </label>
           </>
         )}
         <Button disabled={busy} type="submit">

@@ -64,8 +64,12 @@ export function CheckoutPage() {
       for (const field of ['firstName', 'lastName', 'phone', 'email'] as const)
         if (!form.getFieldState(field).isDirty) form.setValue(field, session.data[field] ?? '');
       const saved = session.data.defaultDelivery;
-      if (saved && saved.method !== 'NOVA_POSHTA_BRANCH' && !form.getFieldState('delivery').isDirty)
-        form.setValue('delivery', saved);
+      if (
+        saved &&
+        saved.method === 'NOVA_POSHTA_COURIER' &&
+        !form.getFieldState('delivery').isDirty
+      )
+        form.setValue('delivery', { ...saved, method: saved.method });
     }
   }, [session.data, form]);
   async function submit(fields: CheckoutFields) {
@@ -215,7 +219,7 @@ export function CheckoutPage() {
                       { method: 'CARRIER_POINT', city: '', address: '' },
                       { shouldDirty: true },
                     );
-                  } else if (value === 'PICKUP' || value === 'NOVA_POSHTA_COURIER') {
+                  } else if (value === 'NOVA_POSHTA_COURIER') {
                     form.setValue(
                       'delivery',
                       { method: value, city: '', address: '' },
@@ -225,11 +229,12 @@ export function CheckoutPage() {
                 }}
               >
                 <option value="NOVA_POSHTA">{dt('NOVA_POSHTA')}</option>
-                {carriers.data?.includes('UKRPOSHTA') && (
-                  <option value="UKRPOSHTA">{dt('UKRPOSHTA')}</option>
-                )}
+                <option value="UKRPOSHTA" disabled={!carriers.data?.includes('UKRPOSHTA')}>
+                  {carriers.data?.includes('UKRPOSHTA')
+                    ? dt('UKRPOSHTA')
+                    : dt('ukrposhtaUnavailable')}
+                </option>
                 <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
-                <option value="PICKUP">{t('pickup')}</option>
               </select>
             </label>
             {method === 'CARRIER_POINT' &&
@@ -247,8 +252,6 @@ export function CheckoutPage() {
                   form.setValue('delivery.selection', value, { shouldDirty: true })
                 }
               />
-            ) : method === 'PICKUP' ? (
-              <p className="muted-copy">{t('pickupNote')}</p>
             ) : (
               <div className="form-grid">
                 <label className="commerce-field">

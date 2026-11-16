@@ -174,12 +174,12 @@ unverified grouping keys, not authentication or campaign permissions. See ADR 00
 Carrier options are enabled by server-side credentials in the orders service. Nova Poshta resolves
 the configured Ukrainian sender city and branch number against its directory. The shop default is
 `Запоріжжя`, branch `19`. An explicit sender city Ref is optional. Ukrposhta requires the business
-Bearer, Token and sender postcode.
+Bearer, Token and sender postcode. Add all three to the orders service environment, configure parcel dimensions and weight, then restart the service. Checkout shows Ukrposhta as unavailable until credentials, the sender postcode and the parcel settings are configured.
 
 Configure measured box dimensions, packaging mass, maximum packed mass, and a conservative mass per
 teaware unit in the orders service. See the environment example. Rates are estimates for one box.
 The checkout fetches a directory and quote, and order submission revalidates the point and total.
-Quote failures do not become free shipping. Existing manual delivery and pickup stay available.
+Quote failures do not become free shipping. Manual carrier delivery remains available. New pickup orders are rejected. Existing orders and idempotent replays are still supported.
 The verified fee and destination are saved in the order snapshot, and the order total includes the
 fee. When booking a COD shipment, the goods amount and carrier charges must be entered separately so
 the customer is charged once. Booking the shipment itself is manual.

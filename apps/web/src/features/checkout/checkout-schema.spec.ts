@@ -28,11 +28,11 @@ describe('guest checkout form', () => {
       ).toBe(false);
     },
   );
-  it('does not require a shipping address for pickup', () => {
+  it('does not accept pickup in new checkout orders', () => {
     expect(
       checkoutSchema.safeParse({ ...fields, delivery: { method: 'PICKUP', city: '', address: '' } })
         .success,
-    ).toBe(true);
+    ).toBe(false);
   });
   it.each([
     { phone: '0501234567' },

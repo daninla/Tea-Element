@@ -7,7 +7,7 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email().max(320),
   delivery: z
     .object({
-      method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP', 'CARRIER_POINT']),
+      method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'CARRIER_POINT']),
       city: z.string().trim().max(100),
       address: z.string().trim().max(300),
       selection: z
@@ -22,7 +22,7 @@ export const checkoutSchema = z.object({
       if (x.method === 'CARRIER_POINT') {
         if (!x.selection)
           ctx.addIssue({ code: 'custom', path: ['selection'], message: 'required' });
-      } else if (x.method !== 'PICKUP') {
+      } else {
         if (x.city.length < 2)
           ctx.addIssue({ code: 'custom', path: ['city'], message: 'required' });
         if (x.address.length < 2)

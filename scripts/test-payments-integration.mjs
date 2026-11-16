@@ -136,7 +136,7 @@ async function create(variantId, ownerCookie, extraItems = []) {
     lastName: 'Оплати',
     phone: '+380501234567',
     email: `pay-${tag}@example.test`,
-    delivery: { method: 'PICKUP', city: '', address: '' },
+    delivery: { method: 'NOVA_POSHTA_BRANCH', city: 'Київ', address: 'Відділення 1' },
     paymentMethod: 'ONLINE_CARD',
     marketingConsent: false,
     acceptTerms: true,

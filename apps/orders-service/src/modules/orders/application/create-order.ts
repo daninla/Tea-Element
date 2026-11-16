@@ -13,6 +13,8 @@ export class CreateOrder {
   async execute(input: CreateOrderInput, context: CreateContext) {
     const existing = await this.store.replay(input, context);
     if (existing) return existing;
+    if (input.delivery.method === 'PICKUP')
+      throw new OrderError('DELIVERY_METHOD_UNAVAILABLE', 'Pickup is unavailable', 400);
     const quote = await this.catalog.quote(input.items, context.correlationId);
     validateOrderQuote(quote, input.items);
     if (input.paymentMethod === 'ONLINE_CARD' && quote.total < 1)

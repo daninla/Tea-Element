@@ -27,7 +27,7 @@ it('allows only supported local return destinations', () => {
   ])
     expect(safeAccountNext(unsafe)).toBe('/account');
 });
-it('requires a complete saved delivery address except for pickup', () => {
+it('requires a complete saved delivery address and rejects pickup', () => {
   const profile = {
     firstName: 'Tea',
     lastName: 'Buyer',
@@ -40,5 +40,5 @@ it('requires a complete saved delivery address except for pickup', () => {
   expect(
     profileFields.safeParse({ ...profile, delivery: { ...profile.delivery, method: 'PICKUP' } })
       .success,
-  ).toBe(true);
+  ).toBe(false);
 });

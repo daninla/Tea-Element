@@ -9,8 +9,20 @@ import { DeliveryProvider, type Parcel } from '../domain/delivery-provider';
 import { OrderError, QuoteProvider } from '../domain/order-store';
 import { validateOrderQuote } from '../domain/order-policy';
 
+const packageFields = {
+  DELIVERY_BOX_LENGTH_CM: 120,
+  DELIVERY_BOX_WIDTH_CM: 120,
+  DELIVERY_BOX_HEIGHT_CM: 120,
+  DELIVERY_PACKAGING_GRAMS: 10_000,
+  DELIVERY_BOX_MAX_GRAMS: 30_000,
+} as const;
+
+function configuredInteger(value: string | undefined, max: number) {
+  return !!value && /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= max;
+}
+
 function positiveInteger(value: string | undefined, max: number) {
-  if (!value || !/^\d+$/.test(value) || Number(value) < 1 || Number(value) > max)
+  if (!configuredInteger(value, max))
     throw new OrderError('DELIVERY_PACKAGING_REQUIRED', 'Parcel configuration unavailable', 503);
   return Number(value);
 }
@@ -24,7 +36,15 @@ export class CheckoutDelivery {
   async execute(input: DeliveryRequest, correlationId: string) {
     switch (input.kind) {
       case 'CARRIERS':
-        return this.provider.available();
+        return this.provider
+          .available()
+          .filter(
+            (carrier) =>
+              carrier !== 'UKRPOSHTA' ||
+              Object.entries(packageFields).every(([key, max]) =>
+                configuredInteger(process.env[key], max),
+              ),
+          );
       case 'REGIONS':
         return this.provider.regions();
       case 'CITIES':
@@ -46,7 +66,7 @@ export class CheckoutDelivery {
     paymentMethod: CreateOrderInput['paymentMethod'],
   ) {
     const env = process.env;
-    const limit = positiveInteger(env.DELIVERY_BOX_MAX_GRAMS, 30_000);
+    const limit = positiveInteger(env.DELIVERY_BOX_MAX_GRAMS, packageFields.DELIVERY_BOX_MAX_GRAMS);
     const branchPacking =
       selection.carrier === 'NOVA_POSHTA' && env.NOVA_POSHTA_BRANCH_PACKING === 'true';
     const goodsWeight = quote.items.reduce(
@@ -56,7 +76,10 @@ export class CheckoutDelivery {
       0,
     );
     const weight =
-      goodsWeight + (branchPacking ? 0 : positiveInteger(env.DELIVERY_PACKAGING_GRAMS, 10_000));
+      goodsWeight +
+      (branchPacking
+        ? 0
+        : positiveInteger(env.DELIVERY_PACKAGING_GRAMS, packageFields.DELIVERY_PACKAGING_GRAMS));
     if (weight > limit)
       throw new OrderError('DELIVERY_PARCEL_TOO_HEAVY', 'Choose another delivery method', 400);
     const common = { value: quote.total, cod: paymentMethod === 'CASH_ON_DELIVERY' };
@@ -65,9 +88,9 @@ export class CheckoutDelivery {
       : {
           ...common,
           weight,
-          length: positiveInteger(env.DELIVERY_BOX_LENGTH_CM, 120),
-          width: positiveInteger(env.DELIVERY_BOX_WIDTH_CM, 120),
-          height: positiveInteger(env.DELIVERY_BOX_HEIGHT_CM, 120),
+          length: positiveInteger(env.DELIVERY_BOX_LENGTH_CM, packageFields.DELIVERY_BOX_LENGTH_CM),
+          width: positiveInteger(env.DELIVERY_BOX_WIDTH_CM, packageFields.DELIVERY_BOX_WIDTH_CM),
+          height: positiveInteger(env.DELIVERY_BOX_HEIGHT_CM, packageFields.DELIVERY_BOX_HEIGHT_CM),
         };
     const rate = await this.provider.rate(selection, parcel);
     if (!Number.isSafeInteger(rate.fee) || rate.fee < 0 || rate.fee + quote.total > 2147483647)

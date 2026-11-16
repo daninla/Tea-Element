@@ -1,5 +1,4 @@
 import { catalogHref } from './catalog-query';
-import { FilterReset } from './filter-reset';
 import type { CatalogQuery, CategoryView } from '@tea/contracts';
 import { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
@@ -110,12 +109,9 @@ export async function FilterForm({
         </select>
       </div>
       <Button type="submit">{t(query.section === 'EQUIPMENT' ? 'applyProducts' : 'apply')}</Button>
-      <FilterReset
-        href={query.section === 'ALL' ? '/catalog?section=ALL' : action}
-        className="filter-reset"
-      >
+      <a href={query.section === 'ALL' ? '/catalog?section=ALL' : action} className="filter-reset">
         {common('reset')}
-      </FilterReset>
+      </a>
     </form>
   );
 }

@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { catalogApi } from '@/lib/api/catalog';
 import { getCategories } from '@/lib/api/server-catalog';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { FilterForm } from './filter-form';
 import { FilterDrawer } from './filter-drawer';
 import { ProductCard } from './product-card';
@@ -127,27 +127,29 @@ export async function CatalogPage({
           {result && result.totalPages > 1 && result.items.length > 0 && (
             <nav className="pagination" aria-label={t('pagination')}>
               {result.page > 1 ? (
-                <Button variant="outline" asChild>
-                  <Link href={catalogHref(query, result.page - 1)}>
-                    <span className="pagination-arrow" aria-hidden="true">
-                      <ArrowLeft size={20} strokeWidth={2.6} />
-                    </span>
-                    {t('previous')}
-                  </Link>
-                </Button>
+                <a
+                  className={buttonVariants({ variant: 'outline' })}
+                  href={catalogHref(query, result.page - 1)}
+                >
+                  <span className="pagination-arrow" aria-hidden="true">
+                    <ArrowLeft size={20} strokeWidth={2.6} />
+                  </span>
+                  {t('previous')}
+                </a>
               ) : (
                 <span />
               )}
               <span>{t('page', { page: result.page, total: result.totalPages })}</span>
               {result.page < result.totalPages ? (
-                <Button variant="outline" asChild>
-                  <Link href={catalogHref(query, result.page + 1)}>
-                    {t('next')}
-                    <span className="pagination-arrow" aria-hidden="true">
-                      <ArrowRight size={20} strokeWidth={2.6} />
-                    </span>
-                  </Link>
-                </Button>
+                <a
+                  className={buttonVariants({ variant: 'outline' })}
+                  href={catalogHref(query, result.page + 1)}
+                >
+                  {t('next')}
+                  <span className="pagination-arrow" aria-hidden="true">
+                    <ArrowRight size={20} strokeWidth={2.6} />
+                  </span>
+                </a>
               ) : (
                 <span />
               )}

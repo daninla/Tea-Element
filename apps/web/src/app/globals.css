@@ -23,6 +23,9 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 24px;
 }
+html:has(.catalog-section) {
+  scroll-behavior: auto;
+}
 body {
   margin: 0;
   color: var(--foreground);
@@ -121,8 +124,17 @@ img {
   padding: 8px 16px;
 }
 .site-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--background);
+  background: var(--primary-ink);
+  color: var(--on-dark);
+}
+.site-header .brand-symbol,
+.site-header .account-link,
+.site-header .cart-trigger {
+  color: inherit;
+}
+.site-header :focus-visible:not(.search-results *),
+.site-header .header-search:focus-within {
+  outline-color: var(--on-dark);
 }
 .header-main {
   display: flex;
@@ -166,14 +178,12 @@ img {
 }
 .category-nav a {
   white-space: nowrap;
-  color: var(--muted);
-  transition: color 180ms;
+  text-underline-offset: 4px;
 }
 .category-nav a:hover {
-  color: var(--foreground);
+  text-decoration: underline;
 }
 .category-nav a:first-child {
-  color: var(--primary-ink);
   font-weight: 600;
 }
 .category-nav .ritual-link {
@@ -184,6 +194,8 @@ img {
 }
 .header-search {
   display: flex;
+  background: var(--surface);
+  color: var(--foreground);
   border: 1px solid var(--field-border);
   border-radius: 7px;
   padding-inline: 10px;
@@ -197,6 +209,9 @@ img {
   padding: 8px 0;
   font-size: 12px;
 }
+.header-search input:focus-visible {
+  outline: none;
+}
 .header-search input::placeholder {
   color: var(--muted);
 }
@@ -207,6 +222,7 @@ img {
   color: var(--primary-ink);
 }
 .search-results {
+  color: var(--foreground);
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
@@ -889,7 +905,7 @@ img {
 }
 .filter-sidebar h2 {
   font-family: var(--font-inter), Arial, sans-serif;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 26px;
 }
@@ -905,7 +921,10 @@ img {
 }
 .filter-form label,
 .filter-form legend {
-  font-size: 11px;
+  font-size: 15px;
+}
+.filter-form :is(.input, .select, .button) {
+  font-size: 16px;
 }
 .filter-form fieldset {
   min-width: 0;
@@ -937,9 +956,11 @@ img {
   height: 16px;
 }
 .filter-reset {
-  text-align: center;
-  color: var(--muted);
-  font-size: 11px;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  color: var(--primary-ink);
+  font-size: 15px;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -1760,7 +1781,6 @@ img {
 }
 
 .equipment-nav-link {
-  color: var(--primary-ink);
   font-weight: 600;
 }
 .equipment-feature {

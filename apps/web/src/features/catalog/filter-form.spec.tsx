@@ -1,24 +1,9 @@
 /** @jest-environment jsdom */
-import { act, type ComponentProps } from 'react';
+import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { CatalogQuery, CategoryView } from '@tea/contracts';
 import { FilterForm } from './filter-form';
 jest.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }));
-jest.mock('next/link', () => ({
-  __esModule: true,
-  default: ({ children, onClick, ...props }: ComponentProps<'a'>) => (
-    <a
-      {...props}
-      href={props.href ?? '/catalog'}
-      onClick={(event) => {
-        onClick?.(event);
-        event.preventDefault();
-      }}
-    >
-      {children}
-    </a>
-  ),
-}));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const categories: CategoryView[] = ['oolong', 'puer'].map((slug) => ({
   id: slug,
@@ -58,16 +43,18 @@ describe('catalog filter navigation regression', () => {
     expect(field<HTMLSelectElement>('sort').value).toBe('price_asc');
     expect(field<HTMLInputElement>('onSale').checked).toBe(false);
   });
-  it('clears an unapplied draft even when reset points to the current URL', async () => {
-    await render({ section: 'TEA' });
-    field<HTMLInputElement>('q').value = 'Габа';
-    field<HTMLSelectElement>('sort').value = 'price_desc';
-    field<HTMLInputElement>('inStock').checked = true;
-    act(() => container.querySelector<HTMLAnchorElement>('.filter-reset')!.click());
-    expect(field<HTMLInputElement>('q').value).toBe('');
-    expect(field<HTMLSelectElement>('sort').value).toBe('newest');
-    expect(field<HTMLInputElement>('inStock').checked).toBe(false);
-  });
+  it.each([
+    ['TEA', '/catalog'],
+    ['EQUIPMENT', '/teaware'],
+    ['ALL', '/catalog?section=ALL'],
+  ] as const)(
+    'links to an unfiltered %s catalog regardless of draft or applied filters',
+    async (section, href) => {
+      await render({ section, q: 'Габа', page: 2, onSale: true });
+      field<HTMLInputElement>('q').value = 'Зелений';
+      expect(container.querySelector('.filter-reset')?.getAttribute('href')).toBe(href);
+    },
+  );
   it('restores a filtered URL and then the unfiltered URL without leaking old controls', async () => {
     await render({
       section: 'ALL',

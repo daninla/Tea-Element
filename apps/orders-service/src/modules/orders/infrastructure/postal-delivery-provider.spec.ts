@@ -97,6 +97,39 @@ it('uses the string pagination required by the live Nova Poshta city API', async
   ]);
 });
 
+it('searches a locker by number across the carrier directory and supports later pages', async () => {
+  process.env = { ...env, NOVA_POSHTA_API_KEY: 'fixture', NOVA_POSHTA_SENDER_CITY_REF: sender };
+  const fetcher = jest
+    .spyOn(global, 'fetch')
+    .mockResolvedValueOnce(
+      Response.json({
+        success: true,
+        data: [
+          {
+            Ref: point,
+            CityRef: recipient,
+            Number: '1655',
+            CategoryOfWarehouse: 'Postomat',
+            Description: 'Поштомат Нова Пошта №1655: вул. Прикладна, 12',
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(Response.json({ success: true, data: [] }));
+  const provider = new PostalDeliveryProvider();
+  await expect(provider.points('NOVA_POSHTA', recipient, 'Поштомат №1655')).resolves.toMatchObject([
+    { id: point, number: '1655', kind: 'LOCKER' },
+  ]);
+  await provider.points('NOVA_POSHTA', recipient, undefined, 2);
+  expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)).methodProperties).toMatchObject({
+    FindByString: '1655',
+    Page: 1,
+  });
+  expect(JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)).methodProperties).toMatchObject({
+    Page: 2,
+  });
+});
+
 it('quotes Ukrposhta using the selected postcode, without treating its card terminal as a locker', async () => {
   process.env = {
     ...env,

@@ -69,7 +69,7 @@ export type DeliveryRequest =
   | { kind: 'CARRIERS' }
   | { kind: 'REGIONS'; carrier: 'UKRPOSHTA' }
   | { kind: 'CITIES'; carrier: DeliveryCarrier; query: string; regionId?: string }
-  | { kind: 'POINTS'; carrier: DeliveryCarrier; cityId: string; query?: string }
+  | { kind: 'POINTS'; carrier: DeliveryCarrier; cityId: string; query?: string; page?: number }
   | {
       kind: 'QUOTE';
       selection: DeliverySelection;

@@ -31,6 +31,7 @@ export const deliveryRequest = z.discriminatedUnion('kind', [
       carrier,
       cityId: z.string().min(1).max(64),
       query: z.string().trim().max(100).optional(),
+      page: z.number().int().min(1).max(100).optional(),
     })
     .strict(),
   z

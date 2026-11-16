@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/features/cart/cart-store';
 import { useCartQuote } from '@/features/cart/use-cart-quote';
 import { rememberAccess } from '@/features/payments/private-access';
+import type { DeliveryCarrier } from '@tea/contracts';
 import { checkoutDeliveryApi } from '@/lib/api/checkout-delivery';
 import { DeliveryPointFields } from './delivery-point-fields';
 import { checkoutSchema, type CheckoutFields } from './checkout-schema';
@@ -26,6 +27,7 @@ export function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const busy = useRef(false);
+  const [carrier, setCarrier] = useState<DeliveryCarrier>('NOVA_POSHTA');
   const [review, setReview] = useState(false);
   const session = useQuery({ queryKey: ['customer-session'], queryFn: ordersApi.me, retry: false });
   const form = useForm<CheckoutFields>({
@@ -35,7 +37,7 @@ export function CheckoutPage() {
       lastName: '',
       phone: '+380',
       email: '',
-      delivery: { method: 'NOVA_POSHTA_BRANCH', city: '', address: '' },
+      delivery: { method: 'CARRIER_POINT', city: '', address: '' },
       paymentMethod: 'CASH_ON_DELIVERY',
       comment: '',
       marketingConsent: false,
@@ -61,8 +63,9 @@ export function CheckoutPage() {
     if (session.data) {
       for (const field of ['firstName', 'lastName', 'phone', 'email'] as const)
         if (!form.getFieldState(field).isDirty) form.setValue(field, session.data[field] ?? '');
-      if (session.data.defaultDelivery && !form.getFieldState('delivery').isDirty)
-        form.setValue('delivery', session.data.defaultDelivery);
+      const saved = session.data.defaultDelivery;
+      if (saved && saved.method !== 'NOVA_POSHTA_BRANCH' && !form.getFieldState('delivery').isDirty)
+        form.setValue('delivery', saved);
     }
   }, [session.data, form]);
   async function submit(fields: CheckoutFields) {
@@ -202,20 +205,44 @@ export function CheckoutPage() {
             <label className="commerce-field">
               {t('deliveryMethod')}
               <select
-                {...form.register('delivery.method', {
-                  onChange: () => form.setValue('delivery.selection', undefined),
-                })}
+                value={method === 'CARRIER_POINT' ? carrier : method}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === 'NOVA_POSHTA' || value === 'UKRPOSHTA') {
+                    setCarrier(value);
+                    form.setValue(
+                      'delivery',
+                      { method: 'CARRIER_POINT', city: '', address: '' },
+                      { shouldDirty: true },
+                    );
+                  } else if (value === 'PICKUP' || value === 'NOVA_POSHTA_COURIER') {
+                    form.setValue(
+                      'delivery',
+                      { method: value, city: '', address: '' },
+                      { shouldDirty: true },
+                    );
+                  }
+                }}
               >
-                {!!carriers.data?.length && <option value="CARRIER_POINT">{dt('method')}</option>}
-                <option value="NOVA_POSHTA_BRANCH">{t('branch')}</option>
+                <option value="NOVA_POSHTA">{dt('NOVA_POSHTA')}</option>
+                {carriers.data?.includes('UKRPOSHTA') && (
+                  <option value="UKRPOSHTA">{dt('UKRPOSHTA')}</option>
+                )}
                 <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
                 <option value="PICKUP">{t('pickup')}</option>
               </select>
             </label>
-            {carriers.isError && <p role="alert">{dt('lookupError')}</p>}
-            {method === 'CARRIER_POINT' && carriers.data?.length ? (
+            {method === 'CARRIER_POINT' &&
+              (carriers.isPending ? (
+                <p role="status">{dt('loading')}</p>
+              ) : !carriers.data?.includes(carrier) ? (
+                <p role="status">{dt('lookupError')}</p>
+              ) : null)}
+            {method === 'CARRIER_POINT' ? (
               <DeliveryPointFields
-                carriers={carriers.data}
+                key={carrier}
+                carrier={carrier}
+                available={!!carriers.data?.includes(carrier)}
                 change={(value) =>
                   form.setValue('delivery.selection', value, { shouldDirty: true })
                 }
@@ -353,7 +380,9 @@ export function CheckoutPage() {
                   </p>
                 )}
                 <p className="cart-grand-total">
-                  <span>{cartT('total')}</span>
+                  <span>
+                    {method === 'CARRIER_POINT' ? dt('totalWithDelivery') : cartT('total')}
+                  </span>
                   <strong>
                     {method === 'CARRIER_POINT'
                       ? deliveryQuote.data && !deliveryQuote.isFetching && !deliveryQuote.isError

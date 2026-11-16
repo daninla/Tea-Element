@@ -152,6 +152,7 @@ export class PostalDeliveryProvider extends DeliveryProvider {
     cityId: string,
     query?: string,
     pointId?: string,
+    page = 1,
   ) {
     if (!this.available().includes(carrier)) return unavailable();
     if (
@@ -165,7 +166,7 @@ export class PostalDeliveryProvider extends DeliveryProvider {
         CityRef: cityId,
         ...(pointId ? { Ref: pointId } : query ? { FindByString: query } : {}),
         Limit: 100,
-        Page: 1,
+        Page: page,
       });
     const [region, locality] = cityId.split(':') as [string, string];
     return (
@@ -180,8 +181,10 @@ export class PostalDeliveryProvider extends DeliveryProvider {
   }
   private readonly novaPoints = new Map<string, { row: Row; expiresAt: number }>();
 
-  async points(carrier: DeliveryCarrier, cityId: string, query?: string) {
-    const rows = await this.pointRows(carrier, cityId, query);
+  async points(carrier: DeliveryCarrier, cityId: string, query?: string, page = 1) {
+    const search = query?.replace(/^(?:(?:відділення|поштомат)\s*)?№?\s*(\d+)$/iu, '$1');
+    const rows = await this.pointRows(carrier, cityId, search, undefined, page);
+    const start = carrier === 'UKRPOSHTA' ? (page - 1) * 100 : 0;
     const points = rows
       .map((row) => ({ row, point: this.point(carrier, row) }))
       .filter(
@@ -189,11 +192,16 @@ export class PostalDeliveryProvider extends DeliveryProvider {
           point.id &&
           point.number &&
           point.address &&
-          (!query ||
-            (point.number + ' ' + point.address).toLowerCase().includes(query.toLowerCase())),
+          (carrier === 'NOVA_POSHTA' ||
+            !search ||
+            (point.number + ' ' + point.address).toLowerCase().includes(search.toLowerCase())),
       )
-      .sort((a, b) => a.point.number.localeCompare(b.point.number, 'uk', { numeric: true }))
-      .slice(0, 100);
+      .sort(
+        (a, b) =>
+          Number(b.point.number === search) - Number(a.point.number === search) ||
+          a.point.number.localeCompare(b.point.number, 'uk', { numeric: true }),
+      )
+      .slice(start, start + 100);
     if (carrier === 'NOVA_POSHTA') {
       for (const { row, point } of points) {
         if (text(row.CityRef) !== cityId) continue;

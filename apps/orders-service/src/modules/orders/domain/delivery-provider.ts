@@ -21,6 +21,7 @@ export abstract class DeliveryProvider {
     carrier: DeliveryCarrier,
     cityId: string,
     query?: string,
+    page?: number,
   ): Promise<DeliveryPoint[]>;
   abstract rate(
     selection: DeliverySelection,

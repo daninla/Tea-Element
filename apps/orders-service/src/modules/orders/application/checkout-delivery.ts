@@ -30,7 +30,7 @@ export class CheckoutDelivery {
       case 'CITIES':
         return this.provider.cities(input.carrier, input.query, input.regionId);
       case 'POINTS':
-        return this.provider.points(input.carrier, input.cityId, input.query);
+        return this.provider.points(input.carrier, input.cityId, input.query, input.page);
       case 'QUOTE': {
         const quote = await this.catalog.quote(input.items, correlationId);
         validateOrderQuote(quote, input.items);

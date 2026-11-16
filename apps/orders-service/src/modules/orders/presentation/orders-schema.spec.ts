@@ -12,6 +12,18 @@ const input = {
   acceptTerms: true,
 };
 describe('order boundary validation', () => {
+  it('accepts a manual Ukrposhta branch and preserves leading zeros', () => {
+    const delivery = { method: 'UKRPOSHTA_BRANCH', city: ' Запоріжжя ', address: ' 00109 ' };
+    expect(createInput.parse({ ...input, delivery }).delivery).toEqual({
+      ...delivery,
+      city: 'Запоріжжя',
+      address: '00109',
+    });
+  });
+  it.each(['', '№19', '19a'])('rejects an invalid Ukrposhta branch number %j', (address) => {
+    const delivery = { method: 'UKRPOSHTA_BRANCH', city: 'Запоріжжя', address };
+    expect(createInput.safeParse({ ...input, delivery }).success).toBe(false);
+  });
   it('normalizes contacts without requiring an account', () => {
     expect(createInput.parse(input)).toMatchObject({
       firstName: 'Test',

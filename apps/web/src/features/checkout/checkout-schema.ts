@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DELIVERY_CARRIERS } from '@tea/contracts';
+import { DELIVERY_CARRIERS, UKRPOSHTA_BRANCH_NUMBER } from '@tea/contracts';
 export const checkoutSchema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
@@ -7,7 +7,12 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email().max(320),
   delivery: z
     .object({
-      method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'CARRIER_POINT']),
+      method: z.enum([
+        'NOVA_POSHTA_BRANCH',
+        'NOVA_POSHTA_COURIER',
+        'CARRIER_POINT',
+        'UKRPOSHTA_BRANCH',
+      ]),
       city: z.string().trim().max(100),
       address: z.string().trim().max(300),
       selection: z
@@ -25,7 +30,11 @@ export const checkoutSchema = z.object({
       } else {
         if (x.city.length < 2)
           ctx.addIssue({ code: 'custom', path: ['city'], message: 'required' });
-        if (x.address.length < 2)
+        if (
+          x.method === 'UKRPOSHTA_BRANCH'
+            ? !UKRPOSHTA_BRANCH_NUMBER.test(x.address)
+            : x.address.length < 2
+        )
           ctx.addIssue({ code: 'custom', path: ['address'], message: 'required' });
       }
     }),

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import type { DeliveryCarrier, DeliverySelection } from '@tea/contracts';
+import type { DeliverySelection } from '@tea/contracts';
 import { checkoutDeliveryApi } from '@/lib/api/checkout-delivery';
 import { DeliverySuggestions } from './delivery-suggestions';
 
@@ -16,32 +16,24 @@ function useSearchText(value: string) {
 }
 
 export function DeliveryPointFields({
-  carrier,
   available,
   change,
 }: {
-  carrier: DeliveryCarrier;
   available: boolean;
   change: (value: DeliverySelection | undefined) => void;
 }) {
   const t = useTranslations('checkoutDelivery');
-  const [region, setRegion] = useState('');
+  const carrier = 'NOVA_POSHTA';
   const [cityText, setCityText] = useState('');
   const [cityId, setCityId] = useState('');
   const [pointText, setPointText] = useState('');
   const [pointId, setPointId] = useState('');
   const cityQuery = useSearchText(cityText);
   const pointQuery = useSearchText(pointText);
-  const regions = useQuery({
-    queryKey: ['delivery-regions'],
-    queryFn: checkoutDeliveryApi.regions,
-    enabled: available && carrier === 'UKRPOSHTA',
-    retry: false,
-  });
   const cities = useQuery({
-    queryKey: ['delivery-cities', carrier, cityQuery, region],
-    queryFn: () => checkoutDeliveryApi.cities(carrier, cityQuery, region || undefined),
-    enabled: available && !cityId && cityQuery.length >= 2 && (carrier !== 'UKRPOSHTA' || !!region),
+    queryKey: ['delivery-cities', carrier, cityQuery],
+    queryFn: () => checkoutDeliveryApi.cities(carrier, cityQuery),
+    enabled: available && !cityId && cityQuery.length >= 2,
     retry: false,
   });
   const points = useInfiniteQuery({
@@ -67,7 +59,7 @@ export function DeliveryPointFields({
             point.id,
             {
               id: point.id,
-              label: carrier === 'UKRPOSHTA' ? point.number + ' · ' + point.address : point.address,
+              label: point.address,
             },
           ]),
         ).values(),
@@ -80,25 +72,6 @@ export function DeliveryPointFields({
   }
   return (
     <div className="delivery-fields">
-      {carrier === 'UKRPOSHTA' && (
-        <label className="commerce-field">
-          {t('region')}
-          <select
-            value={region}
-            onChange={(event) => {
-              setRegion(event.target.value);
-              clearCity();
-            }}
-          >
-            <option value="">{t(regions.isFetching ? 'loading' : 'choose')}</option>
-            {regions.data?.map((r) => (
-              <option value={r.id} key={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       <DeliverySuggestions
         label={t('city')}
         value={cityText}

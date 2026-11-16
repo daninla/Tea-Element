@@ -90,6 +90,7 @@ export function PortionSelector({
           )}
           <Button
             variant="outline"
+            className="purchase-add"
             disabled={!variant.inStock}
             onClick={() => {
               add(variant.id, quantity);

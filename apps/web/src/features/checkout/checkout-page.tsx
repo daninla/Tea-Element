@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/features/cart/cart-store';
 import { useCartQuote } from '@/features/cart/use-cart-quote';
 import { rememberAccess } from '@/features/payments/private-access';
-import type { CartItemInput, DeliveryCarrier } from '@tea/contracts';
+import type { CartItemInput } from '@tea/contracts';
 import { checkoutDeliveryApi } from '@/lib/api/checkout-delivery';
 import { DeliveryPointFields } from './delivery-point-fields';
 import { checkoutSchema, type CheckoutFields } from './checkout-schema';
@@ -28,7 +28,6 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const busy = useRef(false);
-  const [carrier, setCarrier] = useState<DeliveryCarrier>('NOVA_POSHTA');
   const [review, setReview] = useState(false);
   const session = useQuery({ queryKey: ['customer-session'], queryFn: ordersApi.me, retry: false });
   const form = useForm<CheckoutFields>({
@@ -51,6 +50,7 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
   const carriers = useQuery({
     queryKey: ['delivery-carriers'],
     queryFn: checkoutDeliveryApi.carriers,
+    enabled: method === 'CARRIER_POINT',
     retry: false,
   });
   const deliveryQuote = useQuery({
@@ -209,45 +209,35 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
             <label className="commerce-field">
               {t('deliveryMethod')}
               <select
-                value={method === 'CARRIER_POINT' ? carrier : method}
+                value={method}
                 onChange={(event) => {
                   const value = event.target.value;
-                  if (value === 'NOVA_POSHTA' || value === 'UKRPOSHTA') {
-                    setCarrier(value);
-                    form.setValue(
-                      'delivery',
-                      { method: 'CARRIER_POINT', city: '', address: '' },
-                      { shouldDirty: true },
-                    );
-                  } else if (value === 'NOVA_POSHTA_COURIER') {
+                  if (
+                    value === 'CARRIER_POINT' ||
+                    value === 'UKRPOSHTA_BRANCH' ||
+                    value === 'NOVA_POSHTA_COURIER'
+                  )
                     form.setValue(
                       'delivery',
                       { method: value, city: '', address: '' },
                       { shouldDirty: true },
                     );
-                  }
                 }}
               >
-                <option value="NOVA_POSHTA">{dt('NOVA_POSHTA')}</option>
-                <option value="UKRPOSHTA" disabled={!carriers.data?.includes('UKRPOSHTA')}>
-                  {carriers.data?.includes('UKRPOSHTA')
-                    ? dt('UKRPOSHTA')
-                    : dt('ukrposhtaUnavailable')}
-                </option>
+                <option value="CARRIER_POINT">{dt('NOVA_POSHTA')}</option>
+                <option value="UKRPOSHTA_BRANCH">{dt('UKRPOSHTA')}</option>
                 <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
               </select>
             </label>
             {method === 'CARRIER_POINT' &&
               (carriers.isPending ? (
                 <p role="status">{dt('loading')}</p>
-              ) : !carriers.data?.includes(carrier) ? (
+              ) : !carriers.data?.includes('NOVA_POSHTA') ? (
                 <p role="status">{dt('lookupError')}</p>
               ) : null)}
             {method === 'CARRIER_POINT' ? (
               <DeliveryPointFields
-                key={carrier}
-                carrier={carrier}
-                available={!!carriers.data?.includes(carrier)}
+                available={!!carriers.data?.includes('NOVA_POSHTA')}
                 change={(value) =>
                   form.setValue('delivery.selection', value, { shouldDirty: true })
                 }
@@ -264,9 +254,15 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
                   {errorFor(!!form.formState.errors.delivery?.city)}
                 </label>
                 <label className="commerce-field">
-                  {method === 'NOVA_POSHTA_BRANCH' ? t('branchAddress') : t('streetAddress')}
+                  {method === 'UKRPOSHTA_BRANCH'
+                    ? dt('branchNumber')
+                    : method === 'NOVA_POSHTA_BRANCH'
+                      ? t('branchAddress')
+                      : t('streetAddress')}
                   <input
                     {...form.register('delivery.address')}
+                    inputMode={method === 'UKRPOSHTA_BRANCH' ? 'numeric' : undefined}
+                    maxLength={method === 'UKRPOSHTA_BRANCH' ? 10 : 300}
                     aria-invalid={!!form.formState.errors.delivery?.address}
                   />
                   {errorFor(!!form.formState.errors.delivery?.address)}
@@ -395,7 +391,11 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
                   </strong>
                 </p>
                 <small>
-                  {method === 'CARRIER_POINT' ? dt('estimateNote') : cartT('deliveryNote')}
+                  {method === 'CARRIER_POINT'
+                    ? dt('estimateNote')
+                    : method === 'UKRPOSHTA_BRANCH'
+                      ? dt('manualFeeNote')
+                      : cartT('deliveryNote')}
                 </small>
               </div>
               {invalidStock && (

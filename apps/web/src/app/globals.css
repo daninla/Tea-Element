@@ -1147,6 +1147,18 @@ img {
   line-height: 1.9;
   font-size: 13px;
 }
+.tea-description {
+  margin-block: 42px;
+}
+.tea-description h2 {
+  font-size: clamp(32px, 4vw, 44px);
+  margin-bottom: 12px;
+}
+.tea-description p {
+  max-width: 70ch;
+  font-size: 16px;
+  white-space: pre-line;
+}
 .portion-selector {
   border-block: 1px solid var(--border);
   padding-block: 24px;
@@ -1546,6 +1558,10 @@ img {
 }
 .purchase-actions .button {
   flex: 1 1 auto;
+}
+.purchase-actions .purchase-add {
+  border-color: var(--primary-ink);
+  color: var(--primary-ink);
 }
 .purchase-controls label {
   font-size: 13px;

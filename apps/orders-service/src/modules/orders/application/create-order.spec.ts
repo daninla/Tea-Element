@@ -48,6 +48,25 @@ describe('CreateOrder', () => {
     await new CreateOrder(store as unknown as OrderStore, catalog).execute(input, context);
     expect(store.create).toHaveBeenCalledWith(input, context, quote);
   });
+  it('stores a manual Ukrposhta branch without requesting a carrier rate', async () => {
+    const store = {
+      replay: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(created),
+    };
+    const catalog = { quote: jest.fn().mockResolvedValue(quote) };
+    const rate = jest.fn();
+    const delivery = { rate } as unknown as CheckoutDelivery;
+    const manual = {
+      ...input,
+      delivery: { method: 'UKRPOSHTA_BRANCH' as const, city: 'Запоріжжя', address: '00109' },
+    };
+    await new CreateOrder(store as unknown as OrderStore, catalog, delivery).execute(
+      manual,
+      context,
+    );
+    expect(rate).not.toHaveBeenCalled();
+    expect(store.create).toHaveBeenCalledWith(manual, context, quote);
+  });
   it('rejects a changed delivery-inclusive total before saving the order', async () => {
     const store = { replay: jest.fn().mockResolvedValue(null), create: jest.fn() };
     const catalog = { quote: jest.fn().mockResolvedValue(quote) };

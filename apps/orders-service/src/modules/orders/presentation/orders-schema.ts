@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DELIVERY_CARRIERS } from '@tea/contracts';
+import { DELIVERY_CARRIERS, UKRPOSHTA_BRANCH_NUMBER } from '@tea/contracts';
 const carrier = z.enum(DELIVERY_CARRIERS);
 const selection = z
   .object({ carrier, cityId: z.string().min(1).max(64), pointId: z.string().min(1).max(64) })
@@ -57,7 +57,13 @@ export const createInput = z
       .transform((x) => x.toLowerCase()),
     delivery: z
       .object({
-        method: z.enum(['NOVA_POSHTA_BRANCH', 'NOVA_POSHTA_COURIER', 'PICKUP', 'CARRIER_POINT']),
+        method: z.enum([
+          'NOVA_POSHTA_BRANCH',
+          'NOVA_POSHTA_COURIER',
+          'PICKUP',
+          'CARRIER_POINT',
+          'UKRPOSHTA_BRANCH',
+        ]),
         city: z.string().trim().max(100),
         address: z.string().trim().max(300),
         selection: selection.optional(),
@@ -67,7 +73,11 @@ export const createInput = z
         x.method === 'CARRIER_POINT'
           ? !!x.selection
           : !x.selection &&
-            (x.method === 'PICKUP' || (x.city.length >= 2 && x.address.length >= 2)),
+            (x.method === 'PICKUP' ||
+              (x.city.length >= 2 &&
+                (x.method === 'UKRPOSHTA_BRANCH'
+                  ? UKRPOSHTA_BRANCH_NUMBER.test(x.address)
+                  : x.address.length >= 2))),
       ),
     paymentMethod,
     expectedDeliveryTotal: z.number().int().min(0).max(2147483647).optional(),

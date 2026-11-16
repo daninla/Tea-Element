@@ -81,8 +81,9 @@ export interface DeliveryInput {
   city: string;
   address: string;
 }
+export const UKRPOSHTA_BRANCH_NUMBER = /^\d{1,10}$/;
 export interface OrderDeliveryInput extends Omit<DeliveryInput, 'method'> {
-  method: DeliveryInput['method'] | 'CARRIER_POINT';
+  method: DeliveryInput['method'] | 'CARRIER_POINT' | 'UKRPOSHTA_BRANCH';
   selection?: DeliverySelection;
 }
 export interface CreateOrderInput {

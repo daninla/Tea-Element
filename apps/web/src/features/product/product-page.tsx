@@ -25,6 +25,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
       </section>
     );
   }
+  const isTea = product.category.section !== 'EQUIPMENT';
   const related = await catalogApi
     .products({
       category: product.category.slug,
@@ -72,7 +73,7 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
           </p>
           <h1>{product.name}</h1>
           {product.nameOriginal && <p className="detail-original">{product.nameOriginal}</p>}
-          <p className="detail-description">{product.description}</p>
+          {!isTea && <p className="detail-description">{product.description}</p>}
           <PortionSelector variants={product.variants} initialWeight={weight} />
           <dl className="product-facts">
             <div>
@@ -92,6 +93,12 @@ export async function ProductPage({ slug, weight }: { slug: string; weight?: str
           </dl>
         </div>
       </div>
+      {isTea && product.description.trim() && (
+        <section className="tea-description" aria-labelledby="tea-description-heading">
+          <h2 id="tea-description-heading">{t('descriptionTitle')}</h2>
+          <p>{product.description}</p>
+        </section>
+      )}
       {product.brewingGuide && (
         <div className="brewing-panel">
           <div>

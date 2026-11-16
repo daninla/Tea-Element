@@ -11,6 +11,18 @@ const fields = {
   marketingConsent: false,
 };
 describe('guest checkout form', () => {
+  it('accepts a manual Ukrposhta branch and preserves leading zeros', () => {
+    const delivery = { method: 'UKRPOSHTA_BRANCH', city: ' Запоріжжя ', address: ' 00109 ' };
+    expect(checkoutSchema.parse({ ...fields, delivery }).delivery).toEqual({
+      ...delivery,
+      city: 'Запоріжжя',
+      address: '00109',
+    });
+  });
+  it.each(['', '№19', '19a'])('rejects an invalid Ukrposhta branch number %j', (address) => {
+    const delivery = { method: 'UKRPOSHTA_BRANCH', city: 'Запоріжжя', address };
+    expect(checkoutSchema.safeParse({ ...fields, delivery }).success).toBe(false);
+  });
   it('works without a user ID or marketing consent', () => {
     expect(checkoutSchema.safeParse(fields).success).toBe(true);
   });

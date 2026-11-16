@@ -17,7 +17,8 @@ export async function clearPrivateSession(client: QueryClient) {
           key.startsWith('tea-inventory-command:') ||
           key.startsWith('tea-catalog-command:') ||
           key.startsWith('tea-campaign-command:') ||
-          key === 'tea-checkout-attempt')
+          key === 'tea-checkout-attempt' ||
+          key === 'tea-buy-now-attempt')
       )
         sessionStorage.removeItem(key);
     }

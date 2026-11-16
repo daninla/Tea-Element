@@ -78,15 +78,27 @@ export function PortionSelector({
             setQuantity(Math.max(1, Math.min(99, Math.trunc(Number(e.target.value)) || 1)))
           }
         />
-        <Button
-          disabled={!variant.inStock}
-          onClick={() => {
-            add(variant.id, quantity);
-            setAdded(true);
-          }}
-        >
-          {cartT('add')}
-        </Button>
+        <div className="purchase-actions">
+          {variant.inStock ? (
+            <Button asChild>
+              <Link href={{ pathname: '/checkout', query: { variant: variant.id, quantity } }}>
+                {t('buyNow')}
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled>{t('buyNow')}</Button>
+          )}
+          <Button
+            variant="outline"
+            disabled={!variant.inStock}
+            onClick={() => {
+              add(variant.id, quantity);
+              setAdded(true);
+            }}
+          >
+            {cartT('add')}
+          </Button>
+        </div>
       </div>
       {added && (
         <p className="added-notice" role="status">

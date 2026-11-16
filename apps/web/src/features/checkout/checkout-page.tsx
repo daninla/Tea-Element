@@ -12,18 +12,19 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/features/cart/cart-store';
 import { useCartQuote } from '@/features/cart/use-cart-quote';
 import { rememberAccess } from '@/features/payments/private-access';
-import type { DeliveryCarrier } from '@tea/contracts';
+import type { CartItemInput, DeliveryCarrier } from '@tea/contracts';
 import { checkoutDeliveryApi } from '@/lib/api/checkout-delivery';
 import { DeliveryPointFields } from './delivery-point-fields';
 import { checkoutSchema, type CheckoutFields } from './checkout-schema';
 import { checkoutAttempt, fingerprintOrder } from './checkout-attempt';
-export function CheckoutPage() {
+export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] }) {
   const t = useTranslations('checkout');
   const dt = useTranslations('checkoutDelivery');
   const cartT = useTranslations('cart');
   const router = useRouter();
-  const quote = useCartQuote();
-  const cart = useCart();
+  const quote = useCartQuote(directItems);
+  const checkoutItems = quote.items;
+  const attemptKey = directItems ? 'tea-buy-now-attempt' : 'tea-checkout-attempt';
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const busy = useRef(false);
@@ -53,10 +54,10 @@ export function CheckoutPage() {
     retry: false,
   });
   const deliveryQuote = useQuery({
-    queryKey: ['delivery-quote', selection, cart.items, paymentMethod, quote.data?.total],
+    queryKey: ['delivery-quote', selection, checkoutItems, paymentMethod, quote.data?.total],
     queryFn: () =>
-      checkoutDeliveryApi.quote({ selection: selection!, items: cart.items, paymentMethod }),
-    enabled: method === 'CARRIER_POINT' && !!selection && cart.items.length > 0 && !!quote.data,
+      checkoutDeliveryApi.quote({ selection: selection!, items: checkoutItems, paymentMethod }),
+    enabled: method === 'CARRIER_POINT' && !!selection && checkoutItems.length > 0 && !!quote.data,
     retry: false,
   });
   useEffect(() => {
@@ -83,7 +84,7 @@ export function CheckoutPage() {
     busy.current = true;
     setLocked(true);
     setError(null);
-    const items = useCart.getState().items;
+    const items = directItems ?? useCart.getState().items;
     try {
       const fresh = await ordersApi.quote(items);
       if (fresh.unavailableVariantIds.length || fresh.items.some((x) => !x.inStock)) {
@@ -111,24 +112,23 @@ export function CheckoutPage() {
         ...(method === 'CARRIER_POINT' ? { expectedDeliveryTotal: deliveryQuote.data!.total } : {}),
       };
       const fingerprint = await fingerprintOrder(input);
-      const { key } = checkoutAttempt(
-        fingerprint,
-        sessionStorage.getItem('tea-checkout-attempt'),
-        () => crypto.randomUUID(),
+      const { key } = checkoutAttempt(fingerprint, sessionStorage.getItem(attemptKey), () =>
+        crypto.randomUUID(),
       );
-      sessionStorage.setItem('tea-checkout-attempt', JSON.stringify({ key, fingerprint }));
+      sessionStorage.setItem(attemptKey, JSON.stringify({ key, fingerprint }));
       const created = await ordersApi.create(input, key, !!session.data);
       rememberAccess(sessionStorage, created.order.number, created.accessToken);
       // Preserve any portions added in another tab while the request was in flight.
       const current = useCart.getState().items;
-      if (JSON.stringify(current) === JSON.stringify(items)) cart.clear();
-      sessionStorage.removeItem('tea-checkout-attempt');
+      if (!directItems && JSON.stringify(current) === JSON.stringify(items))
+        useCart.getState().clear();
+      sessionStorage.removeItem(attemptKey);
       router.replace(
         `/order/${created.order.number}${created.order.paymentMethod === 'ONLINE_CARD' ? '/pay' : ''}?token=${encodeURIComponent(created.accessToken)}`,
       );
     } catch (e) {
       if (e instanceof OrdersApiError && e.code === 'DELIVERY_PRICE_CHANGED') {
-        sessionStorage.removeItem('tea-checkout-attempt');
+        sessionStorage.removeItem(attemptKey);
         await Promise.all([quote.refetch(), deliveryQuote.refetch()]);
         setError(dt('priceChanged'));
         return;
@@ -155,7 +155,7 @@ export function CheckoutPage() {
     return (
       <section className="container commerce-page">
         <h1>{t('title')}</h1>
-        <p>{cartT('emptyText')}</p>
+        <p>{directItems ? t('directInvalid') : cartT('emptyText')}</p>
         <Link href="/catalog" className="text-link">
           {cartT('explore')}
         </Link>

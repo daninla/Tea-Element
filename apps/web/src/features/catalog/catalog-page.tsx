@@ -129,7 +129,9 @@ export async function CatalogPage({
               {result.page > 1 ? (
                 <Button variant="outline" asChild>
                   <Link href={catalogHref(query, result.page - 1)}>
-                    <ArrowLeft size={15} aria-hidden="true" />
+                    <span className="pagination-arrow" aria-hidden="true">
+                      <ArrowLeft size={20} strokeWidth={2.6} />
+                    </span>
                     {t('previous')}
                   </Link>
                 </Button>
@@ -141,7 +143,9 @@ export async function CatalogPage({
                 <Button variant="outline" asChild>
                   <Link href={catalogHref(query, result.page + 1)}>
                     {t('next')}
-                    <ArrowRight size={15} aria-hidden="true" />
+                    <span className="pagination-arrow" aria-hidden="true">
+                      <ArrowRight size={20} strokeWidth={2.6} />
+                    </span>
                   </Link>
                 </Button>
               ) : (

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { CartItemInput } from '@tea/contracts';
 import { ordersApi } from '@/lib/api/orders';
 import { useCart } from './cart-store';
 import { useMounted } from './use-mounted';
-export function useCartQuote() {
-  const items = useCart((s) => s.items);
+export function useCartQuote(directItems?: CartItemInput[]) {
+  const cartItems = useCart((s) => s.items);
+  const items = directItems ?? cartItems;
   const mounted = useMounted();
   const previous = useRef<string | null>(null);
   const [changed, setChanged] = useState(false);

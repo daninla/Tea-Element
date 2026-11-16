@@ -9,6 +9,7 @@
   --accent: #c9a66b;
   --sale: #c8553d;
   --border: #e8e4da;
+  --field-border: #89897b;
   --primary-ink: #48634a;
   --sale-ink: #a43e2b;
   --soft-sage: #eef1e9;
@@ -183,7 +184,9 @@ img {
 }
 .header-search {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--field-border);
+  border-radius: 7px;
+  padding-inline: 10px;
   align-items: center;
 }
 .header-search input {
@@ -289,7 +292,7 @@ img {
 .input,
 .select {
   width: 100%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   background: var(--surface);
   border-radius: 6px;
   min-height: 44px;
@@ -962,6 +965,16 @@ img {
 .mobile-filter-trigger {
   display: none;
 }
+.pagination-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-ink);
+  color: var(--on-dark);
+  flex-shrink: 0;
+}
 .pagination {
   display: flex;
   justify-content: space-between;
@@ -1032,7 +1045,7 @@ img {
   }
   .pagination .button {
     padding: 10px 12px;
-    min-height: 40px;
+    min-height: 44px;
     font-size: 11px;
   }
   .pagination > span {
@@ -1504,13 +1517,22 @@ img {
   gap: 13px;
   margin-top: 24px;
 }
+.purchase-actions {
+  flex: 1 1 230px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.purchase-actions .button {
+  flex: 1 1 auto;
+}
 .purchase-controls label {
   font-size: 13px;
 }
 .purchase-controls input {
   width: 66px;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: 6px;
   background: var(--surface);
   font: inherit;
@@ -1558,7 +1580,7 @@ img {
 .commerce-field textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: 7px;
   padding: 13px 12px;
   background: var(--surface);
@@ -2488,4 +2510,12 @@ img {
 .delivery-suggestion-menu p {
   padding: 0.25rem 0.5rem;
   margin: 0;
+}
+
+.header-search:focus-within,
+.input:focus-visible,
+.select:focus-visible,
+.commerce-field :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--primary-ink);
+  outline-offset: 2px;
 }

@@ -1639,6 +1639,20 @@ img {
   border-radius: 7px;
   font-size: 14px;
 }
+.delivery-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px 18px;
+}
+.delivery-methods .button {
+  padding: 10px 14px;
+  border-color: var(--primary-ink);
+  font-size: 14px;
+}
+.delivery-methods .button[aria-pressed='true'] {
+  background: var(--soft-sage);
+}
 .checkout-grid fieldset > .muted-copy {
   margin: 12px 0 22px;
 }

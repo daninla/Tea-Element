@@ -11,7 +11,6 @@ function delivery<T>(input: DeliveryRequest) {
   return request<T>('/orders/delivery', 'POST', input);
 }
 export const checkoutDeliveryApi = {
-  carriers: () => delivery<DeliveryCarrier[]>({ kind: 'CARRIERS' }),
   cities: (carrier: DeliveryCarrier, query: string, regionId?: string) =>
     delivery<DeliveryCity[]>({ kind: 'CITIES', carrier, query, regionId }),
   points: (carrier: DeliveryCarrier, cityId: string, query: string, page: number) =>

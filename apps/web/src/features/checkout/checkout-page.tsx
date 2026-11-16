@@ -44,15 +44,8 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
       acceptTerms: false,
     },
   });
-  const method = form.watch('delivery.method');
-  const selection = form.watch('delivery.selection');
+  const { method, selection } = form.watch('delivery');
   const paymentMethod = form.watch('paymentMethod');
-  const carriers = useQuery({
-    queryKey: ['delivery-carriers'],
-    queryFn: checkoutDeliveryApi.carriers,
-    enabled: method === 'CARRIER_POINT',
-    retry: false,
-  });
   const deliveryQuote = useQuery({
     queryKey: ['delivery-quote', selection, checkoutItems, paymentMethod, quote.data?.total],
     queryFn: () =>
@@ -206,38 +199,35 @@ export function CheckoutPage({ directItems }: { directItems?: CartItemInput[] })
           </fieldset>
           <fieldset disabled={locked}>
             <legend>{t('delivery')}</legend>
-            <label className="commerce-field">
-              {t('deliveryMethod')}
-              <select
-                value={method}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (
-                    value === 'CARRIER_POINT' ||
-                    value === 'UKRPOSHTA_BRANCH' ||
-                    value === 'NOVA_POSHTA_COURIER'
-                  )
-                    form.setValue(
-                      'delivery',
-                      { method: value, city: '', address: '' },
-                      { shouldDirty: true },
-                    );
-                }}
-              >
-                <option value="CARRIER_POINT">{dt('NOVA_POSHTA')}</option>
-                <option value="UKRPOSHTA_BRANCH">{dt('UKRPOSHTA')}</option>
-                <option value="NOVA_POSHTA_COURIER">{t('courier')}</option>
-              </select>
-            </label>
-            {method === 'CARRIER_POINT' &&
-              (carriers.isPending ? (
-                <p role="status">{dt('loading')}</p>
-              ) : !carriers.data?.includes('NOVA_POSHTA') ? (
-                <p role="status">{dt('lookupError')}</p>
-              ) : null)}
+            <div className="delivery-methods" role="group" aria-label={t('deliveryMethod')}>
+              {(
+                [
+                  ['CARRIER_POINT', dt('NOVA_POSHTA')],
+                  ['UKRPOSHTA_BRANCH', dt('UKRPOSHTA')],
+                  ['NOVA_POSHTA_COURIER', t('courier')],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant="outline"
+                  aria-pressed={method === value}
+                  onClick={() => {
+                    if (method !== value) {
+                      form.setValue(
+                        'delivery',
+                        { method: value, city: '', address: '' },
+                        { shouldDirty: true },
+                      );
+                    }
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
             {method === 'CARRIER_POINT' ? (
               <DeliveryPointFields
-                available={!!carriers.data?.includes('NOVA_POSHTA')}
                 change={(value) =>
                   form.setValue('delivery.selection', value, { shouldDirty: true })
                 }

@@ -16,10 +16,8 @@ function useSearchText(value: string) {
 }
 
 export function DeliveryPointFields({
-  available,
   change,
 }: {
-  available: boolean;
   change: (value: DeliverySelection | undefined) => void;
 }) {
   const t = useTranslations('checkoutDelivery');
@@ -33,18 +31,17 @@ export function DeliveryPointFields({
   const cities = useQuery({
     queryKey: ['delivery-cities', carrier, cityQuery],
     queryFn: () => checkoutDeliveryApi.cities(carrier, cityQuery),
-    enabled: available && !cityId && cityQuery.length >= 2,
+    enabled: !cityId && cityQuery.length >= 2,
     retry: false,
   });
   const points = useInfiniteQuery({
     queryKey: ['delivery-points', carrier, cityId, pointQuery],
     queryFn: ({ pageParam }) => checkoutDeliveryApi.points(carrier, cityId, pointQuery, pageParam),
-    enabled: available && !!cityId && !pointId && pointQuery === pointText.trim(),
+    enabled: !!cityId && !pointId && pointQuery === pointText.trim(),
     initialPageParam: 1,
     getNextPageParam: (last, _all, page) =>
       last.length === 100 && page < 100 ? page + 1 : undefined,
-    retry: 1,
-    retryDelay: 1200,
+    retry: false,
     staleTime: 30_000,
   });
   const cityReady = cityQuery === cityText.trim() && cityQuery.length >= 2;

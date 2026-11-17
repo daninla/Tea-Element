@@ -1,5 +1,8 @@
 # Orders service
 
+Set `ORDER_OWNER_EMAIL` to send one new-order alert to the owner through the existing SMTP queue.
+Alerts link to the authenticated admin order detail. See ADR 0026.
+
 ## Fulfillment emails (stage 6.11)
 
 ADMIN shipment and completion enqueue Ukrainian HTML/text notifications to the immutable order email

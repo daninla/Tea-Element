@@ -34,6 +34,7 @@ const env = {
   ORDERS_RPC_QUEUE: `${namespace}.orders.rpc`,
   RABBITMQ_URL: 'amqp://tea:tea_dev@localhost:5672',
   SMTP_URL: 'smtp://localhost:1025',
+  ORDER_OWNER_EMAIL: `owner-${tag}@example.test`,
   WEB_URL: 'http://localhost:3000',
 };
 const compose = ['compose', '-f', 'infra/docker-compose.yml', 'exec', '-T', 'postgres'];
@@ -360,6 +361,27 @@ try {
   }, 'transactional email');
   const mail = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
   assert.ok(mail.messages.some((x) => x.Subject.includes(created.order.number)));
+
+  const ownerNoticeFilter = { orderId: created.order.id, kind: 'OWNER_NEW_ORDER' };
+  await waitFor(async () => {
+    const notice = await orders.orderPaymentNotice.findFirst({ where: ownerNoticeFilter });
+    return notice?.status === 'SENT';
+  }, 'owner email accepted by SMTP');
+  assert.equal(await orders.orderPaymentNotice.count({ where: ownerNoticeFilter }), 1);
+  const ownerMail = await waitFor(async () => {
+    const { messages } = await (await fetch('http://127.0.0.1:8025/api/v1/messages')).json();
+    return messages.find((x) => x.Subject === `Нове замовлення · ${created.order.number}`);
+  }, 'owner email captured in Mailpit');
+  assert.deepEqual(
+    ownerMail.To.map((x) => x.Address),
+    [env.ORDER_OWNER_EMAIL],
+  );
+  const ownerMessage = await (
+    await fetch(`http://127.0.0.1:8025/api/v1/message/${ownerMail.ID}`)
+  ).json();
+  assert.ok(ownerMessage.Text.includes(`/admin/orders/${created.order.id}`));
+  assert.ok(!ownerMessage.Text.includes(created.accessToken));
+  assert.ok(!ownerMessage.Text.includes(body.email));
 
   const gaiwan = await catalog.product.findUniqueOrThrow({
     where: { slug: 'porcelain-gaiwan' },
@@ -1005,7 +1027,9 @@ try {
     0,
   );
   assert.equal(
-    await orders.orderPaymentNotice.count({ where: { orderId: fulfillment.order.id } }),
+    await orders.orderPaymentNotice.count({
+      where: { orderId: fulfillment.order.id, kind: 'SHIPPED' },
+    }),
     0,
   );
   assert.equal(
@@ -1207,7 +1231,7 @@ try {
     );
   }
   const fulfillmentNotices = await orders.orderPaymentNotice.findMany({
-    where: { orderId: fulfillment.order.id },
+    where: { orderId: fulfillment.order.id, kind: { in: ['SHIPPED', 'COMPLETED'] } },
   });
   assert.equal(fulfillmentNotices.length, 2);
   assert.ok(fulfillmentNotices.every((x) => x.paymentId === null && x.amount === completed.total));

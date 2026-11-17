@@ -11,7 +11,7 @@ const notice = {
   amount: 101,
   currency: 'UAH',
   link: 'http://localhost/order/TE-demo?token=private&x="',
-} as PaymentNotice;
+} satisfies PaymentNotice;
 it('escapes HTML and formats integer kopecks without promising fulfillment', () => {
   const mail = paymentNoticeTemplate(notice);
   expect(mail.html).not.toContain('<img');
@@ -47,3 +47,27 @@ it('thanks the buyer on completion without claiming a second payment', () => {
   expect(mail.html).toContain('&lt;img');
   expect(mail.html).toContain('Перевірити замовлення');
 });
+it.each([
+  [true, 'що оплату підтверджено'],
+  [false, 'що товар зарезервовано'],
+])(
+  'sends the owner an admin link and the right shipping instruction (online=%s)',
+  (online, instruction) => {
+    const link = 'https://shop.example/admin/orders/order-id';
+    const mail = paymentNoticeTemplate({
+      id: notice.id,
+      leaseId: notice.leaseId,
+      orderNumber: notice.orderNumber,
+      amount: notice.amount,
+      currency: notice.currency,
+      kind: 'OWNER_NEW_ORDER',
+      email: 'owner@example.test',
+      online,
+      link,
+    });
+    expect(mail.subject).toBe('Нове замовлення · TE-demo');
+    expect(mail.text).toContain(instruction);
+    expect(mail.html).toContain(link);
+    expect(mail.text).not.toContain('token=');
+  },
+);

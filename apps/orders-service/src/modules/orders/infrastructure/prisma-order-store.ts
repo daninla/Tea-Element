@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { enqueueOrderNotice } from '../../notifications/infrastructure/enqueue-order-notice';
 import { enqueuePaymentNotice } from '../../notifications/infrastructure/enqueue-payment-notice';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -146,6 +147,7 @@ export class PrismaOrderStore extends OrderStore {
         },
       };
       await this.event(tx, event);
+      if (readEnvironment().ORDER_OWNER_EMAIL) await enqueueOrderNotice(tx, row, 'OWNER_NEW_ORDER');
       return { order: view(row), accessToken: token };
     });
   }

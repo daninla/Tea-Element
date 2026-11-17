@@ -18,6 +18,10 @@ const schema = z.object({
     .default('postgresql://orders:tea_dev_orders@localhost:5433/orders_db'),
   SMTP_URL: z.string().url().default('smtp://localhost:1025'),
   SMTP_FROM_ADDRESS: z.string().email(),
+  ORDER_OWNER_EMAIL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().trim().email().optional(),
+  ),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4003),

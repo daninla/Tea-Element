@@ -6,13 +6,28 @@ function escape(value: string) {
   );
 }
 export function paymentNoticeTemplate(notice: PaymentNotice) {
+  const amount = `${Math.floor(notice.amount / 100)}.${String(notice.amount % 100).padStart(2, '0')} ${notice.currency}`;
+  if (notice.kind === 'OWNER_NEW_ORDER') {
+    const title = 'Нове замовлення';
+    const method = notice.online ? 'Онлайн-оплата' : 'Оплата при отриманні';
+    const next = notice.online
+      ? 'Перед відправленням перевірте в адмінці, що оплату підтверджено.'
+      : 'Перед відправленням перевірте в адмінці, що товар зарезервовано.';
+    return {
+      subject: `${title} · ${notice.orderNumber}`,
+      text: `${title}: ${notice.orderNumber}
+Сума замовлення: ${amount}
+${method}. ${next}
+Адмінка: ${notice.link}`,
+      html: `<h1>${title}</h1><p>${escape(notice.orderNumber)} · ${escape(amount)}</p><p>${method}. ${next}</p><p><a href="${escape(notice.link)}">Відкрити замовлення в адмінці</a></p>`,
+    };
+  }
   const title = {
     RECEIVED: 'Оплату отримано',
     REFUNDED: 'Повернення оплати підтверджено',
     SHIPPED: 'Замовлення відправлено',
     COMPLETED: 'Замовлення завершено',
   }[notice.kind];
-  const amount = `${Math.floor(notice.amount / 100)}.${String(notice.amount % 100).padStart(2, '0')} ${notice.currency}`;
   const description = {
     REFUNDED:
       'Платіжний провайдер підтвердив повне повернення цієї оплати. Час відображення коштів залежить від банку.',

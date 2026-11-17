@@ -1,8 +1,8 @@
 import type { Prisma } from '../../../../generated/prisma';
-export async function enqueueFulfillmentNotice(
+export async function enqueueOrderNotice(
   tx: Prisma.TransactionClient,
   order: { id: string; total: number },
-  kind: 'SHIPPED' | 'COMPLETED',
+  kind: 'SHIPPED' | 'COMPLETED' | 'OWNER_NEW_ORDER',
 ) {
   const dedupeKey = `order:${order.id}:${kind}`;
   await tx.orderPaymentNotice.upsert({

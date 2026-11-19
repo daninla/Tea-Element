@@ -8,7 +8,7 @@ import {
   type AdminDashboard,
   type DashboardDays,
 } from '@tea/contracts';
-import { ForwardOrders } from '../application/forward-orders';
+import { OrdersClient } from '../domain/orders-client';
 import { Roles, type AuthenticatedRequest } from '../../auth/presentation/auth-policy';
 class DashboardDto {
   @IsOptional() @Type(() => Number) @IsIn([1, 7, 30]) days?: DashboardDays;
@@ -16,14 +16,14 @@ class DashboardDto {
 @Controller('api/v1/admin/dashboard')
 @Roles(Role.ADMIN)
 export class AdminDashboardController {
-  constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  constructor(@Inject(OrdersClient) private readonly orders: OrdersClient) {}
   @Get() read(
     @Query() input: DashboardDto,
     @Req() request: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     response.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<AdminDashboard>(ADMIN_DASHBOARD_PATTERN, {
+    return this.orders.request<AdminDashboard>(ADMIN_DASHBOARD_PATTERN, {
       input: { days: input.days ?? 7 },
       context: {
         userId: request.user!.sub,

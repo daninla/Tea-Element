@@ -35,7 +35,7 @@ import {
   type AdminOrderDetail,
 } from '@tea/contracts';
 import { Roles, type AuthenticatedRequest } from '../../auth/presentation/auth-policy';
-import { ForwardOrders } from '../application/forward-orders';
+import { OrdersClient } from '../domain/orders-client';
 class AdminOrderFiltersDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000) page?: number;
   @IsOptional() @IsString() @MaxLength(100) q?: string;
@@ -61,7 +61,7 @@ class AdminOrderIdDto {
 @Roles(Role.ADMIN)
 export class AdminOrdersController {
   constructor(
-    @Inject(ForwardOrders) private readonly orders: ForwardOrders,
+    @Inject(OrdersClient) private readonly orders: OrdersClient,
     @Inject(ForwardCatalog) private readonly catalog: ForwardCatalog,
   ) {}
   @Get() list(
@@ -70,7 +70,7 @@ export class AdminOrdersController {
     @Res({ passthrough: true }) response: Response,
   ) {
     response.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<AdminOrderPage>(ADMIN_ORDERS_PATTERNS.list, {
+    return this.orders.request<AdminOrderPage>(ADMIN_ORDERS_PATTERNS.list, {
       input: { ...filters, page: filters.page ?? 1 },
       context: {
         userId: request.user!.sub,
@@ -85,7 +85,7 @@ export class AdminOrdersController {
     @Res({ passthrough: true }) response: Response,
   ) {
     response.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.detail, {
+    return this.orders.request<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.detail, {
       input: params,
       context: {
         userId: request.user!.sub,
@@ -102,7 +102,7 @@ export class AdminOrdersController {
     @Res({ passthrough: true }) response: Response,
   ) {
     response.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.transition, {
+    return this.orders.request<AdminOrderDetail>(ADMIN_ORDERS_PATTERNS.transition, {
       input: { ...input, id: params.id, key },
       context: {
         userId: request.user!.sub,

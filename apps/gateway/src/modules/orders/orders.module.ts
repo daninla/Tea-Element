@@ -7,7 +7,6 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { readEnvironment } from '../../config/environment';
 import { OrdersClient } from './domain/orders-client';
 import { RmqOrdersClient } from './infrastructure/rmq-orders-client';
-import { ForwardOrders } from './application/forward-orders';
 import { OrdersController, CartController } from './presentation/orders.controller';
 @Module({
   imports: [
@@ -34,6 +33,6 @@ import { OrdersController, CartController } from './presentation/orders.controll
     AdminDashboardController,
     CustomerOrdersController,
   ],
-  providers: [ForwardOrders, { provide: OrdersClient, useClass: RmqOrdersClient }],
+  providers: [{ provide: OrdersClient, useClass: RmqOrdersClient }],
 })
 export class OrdersModule {}

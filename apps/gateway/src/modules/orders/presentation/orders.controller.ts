@@ -25,7 +25,7 @@ import {
   OptionalAuth,
   type AuthenticatedRequest,
 } from '../../auth/presentation/auth-policy';
-import { ForwardOrders } from '../application/forward-orders';
+import { OrdersClient } from '../domain/orders-client';
 import {
   OrderLookupDto,
   OrderListDto,
@@ -37,9 +37,9 @@ import {
 } from './orders.dto';
 @Controller('api/v1/orders')
 export class OrdersController {
-  constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  constructor(@Inject(OrdersClient) private readonly orders: OrdersClient) {}
   @Get() list(@Query() q: OrderListDto, @Req() req: AuthenticatedRequest) {
-    return this.orders.execute<OrderPageView>(ORDERS_PATTERNS.list, {
+    return this.orders.request<OrderPageView>(ORDERS_PATTERNS.list, {
       input: { page: q.page ?? 1 },
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });
@@ -48,7 +48,7 @@ export class OrdersController {
     @Body() input: OrderLookupDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<{ accepted: true }>(ORDERS_PATTERNS.lookup, {
+    return this.orders.request<{ accepted: true }>(ORDERS_PATTERNS.lookup, {
       input,
       context: { correlationId: String(req.id) },
     });
@@ -58,7 +58,7 @@ export class OrdersController {
   @HttpCode(200)
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   checkoutDelivery(@Body() input: unknown, @Req() req: AuthenticatedRequest) {
-    return this.orders.execute(ORDERS_PATTERNS.delivery, {
+    return this.orders.request(ORDERS_PATTERNS.delivery, {
       input,
       context: { correlationId: String(req.id) },
     });
@@ -71,7 +71,7 @@ export class OrdersController {
     @Headers('idempotency-key') idempotencyKey: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<CreatedOrder>(ORDERS_PATTERNS.create, {
+    return this.orders.request<CreatedOrder>(ORDERS_PATTERNS.create, {
       input: { order, idempotencyKey },
       context: { correlationId: String(req.id) },
     });
@@ -83,7 +83,7 @@ export class OrdersController {
     @Headers('idempotency-key') idempotencyKey: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<CreatedOrder>(ORDERS_PATTERNS.create, {
+    return this.orders.request<CreatedOrder>(ORDERS_PATTERNS.create, {
       input: { order, idempotencyKey },
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });
@@ -97,7 +97,7 @@ export class OrdersController {
     @Query() query: OrderTokenDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<OrderView>(ORDERS_PATTERNS.get, {
+    return this.orders.request<OrderView>(ORDERS_PATTERNS.get, {
       input: { ...param, ...query },
       context: { correlationId: String(req.id), userId: req.user?.sub },
     });
@@ -112,7 +112,7 @@ export class OrdersController {
     @Headers('idempotency-key') key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<OrderView>(ORDERS_PATTERNS.changePayment, {
+    return this.orders.request<OrderView>(ORDERS_PATTERNS.changePayment, {
       input: {
         number: param.number,
         ...query,
@@ -131,7 +131,7 @@ export class OrdersController {
     @Query() query: OrderTokenDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<OrderView>(ORDERS_PATTERNS.cancel, {
+    return this.orders.request<OrderView>(ORDERS_PATTERNS.cancel, {
       input: { ...param, ...query },
       context: { correlationId: String(req.id), userId: req.user?.sub },
     });
@@ -139,25 +139,25 @@ export class OrdersController {
 }
 @Controller('api/v1/cart')
 export class CartController {
-  constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  constructor(@Inject(OrdersClient) private readonly orders: OrdersClient) {}
   @Public()
   @HttpCode(200)
   @Post('quote')
   @Throttle({ default: { limit: 120, ttl: 60000 } })
   quote(@Body() input: CartDto, @Req() req: AuthenticatedRequest) {
-    return this.orders.execute<CartQuote>(ORDERS_PATTERNS.quote, {
+    return this.orders.request<CartQuote>(ORDERS_PATTERNS.quote, {
       input,
       context: { correlationId: String(req.id) },
     });
   }
   @Get() get(@Req() req: AuthenticatedRequest) {
-    return this.orders.execute<CartItemInput[]>(ORDERS_PATTERNS.cart, {
+    return this.orders.request<CartItemInput[]>(ORDERS_PATTERNS.cart, {
       input: {},
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });
   }
   @Put() save(@Body() input: CartDto, @Req() req: AuthenticatedRequest) {
-    return this.orders.execute<CartItemInput[]>(ORDERS_PATTERNS.saveCart, {
+    return this.orders.request<CartItemInput[]>(ORDERS_PATTERNS.saveCart, {
       input,
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });
@@ -169,7 +169,7 @@ export class CartController {
     @Headers('idempotency-key') mergeKey: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.orders.execute<CartItemInput[]>(ORDERS_PATTERNS.mergeCart, {
+    return this.orders.request<CartItemInput[]>(ORDERS_PATTERNS.mergeCart, {
       input: { ...input, mergeKey },
       context: { correlationId: String(req.id), userId: req.user!.sub },
     });

@@ -187,10 +187,10 @@ Publisher отправляет сообщение в exchange с routing key. Bi
 
 ### RPC через NestJS
 
-[Ключевой файл и строка 13](../../apps/gateway/src/modules/orders/infrastructure/rmq-orders-client.ts#L13)
+[Ключевой файл и строка 14](../../apps/gateway/src/modules/orders/infrastructure/rmq-orders-client.ts#L14)
 
 ```ts
-return await firstValueFrom(
+result = await firstValueFrom(
   this.client.send<OrdersResult<T>, OrdersRequest<unknown>>(pattern, request).pipe(timeout(8000)),
 );
 ```
@@ -336,7 +336,7 @@ active предотвращает перекрывающиеся запуски 
 
 Эти механизмы полезно изучить дополнительно. Interceptor может обернуть handler измерением latency или нормализацией результата. Exception filter переводит исключение в формат HTTP/RPC. AsyncLocalStorage может хранить correlation context для вложенных вызовов.
 
-В текущем коде gateway часто получает типизированный OrdersResult и явно превращает error в HttpException в [ForwardOrders](../../apps/gateway/src/modules/orders/application/forward-orders.ts). Не следует говорить, что проект уже использует собственный глобальный interceptor/filter/ALS pipeline без соответствующей реализации. Для будущего общего слоя сначала определяют, как один контракт ошибок представляется в HTTP и RMQ.
+Контроллеры заказов напрямую вызывают OrdersClient. Его [RabbitMQ-адаптер](../../apps/gateway/src/modules/orders/infrastructure/rmq-orders-client.ts) распаковывает OrdersResult и превращает error в HttpException. Это привязывает обработку транспортного результата к HTTP-контексту gateway; сам интерфейс OrdersClient не импортирует NestJS. Не следует говорить, что проект уже использует собственный глобальный interceptor/filter/ALS pipeline без соответствующей реализации. Для будущего общего слоя сначала определяют, как один контракт ошибок представляется в HTTP и RMQ.
 
 ## Неочевидные решения и их цена
 

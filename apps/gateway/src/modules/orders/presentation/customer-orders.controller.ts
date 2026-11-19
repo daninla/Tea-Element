@@ -18,7 +18,7 @@ import {
   type CustomerHistory,
   type GuestCustomerPage,
 } from '@tea/contracts';
-import { ForwardOrders } from '../application/forward-orders';
+import { OrdersClient } from '../domain/orders-client';
 import { Roles, type AuthenticatedRequest } from '../../auth/presentation/auth-policy';
 class Filters {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000) page?: number;
@@ -42,14 +42,14 @@ function context(r: AuthenticatedRequest) {
 @Controller('api/v1/admin/customers')
 @Roles(Role.ADMIN)
 export class CustomerOrdersController {
-  constructor(@Inject(ForwardOrders) private readonly orders: ForwardOrders) {}
+  constructor(@Inject(OrdersClient) private readonly orders: OrdersClient) {}
   @Get('guests') list(
     @Query() x: Filters,
     @Req() r: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
     res.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<GuestCustomerPage>(ADMIN_CUSTOMERS_PATTERNS.orders, {
+    return this.orders.request<GuestCustomerPage>(ADMIN_CUSTOMERS_PATTERNS.orders, {
       input: { kind: 'GUESTS', page: x.page ?? 1, q: x.q },
       context: context(r),
     });
@@ -60,7 +60,7 @@ export class CustomerOrdersController {
     @Res({ passthrough: true }) res: Response,
   ) {
     res.setHeader('Cache-Control', 'no-store');
-    return this.orders.execute<CustomerHistory>(ADMIN_CUSTOMERS_PATTERNS.orders, {
+    return this.orders.request<CustomerHistory>(ADMIN_CUSTOMERS_PATTERNS.orders, {
       input: {
         kind: 'HISTORY',
         page: x.page ?? 1,

@@ -1,5 +1,9 @@
 # Gateway
 
+Order controllers inject OrdersClient directly. RmqOrdersClient unwraps the RPC result, maps business
+errors to their HTTP status and transport failures to 503. The previous ForwardOrders wrapper has
+been removed. The client port returns the unwrapped value.
+
 Stage 7.1: public POST `/api/v1/marketing/unsubscribe` forwards a strict signed-token body to marketing
 RPC. Trusted Origin, a 10/minute rate limit and no-store apply. No address/profile data is returned;
 GET does not unsubscribe. MARKETING_RPC_QUEUE supports isolated environments. See ADR 0023.

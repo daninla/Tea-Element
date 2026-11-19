@@ -386,3 +386,10 @@ the Russian architecture/code-reading/interview guide described in
 system-design patterns, per-service ER diagrams, technology tradeoffs, real caching behavior and
 a beginner-friendly explanation of the payment lifecycle and money flow. Do not treat planned
 patterns or unverified production capabilities as implemented.
+
+## Developer documentation 2026-11-19
+
+The Russian [project guide](project-guide/README.md) documents the current source at e057d3e,
+including per-service ownership, patterns, caching, five database diagrams with complete field dictionaries,
+checkout/payment failure scenarios, operational boundaries and interview preparation. It records that
+production SMTP, merchant acceptance and live LiqPay remain unverified or unimplemented as specified.

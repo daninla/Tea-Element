@@ -1,5 +1,7 @@
 # Tea Element / Чайний елемент
 
+[Документация разработчика на русском языке](docs/project-guide/README.md) — архитектура, все пять БД, платежи, эксплуатация и подготовка к собеседованию.
+
 Chinese tea storefront and microservices portfolio project, based on [SPEC.md](SPEC.md).
 The local release includes tea and teaware, guest and account checkout, simulated online payments,
 order fulfillment, administration and two consent-based email campaigns. For the remaining steps
